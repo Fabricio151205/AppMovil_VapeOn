@@ -9,7 +9,12 @@ import androidx.compose.ui.unit.dp
 
 
 @Composable
-fun LoginScreen(){
+fun LoginScreen(
+    irRegistro: () -> Unit,
+    irRecuperar: () -> Unit,
+    irHome: () -> Unit,
+    irAdmin: () -> Unit
+){
 
     var correo by remember {
         mutableStateOf("")
@@ -102,9 +107,19 @@ fun LoginScreen(){
         )
 
 
-        Text(
-            text = "¿Olvidaste tu contraseña?"
-        )
+        TextButton(
+            onClick = {
+
+                irRecuperar()
+
+            }
+        ){
+
+            Text(
+                text = "¿Olvidaste tu contraseña?"
+            )
+
+        }
 
 
         Spacer(
@@ -115,6 +130,10 @@ fun LoginScreen(){
         Button(
 
             onClick = {
+
+                if(correo == "admin@vapeon.com" && password == "1234"){
+                    irAdmin()
+                }
 
             },
 
@@ -134,10 +153,19 @@ fun LoginScreen(){
         )
 
 
-        Text(
-            text = "¿No tienes cuenta? Crear nuevo Usuario"
-        )
+        TextButton(
+            onClick = {
 
+                irRegistro()
+
+            }
+        ){
+
+            Text(
+                text = "¿No tienes cuenta? Crear nuevo Usuario"
+            )
+
+        }
 
     }
 

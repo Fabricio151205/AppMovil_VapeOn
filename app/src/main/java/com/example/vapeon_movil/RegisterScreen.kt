@@ -11,7 +11,9 @@ import androidx.compose.ui.unit.dp
 
 
 @Composable
-fun RegisterScreen(){
+fun RegisterScreen(
+    volverLogin: () -> Unit
+){
 
     var nombre by remember {
         mutableStateOf("")
@@ -206,8 +208,19 @@ fun RegisterScreen(){
             modifier = Modifier.height(20.dp)
         )
 
-        Text(
-            text = "¿Tienes una cuenta? Inicia Sesion Aquí"
-        )
+        TextButton(
+            onClick = {
+
+                volverLogin()
+
+            }
+        ){
+
+            Text(
+                text = "¿Tienes una cuenta? Inicia Sesion Aquí"
+            )
+
+        }
+
     }
 }

@@ -30,7 +30,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            CatalogoScreen()
+            VapeONApp()
         }
     }
 }
@@ -40,6 +40,6 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun GreetingPreview() {
     VapeON_MovilTheme {
-        LoginScreen()
+        VapeONApp()
     }
 }
