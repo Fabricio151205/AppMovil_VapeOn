@@ -17,9 +17,10 @@ import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AdminHomeScreen() {
-    val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
+fun CatalogoScreen() {
+    var producto by remember { mutableStateOf("") }
 
+    val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
 
     val opcionesMenu = listOf("Roles", "Catálogo", "Pedidos", "Pagos", "Clientes", "Proveedores")
@@ -30,21 +31,19 @@ fun AdminHomeScreen() {
             ModalDrawerSheet {
                 Spacer(modifier = Modifier.height(16.dp))
                 Text(
-                    text = "Menu VapeON",
+                    text = "🛠️ Panel VapeON",
                     style = MaterialTheme.typography.titleLarge,
                     modifier = Modifier.padding(16.dp)
                 )
                 HorizontalDivider()
                 Spacer(modifier = Modifier.height(8.dp))
 
-                // Generamos cada una de las opciones del menú
                 opcionesMenu.forEach { opcion ->
                     NavigationDrawerItem(
                         label = { Text(text = opcion) },
                         selected = false,
                         onClick = {
-                            // Aquí pones la acción para cuando den clic a cada opción
-                            scope.launch { drawerState.close() } // Cierra el menú al dar clic
+                            scope.launch { drawerState.close() }
                         },
                         modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
                     )
@@ -69,7 +68,6 @@ fun AdminHomeScreen() {
                 )
             }
         ) { paddingValues ->
-            // Contenido de tu pantalla principal (le añadimos scroll por si hay muchas imágenes)
             Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -77,11 +75,56 @@ fun AdminHomeScreen() {
                     .padding(16.dp)
                     .verticalScroll(rememberScrollState())
             ) {
-                Text(
-                    text = "HOME ADMINISTRADOR"
+                TextField(
+                    value = producto,
+                    onValueChange = { producto = it },
+                    label = { Text("Buscar Productos") },
+                    modifier = Modifier.fillMaxWidth()
                 )
-                Spacer(modifier = Modifier.padding(5.dp))
 
+                Spacer(modifier = Modifier.height(10.dp))
+
+                Button(onClick = { /* Acción para Todos */ }) {
+                    Text(text = "Todos")
+                }
+
+                Spacer(modifier = Modifier.height(15.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.Start,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(text = "LifePood", style = MaterialTheme.typography.titleMedium)
+                    IconButton(onClick = { /* Editar */ }) {
+                        Icon(imageVector = Icons.Default.Edit, contentDescription = "Editar")
+                    }
+                }
+
+                Image(
+                    painter = painterResource(id = R.drawable.logo_vapeon),
+                    contentDescription = "Logo de VapeON",
+                    modifier = Modifier.size(250.dp).align(Alignment.CenterHorizontally)
+                )
+
+                Spacer(modifier = Modifier.height(20.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.Start,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(text = "Oxbar", style = MaterialTheme.typography.titleMedium)
+                    IconButton(onClick = { /* Editar */ }) {
+                        Icon(imageVector = Icons.Default.Edit, contentDescription = "Editar")
+                    }
+                }
+
+                Image(
+                    painter = painterResource(id = R.drawable.logo_vapeon),
+                    contentDescription = "Logo de VapeON",
+                    modifier = Modifier.size(250.dp).align(Alignment.CenterHorizontally)
+                )
             }
         }
     }
