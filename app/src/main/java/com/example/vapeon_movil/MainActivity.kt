@@ -23,53 +23,18 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.unit.dp
+import com.example.vapeon_movil.Data.Models.RegisterScreen
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            LoginScreen()
+            RegisterScreen()
         }
     }
 }
 
-@Composable
-fun HomeScreen(){
-
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(20.dp),
-
-        horizontalAlignment = Alignment.CenterHorizontally,
-
-        verticalArrangement = Arrangement.Center
-    ){
-
-        Text(
-            text = "Bienvenido a VapeON"
-        )
-
-        Text(
-            text = "Pantalla principal"
-        )
-
-        Button(
-            onClick = {
-
-            }
-        ){
-
-            Text(
-                text = "Ver productos"
-            )
-
-        }
-
-    }
-
-}
 
 @Preview(showBackground = true)
 @Composable
