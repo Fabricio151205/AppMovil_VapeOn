@@ -1,68 +1,119 @@
 package com.example.vapeon_movil
 
-import android.service.autofill.OnClickAction
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Button
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextField
+import androidx.compose.foundation.layout.*
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.layout.Arrangement.Start
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
-import androidx.compose.ui.semantics.SemanticsActions.OnClick
-import androidx.compose.ui.unit.dp
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.ui.Alignment
-import androidx.compose.foundation.Image
-import androidx.compose.ui.res.painterResource
-import com.example.vapeon_movil.R
+import com.example.vapeon_movil.components.ProductCard
+
 
 @Composable
 fun HomeScreen(){
 
+    Column(
+
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(20.dp)
+
+    ){
+
+        Text(
+            text = "VapeON"
+        )
 
 
+        Spacer(
+            modifier = Modifier.height(20.dp)
+        )
 
 
-    // Column(
-        //modifier = Modifier
-            //.fillMaxSize()
-            //.padding(20.dp),
+        TextField(
 
-        //horizontalAlignment = Alignment.CenterHorizontally,
+            value = "",
 
-        //verticalArrangement = Arrangement.Center
-    //){
+            onValueChange = {},
 
-        //Text(
-            //text = "Bienvenido a VapeON"
-        //)
+            label = {
+                Text("Buscar productos")
+            },
 
-        //Text(
-            //text = "Pantalla principal"
-        //)
+            modifier = Modifier.fillMaxWidth()
 
-        //Button(
-            //onClick = {
+        )
 
+
+        Spacer(
+            modifier = Modifier.height(20.dp)
+        )
+
+
+        Text(
+            text = "Categorías"
+        )
+
+
+        Row(
+
+            modifier = Modifier.fillMaxWidth(),
+
+            horizontalArrangement = Arrangement.SpaceEvenly
+
+        ){
+
+            Button(
+                onClick = {}
+            ){
+                Text("Todos")
             }
-        //){
 
-            //Text(
-                //text = "Ver productos"
-            //)
 
-        //}
+            Button(
+                onClick = {}
+            ){
+                Text("Nuevos")
+            }
 
-    //}
-//}
+
+            Button(
+                onClick = {}
+            ){
+                Text("Promos")
+            }
+
+        }
+
+
+        Spacer(
+            modifier = Modifier.height(20.dp)
+        )
+
+
+        Text(
+            text = "Productos destacados"
+        )
+
+
+        ProductCard(
+            nombre = "LifePood",
+            precio = "S/80",
+            onClick = {
+                //aca abrimos detalle producto
+            }
+        )
+
+
+        ProductCard(
+            nombre = "Oxbar",
+            precio = "S/60",
+            onClick = {
+                //aca abrimos detalle producto
+            }
+        )
+
+
+    }
+
+}

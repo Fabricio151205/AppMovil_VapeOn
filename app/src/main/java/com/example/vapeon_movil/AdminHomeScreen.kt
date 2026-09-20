@@ -1,28 +1,38 @@
 package com.example.vapeon_movil
 
-import androidx.compose.foundation.Image
+
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AdminHomeScreen() {
+fun AdminHomeScreen(irCatalogo: () -> Unit) {
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
 
     val scope = rememberCoroutineScope()
 
-    val opcionesMenu = listOf("Roles", "Catálogo", "Pedidos", "Pagos", "Clientes", "Proveedores")
+    val opcionesMenu = listOf(
+
+        "Roles",
+        "Catálogo",
+        "Pedidos",
+        "Pagos",
+        "Clientes",
+        "Proveedores"
+
+    )
+
+
+    var pantallaAdmin by remember {
+        mutableStateOf("inicio")
+    }
 
     ModalNavigationDrawer(
         drawerState = drawerState,
@@ -43,6 +53,8 @@ fun AdminHomeScreen() {
                         label = { Text(text = opcion) },
                         selected = false,
                         onClick = {
+
+                            pantallaAdmin = opcion
                             // Aquí pones la acción para cuando den clic a cada opción
                             scope.launch { drawerState.close() } // Cierra el menú al dar clic
                         },
@@ -75,11 +87,47 @@ fun AdminHomeScreen() {
                     .fillMaxSize()
                     .padding(paddingValues)
                     .padding(16.dp)
-                    .verticalScroll(rememberScrollState())
+
             ) {
-                Text(
-                    text = "HOME ADMINISTRADOR"
-                )
+                when(pantallaAdmin){
+
+
+                    "Catálogo" -> {
+
+                            irCatalogo()
+
+
+
+
+
+                    }
+
+
+                    else -> {
+
+                        Column(
+
+                            modifier = Modifier.fillMaxSize(),
+
+                            horizontalAlignment = Alignment.CenterHorizontally,
+
+                            verticalArrangement = Arrangement.Center
+
+                        ){
+
+                            Text(
+                                text = "HOME ADMINISTRADOR"
+                            )
+
+                            Text(
+                                text = "Panel de gestión VapeON"
+                            )
+
+                        }
+
+                    }
+
+                }
                 Spacer(modifier = Modifier.padding(5.dp))
 
             }

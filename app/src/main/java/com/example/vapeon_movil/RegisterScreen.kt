@@ -1,8 +1,6 @@
-package com.example.vapeon_movil.Data.Models
+package com.example.vapeon_movil
 
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -43,50 +41,54 @@ fun RegisterScreen(
         mutableStateOf("")
     }
 
+
     Column(
+
         modifier = Modifier
             .fillMaxSize()
-            .padding(20.dp)
-            .verticalScroll(rememberScrollState()),
+            .padding(20.dp),
 
         horizontalAlignment = Alignment.CenterHorizontally,
+
         verticalArrangement = Arrangement.Center
 
-    ) {
-        Text(
-            text = "🔥 VAPEON",
-        )
+    ){
 
-        Spacer(
-            modifier = Modifier.height(20.dp)
-        )
 
         Text(
-            text = "REGISTRATE"
+            text = "REGISTRO VAPEON"
         )
 
+
         Text(
-            text = "Únete a la revolucion. Enciende tu experiencia"
+            text = "Únete a la revolución. Enciende tu experiencia"
         )
+
 
         Spacer(
             modifier = Modifier.height(30.dp)
         )
 
+
         TextField(
             value = nombre,
+
             onValueChange = {
                 nombre = it
             },
+
             label = {
                 Text("Tu Nombre")
             },
+
             modifier = Modifier.fillMaxWidth()
         )
+
 
         Spacer(
             modifier = Modifier.height(15.dp)
         )
+
 
         TextField(
 
@@ -105,108 +107,149 @@ fun RegisterScreen(
 
 
         Spacer(
-            modifier = Modifier.height(10.dp)
+            modifier = Modifier.height(15.dp)
         )
 
+
         TextField(
+
             value = correo,
+
             onValueChange = {
                 correo = it
             },
+
             label = {
                 Text("tu@correo.com")
             },
+
             modifier = Modifier.fillMaxWidth()
         )
+
 
         Spacer(
             modifier = Modifier.height(15.dp)
         )
 
+
         TextField(
+
             value = telefono,
+
             onValueChange = {
                 telefono = it
             },
+
             label = {
                 Text("987654321")
             },
+
             modifier = Modifier.fillMaxWidth()
         )
+
 
         Spacer(
             modifier = Modifier.height(15.dp)
         )
 
+
         TextField(
+
             value = fechaNacimiento,
+
             onValueChange = {
                 fechaNacimiento = it
             },
+
             label = {
                 Text("dd/mm/aaaa")
             },
+
             modifier = Modifier.fillMaxWidth()
         )
+
 
         Spacer(
             modifier = Modifier.height(15.dp)
         )
 
+
         TextField(
+
             value = password,
+
             onValueChange = {
                 password = it
             },
+
             label = {
-                Text("••••••••")
+                Text("Contraseña")
             },
+
             modifier = Modifier.fillMaxWidth()
+
         )
+
 
         Spacer(
             modifier = Modifier.height(15.dp)
         )
 
+
         TextField(
+
             value = passwordConfirm,
+
             onValueChange = {
                 passwordConfirm = it
             },
+
             label = {
-                Text("••••••••")
+                Text("Confirmar contraseña")
             },
+
             modifier = Modifier.fillMaxWidth()
+
         )
 
-        val estadoContrasena = if (passwordConfirm == password) "Las contraseñas coinciden"
-        else "Las contraseñas no coinciden"
 
         Spacer(
             modifier = Modifier.height(15.dp)
         )
+
+
+        val estadoContrasena =
+            if(passwordConfirm == password)
+                "Las contraseñas coinciden"
+            else
+                "Las contraseñas no coinciden"
+
 
         Text(
             text = estadoContrasena
         )
 
+
         Spacer(
             modifier = Modifier.height(20.dp)
         )
+
 
         Button(
             onClick = {
+
             },
+
             modifier = Modifier.fillMaxWidth()
+
         ){
+
             Text(
-                text = "REGISTRARSE"
+                text = "Crear cuenta"
             )
+
         }
 
-        Spacer(
-            modifier = Modifier.height(20.dp)
-        )
 
         TextButton(
             onClick = {
@@ -217,10 +260,13 @@ fun RegisterScreen(
         ){
 
             Text(
-                text = "¿Tienes una cuenta? Inicia Sesion Aquí"
+                text = "Ya tengo cuenta"
+
             )
 
         }
 
+
     }
+
 }

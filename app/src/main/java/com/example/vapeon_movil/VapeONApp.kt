@@ -2,16 +2,25 @@ package com.example.vapeon_movil
 
 
 import androidx.compose.runtime.*
-import androidx.compose.material3.*
-import com.example.vapeon_movil.Data.Models.RegisterScreen
 
 
 @Composable
 fun VapeONApp(){
 
+
     var pantallaActual by remember {
+
         mutableStateOf("login")
+
     }
+
+
+    var productoSeleccionado by remember {
+
+        mutableStateOf("")
+
+    }
+
 
 
     when(pantallaActual){
@@ -19,65 +28,147 @@ fun VapeONApp(){
 
         "login" -> {
 
+
             LoginScreen(
 
                 irRegistro = {
+
                     pantallaActual = "registro"
+
                 },
+
 
                 irRecuperar = {
+
                     pantallaActual = "recuperar"
+
                 },
+
 
                 irHome = {
+
                     pantallaActual = "home"
+
                 },
 
+
                 irAdmin = {
+
                     pantallaActual = "admin"
+
                 }
 
             )
 
+
         }
+
 
 
         "registro" -> {
 
+
             RegisterScreen(
+
                 volverLogin = {
 
                     pantallaActual = "login"
+
+                }
+
             )
 
+
         }
+
 
 
         "recuperar" -> {
 
+
             ForgotPasswordScreen(
+
                 volverLogin = {
 
                     pantallaActual = "login"
+
+                }
+
             )
 
+
         }
+
 
 
         "home" -> {
 
+
             HomeScreen()
 
+
         }
+
 
 
         "admin" -> {
 
-            AdminHomeScreen()
+
+            AdminHomeScreen(
+
+                irCatalogo = {
+
+                    pantallaActual = "catalogo"
+
+                }
+
+            )
+
 
         }
 
 
+
+        "catalogo" -> {
+
+
+            CatalogoScreen(
+
+                irDetalleProducto = {
+
+                        producto ->
+
+
+                    productoSeleccionado = producto
+
+
+                    pantallaActual = "detalle"
+
+
+                }
+
+            )
+
+
+        }
+
+
+
+        "detalle" -> {
+
+
+            DetalleProductoScreen(
+
+                nombreProducto = productoSeleccionado
+
+            )
+
+
+        }
+
+
+
     }
+
 
 }

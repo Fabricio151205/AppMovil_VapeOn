@@ -131,8 +131,10 @@ fun LoginScreen(
 
             onClick = {
 
-                if(correo == "admin@vapeon.com" && password == "1234"){
+                if(correo == "admin@vapeon.com" && password == "1234") {
                     irAdmin()
+                }else {(correo == "cliente@gmail.com" && password == "1234")
+                    irHome()
                 }
 
             },
