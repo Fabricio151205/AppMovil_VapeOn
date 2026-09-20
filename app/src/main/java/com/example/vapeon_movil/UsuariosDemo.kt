@@ -1,6 +1,6 @@
 package com.example.vapeon_movil
 
-import com.example.vapeon_movil.Data.Models.Usuario
+import com.example.vapeon_movil.entities.Usuario
 
 val usuarios = listOf(
 

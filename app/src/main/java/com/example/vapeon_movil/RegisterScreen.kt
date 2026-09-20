@@ -6,12 +6,23 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-
+import com.example.vapeon_movil.entities.Usuario
+import com.example.vapeon_movil.services.FirestoreFieldsContainer
+import com.example.vapeon_movil.services.FirestoreStringValue
+import com.example.vapeon_movil.services.UsuarioFields
+import com.example.vapeon_movil.utils.RetrofitClient
+import com.example.vapeon_movil.services.UsuarioService
+import kotlinx.coroutines.launch
 
 @Composable
 fun RegisterScreen(
     volverLogin: () -> Unit
 ){
+
+    val scope = rememberCoroutineScope()
+    val usuarioService = remember { 
+        RetrofitClient.retrofit.create(UsuarioService::class.java) 
+    }
 
     var nombre by remember {
         mutableStateOf("")
@@ -237,17 +248,39 @@ fun RegisterScreen(
 
         Button(
             onClick = {
+                if (password == passwordConfirm) {
 
+                    // Estructuramos el objeto según lo que pide la API REST de Firebase
+                    val usuarioFirebaseFormat = FirestoreFieldsContainer(
+                        fields = UsuarioFields(
+                            nombre = FirestoreStringValue(nombre),
+                            apellido = FirestoreStringValue(apellidos),
+                            telefono = FirestoreStringValue(telefono),
+                            fechaNacimiento = FirestoreStringValue(fechaNacimiento),
+                            correo = FirestoreStringValue(correo),
+                            password = FirestoreStringValue(password),
+                            rol = FirestoreStringValue("CLIENTE")
+                        )
+                    )
+
+                    // Ejecutamos la corrutina asíncrona estilo tu profesor
+                    scope.launch {
+                        try {
+                            // Consumimos el servicio de la API REST
+                            usuarioService.crearUsuario(usuarioFirebaseFormat)
+                            println("¡Usuario registrado exitosamente en la API REST de Firebase Firestore!")
+
+                            // Volvemos al Login
+                            volverLogin()
+                        } catch (e: Exception) {
+                            println("Error en la API REST de Firebase: ${e.localizedMessage}")
+                        }
+                    }
+                }
             },
-
             modifier = Modifier.fillMaxWidth()
-
-        ){
-
-            Text(
-                text = "Crear cuenta"
-            )
-
+        ) {
+            Text(text = "Crear cuenta")
         }
 
 
