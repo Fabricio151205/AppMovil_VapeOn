@@ -6,7 +6,9 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-
+import com.example.vapeon_movil.utils.RetrofitClient
+import com.example.vapeon_movil.services.UsuarioService
+import kotlinx.coroutines.launch
 
 @Composable
 fun LoginScreen(
@@ -16,6 +18,11 @@ fun LoginScreen(
     irAdmin: () -> Unit
 ){
 
+    val scope = rememberCoroutineScope()
+    val usuarioService = remember { 
+        RetrofitClient.retrofit.create(UsuarioService::class.java) 
+    }
+
     var correo by remember {
         mutableStateOf("")
     }
@@ -23,6 +30,10 @@ fun LoginScreen(
     var password by remember {
         mutableStateOf("")
     }
+
+    // Variable para manejar estados de error visibles en consola o textos
+    var mensajeError by remember { mutableStateOf("") }
+    var cargando by remember { mutableStateOf(false) }
 
 
     Column(
@@ -128,27 +139,59 @@ fun LoginScreen(
 
 
         Button(
-
             onClick = {
-
-                if(correo == "admin@vapeon.com" && password == "1234") {
+                if (correo == "admin@vapeon.com" && password == "1234") {
                     irAdmin()
-                }else {(correo == "cliente@gmail.com" && password == "1234")
-                    irHome()
+                } else {
+                    cargando = true
+                    mensajeError = ""
+
+                    scope.launch {
+                        try {
+                            val respuesta = usuarioService.listarUsuarios()
+                            val listaUsuarios = respuesta.documents
+
+                            val usuarioValido = listaUsuarios?.find { doc ->
+                                doc.fields.correo.stringValue == correo && 
+                                doc.fields.password.stringValue == password
+                            }
+
+                            cargando = false
+
+                            if (usuarioValido != null) {
+                                val rol = usuarioValido.fields.rol.stringValue
+                                if (rol == "ADMIN") {
+                                    irAdmin()
+                                } else {
+                                    irHome()
+                                }
+                            } else {
+                                mensajeError = "Correo o contraseña incorrectos"
+                                println(mensajeError)
+                            }
+
+                        } catch (e: Exception) {
+                            cargando = false
+                            mensajeError = "Error de conexión: ${e.localizedMessage}"
+                            println(mensajeError)
+                        }
+                    }
                 }
-
             },
-
+            enabled = !cargando,
             modifier = Modifier.fillMaxWidth()
-
-        ){
-
-            Text(
-                text = "INICIAR SESIÓN"
-            )
-
+        ) {
+            if (cargando) {
+                CircularProgressIndicator(modifier = Modifier.size(24.dp), color = MaterialTheme.colorScheme.onPrimary)
+            } else {
+                Text(text = "INICIAR SESIÓN")
+            }
         }
 
+        if (mensajeError.isNotEmpty()) {
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(text = mensajeError, color = MaterialTheme.colorScheme.error)
+        }
 
         Spacer(
             modifier = Modifier.height(20.dp)
