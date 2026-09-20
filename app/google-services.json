@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "382102305447",
+    "project_id": "dbvapeon",
+    "storage_bucket": "dbvapeon.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:382102305447:android:6e1dd7bc27dd0ae29d3982",
+        "android_client_info": {
+          "package_name": "com.example.vapeon_movil"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAxZVDuBtOBBA3SM0RskVrkfOqfiiTYOy0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

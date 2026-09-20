@@ -55,8 +55,8 @@ fun AdminHomeScreen(irCatalogo: () -> Unit) {
                         onClick = {
 
                             pantallaAdmin = opcion
-                            // Aquí pones la acción para cuando den clic a cada opción
-                            scope.launch { drawerState.close() } // Cierra el menú al dar clic
+
+                            scope.launch { drawerState.close() }
                         },
                         modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
                     )
@@ -81,7 +81,7 @@ fun AdminHomeScreen(irCatalogo: () -> Unit) {
                 )
             }
         ) { paddingValues ->
-            // Contenido de tu pantalla principal (le añadimos scroll por si hay muchas imágenes)
+
             Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -90,16 +90,8 @@ fun AdminHomeScreen(irCatalogo: () -> Unit) {
 
             ) {
                 when(pantallaAdmin){
-
-
                     "Catálogo" -> {
-
                             irCatalogo()
-
-
-
-
-
                     }
 
 
