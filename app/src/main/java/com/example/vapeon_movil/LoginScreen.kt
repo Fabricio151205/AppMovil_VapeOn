@@ -140,52 +140,108 @@ fun LoginScreen(
 
         Button(
             onClick = {
-                if (correo == "admin@vapeon.com" && password == "1234") {
-                    irAdmin()
-                } else {
-                    cargando = true
-                    mensajeError = ""
 
-                    scope.launch {
-                        try {
-                            val respuesta = usuarioService.listarUsuarios()
-                            val listaUsuarios = respuesta.documents
+                cargando = true
+                mensajeError = ""
 
-                            val usuarioValido = listaUsuarios?.find { doc ->
-                                doc.fields.correo.stringValue == correo && 
-                                doc.fields.password.stringValue == password
-                            }
+                scope.launch {
 
-                            cargando = false
+                    try {
 
-                            if (usuarioValido != null) {
-                                val rol = usuarioValido.fields.rol.stringValue
-                                if (rol == "ADMIN") {
-                                    irAdmin()
-                                } else {
-                                    irHome()
-                                }
-                            } else {
-                                mensajeError = "Correo o contraseña incorrectos"
-                                println(mensajeError)
-                            }
+                        val respuesta = usuarioService.listarUsuarios()
 
-                        } catch (e: Exception) {
-                            cargando = false
-                            mensajeError = "Error de conexión: ${e.localizedMessage}"
-                            println(mensajeError)
+                        val listaUsuarios = respuesta.documents
+
+
+                        val usuarioValido = listaUsuarios?.find { doc ->
+
+                            doc.fields.correo.stringValue == correo &&
+                                    doc.fields.password.stringValue == password
+
                         }
+
+
+                        cargando = false
+
+
+                        if (usuarioValido != null) {
+
+
+                            val rol = usuarioValido.fields.rol.stringValue
+
+
+                            if (rol == "ADMIN") {
+
+                                irAdmin()
+
+                            } else {
+
+                                irHome()
+
+                            }
+
+
+                        } else {
+
+
+                            mensajeError = "Correo o contraseña incorrectos"
+
+                            println(mensajeError)
+
+
+                        }
+
+
+                    } catch (e: Exception) {
+
+
+                        cargando = false
+
+
+                        mensajeError =
+                            "Error de conexión: ${e.localizedMessage}"
+
+
+                        println(mensajeError)
+
+
                     }
+
                 }
+
             },
+
+
             enabled = !cargando,
+
+
             modifier = Modifier.fillMaxWidth()
+
         ) {
+
+
             if (cargando) {
-                CircularProgressIndicator(modifier = Modifier.size(24.dp), color = MaterialTheme.colorScheme.onPrimary)
+
+
+                CircularProgressIndicator(
+
+                    modifier = Modifier.size(24.dp),
+
+                    color = MaterialTheme.colorScheme.onPrimary
+
+                )
+
+
             } else {
-                Text(text = "INICIAR SESIÓN")
+
+
+                Text(
+                    text = "INICIAR SESIÓN"
+                )
+
+
             }
+
         }
 
         if (mensajeError.isNotEmpty()) {

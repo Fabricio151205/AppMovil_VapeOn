@@ -7,7 +7,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.example.vapeon_movil.components.ProductCard
+import com.example.vapeon_movil.entities.Producto
 
 
 @Composable
@@ -15,12 +15,17 @@ fun MarcaSection(
 
     nombreMarca: String,
 
-    productos: List<String>,
+    productos: List<Producto>,
 
-    irDetalleProducto: (String) -> Unit
+    irDetalleProducto: (Producto) -> Unit,
+
+    esAdmin: Boolean = false,
+
+    eliminarProducto: (Producto) -> Unit = {},
+
+    editarProducto: (Producto) -> Unit = {}
 
 ){
-
 
     Column(
 
@@ -30,49 +35,56 @@ fun MarcaSection(
 
     ){
 
-
         Text(
-
             text = nombreMarca
-
         )
 
 
         Spacer(
-
             modifier = Modifier.height(10.dp)
-
         )
 
 
         LazyRow{
-
 
             items(productos){ producto ->
 
 
                 ProductCard(
 
-                    nombre = producto,
+                    nombre = producto.nombre,
 
-                    precio = "S/80",
+                    precio = "S/${producto.precio}",
+
+                    esAdmin = esAdmin,
 
                     onClick = {
+
                         irDetalleProducto(producto)
+
+                    },
+
+
+                    onEliminar = {
+
+                        eliminarProducto(producto)
+
+                    },
+
+
+                    onEditar = {
+
+                        editarProducto(producto)
+
                     }
-
-
 
                 )
 
 
             }
 
-
         }
 
-
     }
-
 
 }

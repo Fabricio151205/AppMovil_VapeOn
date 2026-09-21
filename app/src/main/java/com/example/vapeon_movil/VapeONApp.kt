@@ -2,6 +2,7 @@ package com.example.vapeon_movil
 
 
 import androidx.compose.runtime.*
+import com.example.vapeon_movil.entities.Producto
 
 
 @Composable
@@ -13,8 +14,11 @@ fun VapeONApp(){
     }
     var productoSeleccionado by remember {
 
-        mutableStateOf("")
+        mutableStateOf<Producto?>(null)
 
+    }
+    var productoEditar by remember {
+        mutableStateOf<Producto?>(null)
     }
     when(pantallaActual){
         "login" -> {
@@ -63,13 +67,59 @@ fun VapeONApp(){
                         producto ->
                     productoSeleccionado = producto
                     pantallaActual = "detalle"
+                },
+
+                esAdmin = true,
+                irAgregarProducto = {
+                    pantallaActual = "agregarProducto"
+                },
+
+                irEditarProducto = {
+
+                        producto ->
+
+                    productoEditar = producto
+
+                    pantallaActual = "editarProducto"
+
                 }
             )
         }
         "detalle" -> {
             DetalleProductoScreen(
-                nombreProducto = productoSeleccionado
+                producto = productoSeleccionado!!,
+                volver = {
+                    pantallaActual = "catalogo"
+                }
             )
+        }
+        "agregarProducto" -> {
+
+            AgregarProductoScreen(
+
+                volver = {
+
+                    pantallaActual = "catalogo"
+
+                }
+
+            )
+
+        }
+        "editarProducto" -> {
+
+            EditarProductoScreen(
+
+                producto = productoEditar!!,
+
+                volver = {
+
+                    pantallaActual = "catalogo"
+
+                }
+
+            )
+
         }
     }
 }

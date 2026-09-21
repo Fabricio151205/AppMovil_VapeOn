@@ -8,28 +8,112 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.example.vapeon_movil.components.MarcaSection
-import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Menu
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.res.painterResource
 import kotlinx.coroutines.launch
+import com.example.vapeon_movil.services.ProductoService
+import com.example.vapeon_movil.utils.RetrofitClient
+import androidx.compose.runtime.LaunchedEffect
+import com.example.vapeon_movil.entities.Producto
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CatalogoScreen(
-    irDetalleProducto: (String) -> Unit
+    irDetalleProducto: (Producto) -> Unit,
+    esAdmin: Boolean = false,
+    irAgregarProducto: () -> Unit = {},
+    irEditarProducto: (Producto) -> Unit = {}
 ) {
-    var producto by remember { mutableStateOf("") }
+
+    var producto by remember { mutableStateOf("")    }
+
+
+    var productosFirebase by remember { mutableStateOf(emptyList<Producto>())    }
+
+    // conexión con productos Firebase
+    val productoService = remember {RetrofitClient.retrofit.create(ProductoService::class.java) }
+
+    // estado de carga
+    var cargando by remember { mutableStateOf(true) }
 
     // Estado para controlar si el menú lateral está abierto o cerrado
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     // Coroutine scope necesario para abrir/cerrar el menú de forma animada
     val scope = rememberCoroutineScope()
 
+    fun eliminarProductoFirebase(producto: Producto){
+
+        scope.launch {
+
+            try {
+
+                productoService.eliminarProducto(producto.id)
+
+
+                productosFirebase =
+                    productosFirebase.filter {
+                        it.id != producto.id
+                    }
+
+
+            } catch(e: Exception){
+
+                println(
+                    "Error eliminando producto: ${e.message}"
+                )
+
+            }
+
+        }
+
+    }
+
     // Lista con las opciones de tu menú hamburguesa
     val opcionesMenu = listOf("Roles", "Catálogo", "Pedidos", "Pagos", "Clientes", "Proveedores")
+
+    LaunchedEffect(Unit) {
+
+        scope.launch {
+
+            try {
+
+                val respuesta = productoService.listarProductos()
+
+
+                productosFirebase = respuesta.documents?.map {
+
+                    Producto(
+
+                        id = it.name.substringAfterLast("/"),
+
+                        nombre = it.fields.nombre?.stringValue ?: "",
+
+                        marca = it.fields.marca?.stringValue ?: "",
+
+                        precio = it.fields.precio?.stringValue ?: "",
+
+                        stock = it.fields.stock?.stringValue ?: "",
+
+                        descripcion = it.fields.descripcion?.stringValue ?: ""
+
+                    )
+
+                } ?: emptyList()
+
+
+
+            } catch(e: Exception){
+
+                println(
+                    "Error productos: ${e.message}"
+                )
+
+            }
+
+        }
+
+    }
 
     ModalNavigationDrawer(
         drawerState = drawerState,
@@ -87,6 +171,17 @@ fun CatalogoScreen(
                     .padding(16.dp)
                     .verticalScroll(rememberScrollState())
             ) {
+
+
+                Text(
+
+                    text = "Catálogo de productos",
+
+                    style = MaterialTheme.typography.titleLarge
+
+                )
+                Spacer(modifier = Modifier.height(10.dp))
+
                 TextField(
                     value = producto,
                     onValueChange = { producto = it },
@@ -96,41 +191,12 @@ fun CatalogoScreen(
 
                 Spacer(modifier = Modifier.height(10.dp))
 
-                Text(
-
-                    text = "Catálogo de productos",
-
-                    style = MaterialTheme.typography.titleLarge
-
-                )
-
-
                 Spacer(
                     modifier = Modifier.height(20.dp)
                 )
 
 
-                TextField(
 
-                    value = producto,
-
-                    onValueChange = {
-
-                        producto = it
-
-                    },
-
-                    label = {
-
-                        Text(
-                            "Buscar productos"
-                        )
-
-                    },
-
-                    modifier = Modifier.fillMaxWidth()
-
-                )
 
 
                 Spacer(
@@ -190,23 +256,56 @@ fun CatalogoScreen(
                     modifier = Modifier.height(25.dp)
                 )
 
+                if(esAdmin){
+
+                    Button(
+
+                        onClick = {
+
+                            irAgregarProducto()
+
+                        },
+
+                        modifier = Modifier.fillMaxWidth()
+
+                    ){
+
+                        Text(
+                            text = "+ Agregar producto"
+                        )
+
+                    }
 
 
+                    Spacer(
+                        modifier = Modifier.height(20.dp)
+                    )
+
+                }
+
+                Spacer(
+                    modifier = Modifier.height(25.dp)
+                )
                 MarcaSection(
 
                     nombreMarca = "LifePood",
 
-                    productos = listOf(
+                    productos = productosFirebase.filter{
+                      it.marca == "LifePood"
+                    },
 
-                        "Kit LifePood",
+                    irDetalleProducto = irDetalleProducto,
 
-                        "Batería LifePood",
+                    esAdmin = true,
 
-                        "Recarga LifePood"
+                    eliminarProducto = {
+                        eliminarProductoFirebase(it)
 
-                    ),
+                    },
 
-                    irDetalleProducto = irDetalleProducto
+                    editarProducto = {
+                        irEditarProducto(it)
+                    }
 
                 )
 
@@ -216,17 +315,21 @@ fun CatalogoScreen(
 
                     nombreMarca = "Oxbar",
 
-                    productos = listOf(
+                    productos = productosFirebase.filter{
+                        it.marca == "Oxbar"
+                    },
 
-                        "Kit Oxbar",
 
-                        "Batería Oxbar",
+                    irDetalleProducto = irDetalleProducto,
 
-                        "Recarga Oxbar"
+                    esAdmin = true,
 
-                    ),
-
-                    irDetalleProducto = irDetalleProducto
+                    eliminarProducto = {
+                        eliminarProductoFirebase(it)
+                    },
+                    editarProducto = {
+                        irEditarProducto(it)
+                    }
 
                 )
 
@@ -236,17 +339,21 @@ fun CatalogoScreen(
 
                     nombreMarca = "Nexa",
 
-                    productos = listOf(
+                    productos = productosFirebase.filter{
+                        it.marca == "Nexa"
+                    },
 
-                        "Kit Nexa",
 
-                        "Batería Nexa",
+                    irDetalleProducto = irDetalleProducto,
 
-                        "Recarga Nexa"
+                    esAdmin = true,
 
-                    ),
-
-                    irDetalleProducto = irDetalleProducto
+                    eliminarProducto = {
+                        eliminarProductoFirebase(it)
+                    },
+                    editarProducto = {
+                        irEditarProducto(it)
+                    }
 
                 )
             }
