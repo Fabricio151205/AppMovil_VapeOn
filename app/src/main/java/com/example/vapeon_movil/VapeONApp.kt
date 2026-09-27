@@ -82,6 +82,11 @@ fun VapeONApp(){
 
                     pantallaActual = "editarProducto"
 
+                },
+
+                // Solo para admins: pulsando "VAPEON" en la barra superior regresa al panel de admin
+                irAdmin = {
+                    pantallaActual = "admin"
                 }
             )
         }

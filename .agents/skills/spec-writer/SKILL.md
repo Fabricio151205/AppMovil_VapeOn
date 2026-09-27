@@ -12,6 +12,7 @@ Este skill define el procedimiento estándar para documentar especificaciones t�
 ## IMPORTANTE:
 Siempre preguntar al usuario en cual archivo desea agregar lo descrito, antes de hacer cualquier cambio en el codigo.
 Si se van a tocar mas de un archivo, especificado por el usuario el sistema debe informar cuales son los archivos y siempre especificar para que se tocara ese archivo, luego se debera esperar a que el usuario afirme o niegue la peticion hecha.
+Siempre se debe crear un documento cuando lo especifique el usuario, este documento debe ir en doc/specs/nombre-del-documento.md y debe ser un archivo .md
 
 ## 1. Convención de Ubicación del Directorio `doc/`
 
@@ -26,7 +27,7 @@ En la industria del software (estándares de repositorios en GitHub, proyectos d
 │       └── catalog_spec.md
 ```
 
-**Regla**: Si la carpeta `doc/` no existe en la raíz, créala antes de generar el documento.
+**Regla**: Si la carpeta `doc/` no existe en la raíz, créala antes de generar el documento. Pero si esta creada poner ahi el docuemnto generado
 
 ---
 

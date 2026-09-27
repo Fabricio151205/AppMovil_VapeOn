@@ -1,368 +1,387 @@
 package com.example.vapeon_movil
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.example.vapeon_movil.components.MarcaSection
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Menu
-import kotlinx.coroutines.launch
-import com.example.vapeon_movil.services.ProductoService
-import com.example.vapeon_movil.utils.RetrofitClient
-import androidx.compose.runtime.LaunchedEffect
 import com.example.vapeon_movil.entities.Producto
+import com.example.vapeon_movil.services.ProductoService
+import com.example.vapeon_movil.ui.theme.*
+import com.example.vapeon_movil.utils.RetrofitClient
+import kotlinx.coroutines.launch
 
-
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CatalogoScreen(
     irDetalleProducto: (Producto) -> Unit,
     esAdmin: Boolean = false,
     irAgregarProducto: () -> Unit = {},
-    irEditarProducto: (Producto) -> Unit = {}
+    irEditarProducto: (Producto) -> Unit = {},
+    onPerfilClick: () -> Unit = {},
+    irAdmin: () -> Unit = {}
 ) {
-
-    var producto by remember { mutableStateOf("")    }
-
-
-    var productosFirebase by remember { mutableStateOf(emptyList<Producto>())    }
-
-    // conexión con productos Firebase
-    val productoService = remember {RetrofitClient.retrofit.create(ProductoService::class.java) }
-
-    // estado de carga
-    var cargando by remember { mutableStateOf(true) }
-
-    // Estado para controlar si el menú lateral está abierto o cerrado
-    val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
-    // Coroutine scope necesario para abrir/cerrar el menú de forma animada
     val scope = rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState() }
 
-    fun eliminarProductoFirebase(producto: Producto){
-
-        scope.launch {
-
-            try {
-
-                productoService.eliminarProducto(producto.id)
-
-
-                productosFirebase =
-                    productosFirebase.filter {
-                        it.id != producto.id
-                    }
-
-
-            } catch(e: Exception){
-
-                println(
-                    "Error eliminando producto: ${e.message}"
-                )
-
-            }
-
-        }
-
+    val productoService = remember {
+        RetrofitClient.retrofit.create(ProductoService::class.java)
     }
 
-    // Lista con las opciones de tu menú hamburguesa
-    val opcionesMenu = listOf("Roles", "Catálogo", "Pedidos", "Pagos", "Clientes", "Proveedores")
+    var busqueda by remember { mutableStateOf("") }
+    var categoriaSeleccionada by remember { mutableStateOf("Todos") }
 
+    var productosFirebase by remember { mutableStateOf(emptyList<Producto>()) }
+    var cargando by remember { mutableStateOf(true) }
+    var productoAEliminar by remember { mutableStateOf<Producto?>(null) }
+
+    // Catálogo de respaldo visual si la base de datos Firestore está vacía o en carga inicial
+    val productosMuestra = listOf(
+        Producto(
+            id = "demo_lp_1",
+            nombre = "Kit LifePod",
+            marca = "LifePod",
+            precio = "80",
+            stock = "20",
+            descripcion = "Dispositivo LifePod con batería recargable y display"
+        ),
+        Producto(
+            id = "demo_lp_2",
+            nombre = "Recarga LifePod",
+            marca = "LifePod",
+            precio = "80",
+            stock = "25",
+            descripcion = "Cartucho de recarga con sales de nicotina sabor mora"
+        ),
+        Producto(
+            id = "demo_ox_1",
+            nombre = "Kit LifePod",
+            marca = "Oxbar",
+            precio = "80",
+            stock = "18",
+            descripcion = "Vaporizador Oxbar desechable con flujo de aire regulable"
+        ),
+        Producto(
+            id = "demo_ox_2",
+            nombre = "Recarga LifePod",
+            marca = "Oxbar",
+            precio = "80",
+            stock = "22",
+            descripcion = "Cartucho de recarga con sales de nicotina"
+        ),
+        Producto(
+            id = "demo_nx_1",
+            nombre = "Nexa Pro",
+            marca = "Nexa",
+            precio = "85",
+            stock = "15",
+            descripcion = "Dispositivo Nexa con doble pantalla digital"
+        )
+    )
+
+    // Carga de productos desde Firebase Firestore REST API
     LaunchedEffect(Unit) {
-
         scope.launch {
-
             try {
-
                 val respuesta = productoService.listarProductos()
-
-
-                productosFirebase = respuesta.documents?.map {
-
+                val lista = respuesta.documents?.map { doc ->
                     Producto(
-
-                        id = it.name.substringAfterLast("/"),
-
-                        nombre = it.fields.nombre?.stringValue ?: "",
-
-                        marca = it.fields.marca?.stringValue ?: "",
-
-                        precio = it.fields.precio?.stringValue ?: "",
-
-                        stock = it.fields.stock?.stringValue ?: "",
-
-                        descripcion = it.fields.descripcion?.stringValue ?: ""
-
+                        id = doc.name.substringAfterLast("/"),
+                        nombre = doc.fields.nombre?.stringValue ?: "",
+                        marca = doc.fields.marca?.stringValue ?: "",
+                        precio = doc.fields.precio?.stringValue ?: "",
+                        stock = doc.fields.stock?.stringValue ?: "",
+                        descripcion = doc.fields.descripcion?.stringValue ?: ""
                     )
-
                 } ?: emptyList()
-
-
-
-            } catch(e: Exception){
-
-                println(
-                    "Error productos: ${e.message}"
-                )
-
+                productosFirebase = lista
+            } catch (e: Exception) {
+                println("Error al cargar productos en Catalogo: ${e.localizedMessage}")
+            } finally {
+                cargando = false
             }
-
         }
-
     }
 
-    ModalNavigationDrawer(
-        drawerState = drawerState,
-        drawerContent = {
-            // Este es el diseño interno del panel lateral que se desliza
-            ModalDrawerSheet {
-                Spacer(modifier = Modifier.height(16.dp))
-                Text(
-                    text = "Menu VapeON",
-                    style = MaterialTheme.typography.titleLarge,
-                    modifier = Modifier.padding(16.dp)
-                )
-                HorizontalDivider()
-                Spacer(modifier = Modifier.height(8.dp))
-
-                // Generamos cada una de las opciones del menú
-                opcionesMenu.forEach { opcion ->
-                    NavigationDrawerItem(
-                        label = { Text(text = opcion) },
-                        selected = false,
-                        onClick = {
-                            // Aquí pones la acción para cuando den clic a cada opción
-                            scope.launch { drawerState.close() } // Cierra el menú al dar clic
-                        },
-                        modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
-                    )
-                }
+    // Función segura de eliminación para administradores
+    fun eliminarProductoFirebase(producto: Producto) {
+        scope.launch {
+            try {
+                productoService.eliminarProducto(producto.id)
+                productosFirebase = productosFirebase.filter { it.id != producto.id }
+                snackbarHostState.showSnackbar("Producto '${producto.nombre}' eliminado correctamente")
+            } catch (e: Exception) {
+                snackbarHostState.showSnackbar("Error al eliminar: ${e.localizedMessage}")
             }
         }
-    ) {
-        // El Scaffold contiene la barra de arriba y el contenido principal
-        Scaffold(
-            topBar = {
-                TopAppBar(
-                    title = { Text("🔥 VAPEON") },
-                    navigationIcon = {
-                        // El botón clásico de hamburguesa para abrir el menú
-                        IconButton(onClick = {
-                            scope.launch { drawerState.open() }
-                        }) {
-                            Icon(
-                                imageVector = Icons.Default.Menu,
-                                contentDescription = "Menú"
-                            )
-                        }
-                    }
-                )
-            }
-        ) { paddingValues ->
-            // Contenido de tu pantalla principal (le añadimos scroll por si hay muchas imágenes)
+    }
+
+    // Contenedor principal reutilizando el menú lateral y la barra superior oficial de VapeON
+    MenuScreen(
+        irCatalogo = { /* Ya estamos en el catálogo */ },
+        onPerfilClick = onPerfilClick,
+        // Solo admin puede navegar al panel administrativo pulsando el título VAPEON
+        onTituloClick = { if (esAdmin) irAdmin() }
+    ) { paddingValues ->
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+        ) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(paddingValues)
-                    .padding(16.dp)
                     .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 20.dp, vertical = 12.dp)
             ) {
+                SnackbarHost(snackbarHostState)
 
-
-                Text(
-
-                    text = "Catálogo de productos",
-
-                    style = MaterialTheme.typography.titleLarge
-
-                )
-                Spacer(modifier = Modifier.height(10.dp))
-
-                TextField(
-                    value = producto,
-                    onValueChange = { producto = it },
-                    label = { Text("Buscar Productos") },
+                // ==========================================
+                // 1. BARRA DE BÚSQUEDA REDONDEADA
+                // ==========================================
+                OutlinedTextField(
+                    value = busqueda,
+                    onValueChange = { busqueda = it },
+                    placeholder = {
+                        Text(
+                            text = "Buscar Productos",
+                            color = VapeOnTextSecondary,
+                            fontSize = 15.sp
+                        )
+                    },
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Default.Search,
+                            contentDescription = "Buscar",
+                            tint = VapeOnTextSecondary,
+                            modifier = Modifier.size(22.dp)
+                        )
+                    },
+                    singleLine = true,
+                    shape = RoundedCornerShape(12.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedContainerColor = VapeOnInputBackground,
+                        unfocusedContainerColor = VapeOnInputBackground,
+                        disabledContainerColor = VapeOnInputBackground,
+                        focusedBorderColor = VapeOnGold,
+                        unfocusedBorderColor = VapeOnInputBorder,
+                        focusedTextColor = VapeOnTextPrimary,
+                        unfocusedTextColor = VapeOnTextPrimary,
+                        cursorColor = VapeOnGold
+                    ),
                     modifier = Modifier.fillMaxWidth()
                 )
 
-                Spacer(modifier = Modifier.height(10.dp))
+                Spacer(modifier = Modifier.height(18.dp))
 
-                Spacer(
-                    modifier = Modifier.height(20.dp)
-                )
-
-
-
-
-
-                Spacer(
-                    modifier = Modifier.height(20.dp)
-                )
-
-
-                Text(
-                    text = "Categorías"
-                )
-
-
-                Spacer(
-                    modifier = Modifier.height(10.dp)
-                )
-
-
+                // ==========================================
+                // 2. CHIPS DE CATEGORÍAS (Todos, Nuevos, Promociones)
+                // ==========================================
                 Row(
-
                     modifier = Modifier.fillMaxWidth(),
-
-                    horizontalArrangement = Arrangement.SpaceEvenly
-
-                ){
-
-                    Button(
-                        onClick = {}
-                    ){
-
-                        Text("Todos")
-
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    val categorias = listOf("Todos", "Nuevos", "Promociones")
+                    categorias.forEach { cat ->
+                        val seleccionada = cat == categoriaSeleccionada
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(50))
+                                .background(if (seleccionada) VapeOnRed else VapeOnRedDark)
+                                .clickable { categoriaSeleccionada = cat }
+                                .padding(horizontal = 22.dp, vertical = 10.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = cat,
+                                color = VapeOnTextPrimary,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 14.sp
+                            )
+                        }
                     }
-
-
-                    Button(
-                        onClick = {}
-                    ){
-
-                        Text("Nuevos")
-
-                    }
-
-
-                    Button(
-                        onClick = {}
-                    ){
-
-                        Text("Promos")
-
-                    }
-
                 }
 
+                Spacer(modifier = Modifier.height(20.dp))
 
+                // Filtrado reactivo de productos
+                val listaBase = if (productosFirebase.isNotEmpty()) productosFirebase else productosMuestra
 
-                Spacer(
-                    modifier = Modifier.height(25.dp)
-                )
+                val listaFiltrada = listaBase.filter { prod ->
+                    val coincideTexto = busqueda.isBlank() ||
+                        prod.nombre.contains(busqueda, ignoreCase = true) ||
+                        prod.marca.contains(busqueda, ignoreCase = true) ||
+                        prod.descripcion.contains(busqueda, ignoreCase = true)
 
-                if(esAdmin){
-
-                    Button(
-
-                        onClick = {
-
-                            irAgregarProducto()
-
-                        },
-
-                        modifier = Modifier.fillMaxWidth()
-
-                    ){
-
-                        Text(
-                            text = "+ Agregar producto"
-                        )
-
+                    val coincideCategoria = when (categoriaSeleccionada) {
+                        "Nuevos" -> prod.id.contains("demo") || prod.id.length > 5
+                        "Promociones" -> prod.precio.toDoubleOrNull()?.let { it < 75 } ?: false
+                        else -> true
                     }
 
+                    coincideTexto && coincideCategoria
+                }
 
-                    Spacer(
-                        modifier = Modifier.height(20.dp)
+                // ==========================================
+                // 3. SECCIÓN: LIFEPOD
+                // ==========================================
+                val productosLifePod = listaFiltrada.filter {
+                    it.marca.equals("LifePod", ignoreCase = true) || it.marca.equals("LifePood", ignoreCase = true)
+                }
+
+                if (productosLifePod.isNotEmpty()) {
+                    MarcaSection(
+                        nombreMarca = "LifePod",
+                        productos = productosLifePod,
+                        irDetalleProducto = irDetalleProducto,
+                        esAdmin = esAdmin,
+                        onVerTodos = { busqueda = "LifePod" },
+                        eliminarProducto = { productoAEliminar = it },
+                        editarProducto = { irEditarProducto(it) }
                     )
-
                 }
 
-                Spacer(
-                    modifier = Modifier.height(25.dp)
-                )
-                MarcaSection(
+                // ==========================================
+                // 4. SECCIÓN: OXBAR
+                // ==========================================
+                val productosOxbar = listaFiltrada.filter {
+                    it.marca.equals("Oxbar", ignoreCase = true)
+                }
 
-                    nombreMarca = "LifePood",
+                if (productosOxbar.isNotEmpty()) {
+                    MarcaSection(
+                        nombreMarca = "Oxbar",
+                        productos = productosOxbar,
+                        irDetalleProducto = irDetalleProducto,
+                        esAdmin = esAdmin,
+                        onVerTodos = { busqueda = "Oxbar" },
+                        eliminarProducto = { productoAEliminar = it },
+                        editarProducto = { irEditarProducto(it) }
+                    )
+                }
 
-                    productos = productosFirebase.filter{
-                      it.marca == "LifePood"
-                    },
+                // ==========================================
+                // 5. SECCIÓN: NEXA
+                // ==========================================
+                val productosNexa = listaFiltrada.filter {
+                    it.marca.equals("Nexa", ignoreCase = true)
+                }
 
-                    irDetalleProducto = irDetalleProducto,
+                if (productosNexa.isNotEmpty()) {
+                    MarcaSection(
+                        nombreMarca = "Nexa",
+                        productos = productosNexa,
+                        irDetalleProducto = irDetalleProducto,
+                        esAdmin = esAdmin,
+                        onVerTodos = { busqueda = "Nexa" },
+                        eliminarProducto = { productoAEliminar = it },
+                        editarProducto = { irEditarProducto(it) }
+                    )
+                }
 
-                    esAdmin = true,
-
-                    eliminarProducto = {
-                        eliminarProductoFirebase(it)
-
-                    },
-
-                    editarProducto = {
-                        irEditarProducto(it)
+                // Secciones dinámicas para otras marcas agregadas por el administrador
+                val otrasMarcas = listaFiltrada
+                    .map { it.marca.trim() }
+                    .distinct()
+                    .filter {
+                        !it.equals("LifePod", ignoreCase = true) &&
+                        !it.equals("LifePood", ignoreCase = true) &&
+                        !it.equals("Oxbar", ignoreCase = true) &&
+                        !it.equals("Nexa", ignoreCase = true)
                     }
 
-                )
-
-
-
-                MarcaSection(
-
-                    nombreMarca = "Oxbar",
-
-                    productos = productosFirebase.filter{
-                        it.marca == "Oxbar"
-                    },
-
-
-                    irDetalleProducto = irDetalleProducto,
-
-                    esAdmin = true,
-
-                    eliminarProducto = {
-                        eliminarProductoFirebase(it)
-                    },
-                    editarProducto = {
-                        irEditarProducto(it)
+                otrasMarcas.forEach { marca ->
+                    val productosMarca = listaFiltrada.filter { it.marca.equals(marca, ignoreCase = true) }
+                    if (productosMarca.isNotEmpty()) {
+                        MarcaSection(
+                            nombreMarca = marca,
+                            productos = productosMarca,
+                            irDetalleProducto = irDetalleProducto,
+                            esAdmin = esAdmin,
+                            onVerTodos = { busqueda = marca },
+                            eliminarProducto = { productoAEliminar = it },
+                            editarProducto = { irEditarProducto(it) }
+                        )
                     }
+                }
 
-                )
+                // Espacio inferior para evitar que el contenido quede tapado por el botón flotante
+                Spacer(modifier = Modifier.height(70.dp))
+            }
 
-
-
-                MarcaSection(
-
-                    nombreMarca = "Nexa",
-
-                    productos = productosFirebase.filter{
-                        it.marca == "Nexa"
-                    },
-
-
-                    irDetalleProducto = irDetalleProducto,
-
-                    esAdmin = true,
-
-                    eliminarProducto = {
-                        eliminarProductoFirebase(it)
-                    },
-                    editarProducto = {
-                        irEditarProducto(it)
-                    }
-
-                )
+            // ==========================================
+            // 6. BOTÓN FLOTANTE (+) EXCLUSIVO PARA ADMIN
+            // ==========================================
+            if (esAdmin) {
+                FloatingActionButton(
+                    onClick = irAgregarProducto,
+                    shape = RoundedCornerShape(18.dp),
+                    containerColor = VapeOnRed,
+                    contentColor = VapeOnTextPrimary,
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(end = 20.dp, bottom = 24.dp)
+                        .size(58.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Add,
+                        contentDescription = "Agregar Producto",
+                        tint = VapeOnTextPrimary,
+                        modifier = Modifier.size(32.dp)
+                    )
+                }
             }
         }
     }
 
-
-
-
-
-
+    // ==========================================
+    // 7. DIÁLOGO DE CONFIRMACIÓN DE ELIMINACIÓN
+    // ==========================================
+    productoAEliminar?.let { prod ->
+        AlertDialog(
+            onDismissRequest = { productoAEliminar = null },
+            title = {
+                Text(
+                    text = "Eliminar Producto",
+                    fontWeight = FontWeight.Bold,
+                    color = VapeOnGold
+                )
+            },
+            text = {
+                Text(
+                    text = "¿Estás seguro de que deseas eliminar '${prod.nombre}'? Esta acción no se puede deshacer.",
+                    color = VapeOnTextPrimary
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        eliminarProductoFirebase(prod)
+                        productoAEliminar = null
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = VapeOnRed)
+                ) {
+                    Text("Eliminar", color = VapeOnTextPrimary, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { productoAEliminar = null }) {
+                    Text("Cancelar", color = VapeOnTextSecondary)
+                }
+            },
+            containerColor = VapeOnSurface
+        )
+    }
 }
