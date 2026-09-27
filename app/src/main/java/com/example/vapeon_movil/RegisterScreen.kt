@@ -158,6 +158,19 @@ fun RegisterScreen(
             modifier = Modifier.fillMaxWidth()
         )
 
+        val confirTelefono=
+            if(telefono.startsWith("9"))
+                ""
+            else
+                "El numero de telefono debe empezar con 9"
+
+        Spacer(
+            modifier = Modifier.height(15.dp)
+        )
+
+        Text(
+            text = confirTelefono
+        )
 
         Spacer(
             modifier = Modifier.height(15.dp)
@@ -248,6 +261,7 @@ fun RegisterScreen(
 
         Button(
             onClick = {
+
                 if (password == passwordConfirm) {
 
                     // Estructuramos el objeto según lo que pide la API REST de Firebase
