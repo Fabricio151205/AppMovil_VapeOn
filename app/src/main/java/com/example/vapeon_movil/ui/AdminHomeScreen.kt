@@ -55,33 +55,7 @@ fun AdminHomeScreen(
     var productoAEliminar by remember { mutableStateOf<Producto?>(null) }
 
     // Productos de demostración por defecto si la base de datos está vacía
-    val productosMuestra = listOf(
-        Producto(
-            id = "demo_1",
-            nombre = "Kit LifePod",
-            marca = "LifePod",
-            precio = "65.00",
-            stock = "20",
-            descripcion = "Dispositivo LifePod con batería recargable y display"
-        ),
-        Producto(
-            id = "demo_2",
-            nombre = "Recarga LifePod",
-            marca = "LifePod",
-            precio = "35.00",
-            stock = "25",
-            descripcion = "Cartucho de recarga con sales de nicotina"
-        ),
-        Producto(
-            id = "demo_3",
-            nombre = "Oxbar Magic Maze",
-            marca = "Oxbar",
-            precio = "80.00",
-            stock = "18",
-            descripcion = "Vaporizador desechable con flujo de aire regulable"
-        )
-    )
-
+    
     // Carga de productos desde Firebase Firestore REST
     LaunchedEffect(Unit) {
         scope.launch {
@@ -265,86 +239,120 @@ fun AdminHomeScreen(
                 )
             }
 
-            val listaMostrar =
-                if (productosFirebase.isNotEmpty()) productosFirebase else productosMuestra
-
-            LazyRow(
-                horizontalArrangement = Arrangement.spacedBy(14.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                items(listaMostrar) { prod ->
-                    Card(
-                        shape = RoundedCornerShape(22.dp),
-                        colors = CardDefaults.cardColors(containerColor = VapeOnCardBackground),
-                        modifier = Modifier.width(170.dp)
+            if (cargandoProductos) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(180.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(12.dp)
+                        CircularProgressIndicator(
+                            color = VapeOnGold,
+                            modifier = Modifier.size(36.dp)
+                        )
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Text(
+                            text = "Cargando productos...",
+                            color = VapeOnTextSecondary,
+                            fontSize = 13.sp
+                        )
+                    }
+                }
+            } else if (productosFirebase.isEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(120.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "No hay productos registrados.",
+                        color = VapeOnTextSecondary,
+                        fontSize = 14.sp
+                    )
+                }
+            } else {
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(14.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    items(productosFirebase) { prod ->
+                        Card(
+                            shape = RoundedCornerShape(22.dp),
+                            colors = CardDefaults.cardColors(containerColor = VapeOnCardBackground),
+                            modifier = Modifier.width(170.dp)
                         ) {
-                            Box(
+                            Column(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .height(120.dp)
-                                    .clip(RoundedCornerShape(18.dp))
-                                    .background(VapeOnProductImageBg),
-                                contentAlignment = Alignment.Center
+                                    .padding(12.dp)
                             ) {
-                                Image(
-                                    painter = painterResource(id = R.drawable.logo_vapeon),
-                                    contentDescription = prod.nombre,
-                                    modifier = Modifier.size(80.dp)
-                                )
-                            }
-
-                            Spacer(modifier = Modifier.height(10.dp))
-
-                            Text(
-                                text = prod.nombre,
-                                color = VapeOnTextPrimary,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 14.sp,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-
-                            Text(
-                                text = "${prod.stock.ifEmpty { "0" }} Ud.",
-                                color = VapeOnTextPrimary,
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Medium
-                            )
-
-                            Spacer(modifier = Modifier.height(6.dp))
-
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.End,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                IconButton(
-                                    onClick = { irEditarProducto(prod) },
-                                    modifier = Modifier.size(32.dp)
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(120.dp)
+                                        .clip(RoundedCornerShape(18.dp))
+                                        .background(VapeOnProductImageBg),
+                                    contentAlignment = Alignment.Center
                                 ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Edit,
-                                        contentDescription = "Editar",
-                                        tint = VapeOnTextPrimary,
-                                        modifier = Modifier.size(18.dp)
+                                    Image(
+                                        painter = painterResource(id = R.drawable.logo_vapeon),
+                                        contentDescription = prod.nombre,
+                                        modifier = Modifier.size(80.dp)
                                     )
                                 }
 
-                                IconButton(
-                                    onClick = { productoAEliminar = prod },
-                                    modifier = Modifier.size(32.dp)
+                                Spacer(modifier = Modifier.height(10.dp))
+
+                                Text(
+                                    text = prod.nombre,
+                                    color = VapeOnTextPrimary,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 14.sp,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+
+                                Text(
+                                    text = "${prod.stock.ifEmpty { "0" }} Ud.",
+                                    color = VapeOnTextPrimary,
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Medium
+                                )
+
+                                Spacer(modifier = Modifier.height(6.dp))
+
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.End,
+                                    verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Delete,
-                                        contentDescription = "Eliminar",
-                                        tint = VapeOnTextPrimary,
-                                        modifier = Modifier.size(18.dp)
-                                    )
+                                    IconButton(
+                                        onClick = { irEditarProducto(prod) },
+                                        modifier = Modifier.size(32.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Edit,
+                                            contentDescription = "Editar",
+                                            tint = VapeOnTextPrimary,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    }
+
+                                    IconButton(
+                                        onClick = { productoAEliminar = prod },
+                                        modifier = Modifier.size(32.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Delete,
+                                            contentDescription = "Eliminar",
+                                            tint = VapeOnTextPrimary,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    }
                                 }
                             }
                         }

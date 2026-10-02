@@ -4,14 +4,13 @@
 | :--- | :--- |
 | **Identificador** | `SPEC-VAPEON-001` |
 | **Proyecto** | VapeON - Aplicación Móvil Android |
-| **Versión** | `1.0.0` |
+| **Versión** | `1.1.0` |
 | **Estado** | `Aprobado` |
-| **Fecha de Publicación** | `2026-09-26` |
+| **Fecha de Publicación** | `2026-10-02` |
 | **Plataforma Objetivo** | Android (minSdk 31, targetSdk 37, compileSdk 37) |
 | **Ubicación del Documento** | `doc/spec.md` (Raíz del Repositorio) |
 
 ---
-
 
 ## 1. Resumen Ejecutivo y Alcance
 
@@ -22,16 +21,20 @@ El mercado de dispositivos y accesorios de vapeo requiere plataformas digitales 
 1. Ofrecer un catálogo digital visual e intuitivo organizado por marcas reconocidas (**LifePod**, **Oxbar**, **Nexa**).
 2. Facilitar la administración centralizada del inventario (creación, edición, consulta y eliminación de productos) mediante un panel exclusivo para administradores.
 3. Asegurar un entorno de navegación seguro y éticamente responsable con control de acceso basado en roles (`ADMIN` y `CLIENTE`).
+4. Proveer experiencias visuales fluidas sin parpadeos de carga mediante estados reactivos (`CircularProgressIndicator`) y diseño adaptativo con insets del sistema (`statusBarsPadding`).
 
 ### 1.3 Alcance (Scope)
 - **En Alcance (In-Scope)**:
   - Registro de usuarios con captura de fecha de nacimiento para verificación de mayoría de edad.
-  - Autenticación con verificación de roles en Cloud Firestore.
+  - Autenticación con verificación de roles en Cloud Firestore (`ADMIN` vs `CLIENTE`).
   - Exploración de catálogo con filtrado por marcas y visualización en tarjetas con scroll horizontal (`LazyRow`).
-  - Ficha técnica a detalle de cada producto (nombre, marca, precio, stock, descripción).
-  - Panel administrativo con acciones CRUD completas sobre la colección de productos.
+  - Reutilización de `CatalogoScreen` en `HomeScreen` en modo solo lectura (`esAdmin = false`) para clientes.
+  - Ficha técnica a detalle de cada producto en `DetalleProductoScreen` (nombre, marca, precio, stock, descripción, selector de sabores e ícono de favoritos).
+  - Formulario de edición `EditarProductoScreen` y creación `AgregarProductoScreen` con subtítulos y resalte corporativo en dorado.
+  - Recuperación de contraseña `ForgotPasswordScreen` con interfaz estandarizada.
+  - Panel administrativo `AdminHomeScreen` con acciones CRUD completas sobre la colección de productos y carrusel interactivo.
   - Soporte para interfaz oscura nativa (*Dark Mode*) con sistema de diseño Material 3.
-- **Fuera de Alcance (Out-of-Scope - Versión 1.0)**:
+- **Fuera de Alcance (Out-of-Scope - Versión 1.1)**:
   - Pasarela de pagos bancarios integrada (se proyecta para versión 2.0).
   - Seguimiento de envíos por GPS en tiempo real.
 
@@ -95,19 +98,19 @@ La aplicación utiliza el patrón **Single-Activity Architecture** completamente
 sequenceDiagram
     autonumber
     actor Usuario
-    participant UI as Compose Screen (Catalogo/Login)
+    participant UI as Compose Screen (Catalogo/Login/Detalle/Forms)
     participant Scope as Coroutine (rememberCoroutineScope)
     participant Retrofit as RetrofitClient / Services
     participant Firestore as Google Cloud Firestore REST API
 
-    Usuario->>UI: Interacción (ej. Iniciar Sesión / Ver Catálogo)
+    Usuario->>UI: Interacción (ej. Iniciar Sesión / Ver Catálogo / Editar)
     UI->>Scope: Lanza corrutina en hilo de fondo
-    Scope->>Retrofit: Invocación a suspend fun (ej. listarProductos())
-    Retrofit->>Firestore: HTTP GET https://firestore.googleapis.com/v1/.../productos
-    Firestore-->>Retrofit: JSON Response (FirestoreProductosResponse)
+    Scope->>Retrofit: Invocación a suspend fun (ej. listarProductos(), actualizarProducto())
+    Retrofit->>Firestore: HTTP GET/POST/PATCH/DELETE
+    Firestore-->>Retrofit: JSON Response (FirestoreProductosResponse / Document)
     Retrofit-->>Scope: DTOs deserializados
-    Scope->>UI: Mapeo a List<Producto> & actualiza State
-    UI-->>Usuario: Renderizado reactivo en pantalla (Compose recomposition)
+    Scope->>UI: Mapeo a List<Producto> & actualiza State (cargando = false)
+    UI-->>Usuario: Renderizado reactivo sin parpadeo (Compose recomposition)
 ```
 
 ### 3.2 Stack Tecnológico
@@ -169,13 +172,16 @@ Base URL: `https://firestore.googleapis.com/v1/projects/dbvapeon/databases/(defa
 ### 4.1 Requerimientos Funcionales (FR)
 - **FR-01 (Autenticación Diferenciada)**: El sistema debe validar correo y contraseña, y dirigir al usuario a la pantalla correspondiente según su rol (`ADMIN` -> `AdminHomeScreen`, `CLIENTE` -> `HomeScreen`).
 - **FR-02 (Registro de Clientes)**: Permitir crear cuentas validando campos obligatorios de contacto y fecha de nacimiento.
-- **FR-03 (Catálogo por Marcas)**: Presentar listas horizontales independientes para marcas prioritarias (**LifePod**, **Oxbar**, **Nexa**).
-- **FR-04 (Gestión de Inventario Admin)**: Si el usuario es administrador, debe tener habilitados botones para agregar (`+ Agregar producto`), modificar campos precargados y eliminar productos con actualización inmediata de la interfaz.
+- **FR-03 (Catálogo Reutilizado en Home)**: `HomeScreen` reutiliza `CatalogoScreen` en modo solo lectura (`esAdmin = false`) para clientes.
+- **FR-04 (Ficha de Detalle de Producto)**: `DetalleProductoScreen` muestra la tarjeta de producto, marcas, stock real, precio y selector de sabores. Presenta *"Agregar al carrito"* para `CLIENTE` y *"Editar Producto"* para `ADMIN`.
+- **FR-05 (Gestión de Inventario Admin)**: Formularios `AgregarProductoScreen` y `EditarProductoScreen` con subtítulos estilizados en dorado y guardado asíncrono en Firestore.
+- **FR-06 (Recuperación de Contraseña)**: `ForgotPasswordScreen` permite solicitar un código de verificación con retorno al login.
 
 ### 4.2 Requerimientos No Funcionales (NFR)
-- **NFR-01 (Rendimiento y Fluidez)**: Carga y renderizado de listas en `LazyRow` a un mínimo estable de 60 FPS sin bloqueos en el hilo principal de la UI.
-- **NFR-02 (Tolerancia a Fallos)**: Manejo controlado de excepciones de red con mensajes amigables al usuario ("Error de conexión") evitando cierres forzosos (*ANR* o *Crash*).
-- **NFR-03 (Compatibilidad)**: Soporte completo para dispositivos Android desde API 31 (Android 12) hasta API 37.
+- **NFR-01 (Rendimiento y Cargadores Animados)**: Carga reactiva de listas con `CircularProgressIndicator` mientras `cargando == true`, evitando destellos de datos estáticos de muestra.
+- **NFR-02 (Ajuste de Insets y Notch)**: Aplicación de `statusBarsPadding()` en las pantallas personalizadas para evitar superposiciones con la barra de estado del sistema.
+- **NFR-03 (Tolerancia a Fallos)**: Manejo controlado de excepciones de red con mensajes amigables al usuario ("Error de conexión") evitando cierres forzosos (*ANR* o *Crash*).
+- **NFR-04 (Compatibilidad)**: Soporte completo para dispositivos Android desde API 31 (Android 12) hasta API 37.
 
 ---
 
@@ -203,3 +209,4 @@ Base URL: `https://firestore.googleapis.com/v1/projects/dbvapeon/databases/(defa
 | Versión | Fecha | Autor / Equipo | Cambios Realizados |
 | :--- | :--- | :--- | :--- |
 | `1.0.0` | `2026-09-26` | Equipo de Arquitectura VapeON | Creación inicial de especificación técnica y marco ético del sistema. |
+| `1.1.0` | `2026-10-02` | Equipo de Arquitectura VapeON | Actualización general: integración de `DetalleProductoScreen`, `ForgotPasswordScreen`, `AgregarProductoScreen`, `EditarProductoScreen` con subtítulos, `statusBarsPadding()` y eliminador de parpadeos con `CircularProgressIndicator`. |

@@ -62,12 +62,21 @@ fun VapeONApp(){
             )
         }
         "home" -> {
-            HomeScreen()
+            HomeScreen(
+                irDetalleProducto = { producto ->
+                    productoSeleccionado = producto
+                    pantallaActual = "detalle"
+                }
+            )
         }
         "admin" -> {
             AdminHomeScreen(
                 irCatalogo = {
                     pantallaActual = "catalogo"
+                },
+                irEditarProducto = { producto ->
+                    productoEditar = producto
+                    pantallaActual = "editarProducto"
                 }
             )
         }
@@ -99,7 +108,7 @@ fun VapeONApp(){
                 producto = productoSeleccionado!!,
                 esAdmin = esAdminUser,
                 volver = {
-                    pantallaActual = "catalogo"
+                    pantallaActual = if (esAdminUser) "catalogo" else "home"
                 },
                 irEditarProducto = { producto ->
                     productoEditar = producto
@@ -128,7 +137,7 @@ fun VapeONApp(){
 
                 volver = {
 
-                    pantallaActual = "catalogo"
+                    pantallaActual = if (esAdminUser) "admin" else "catalogo"
 
                 }
 

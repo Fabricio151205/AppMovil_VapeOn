@@ -47,50 +47,6 @@ fun CatalogoScreen(
     var cargando by remember { mutableStateOf(true) }
     var productoAEliminar by remember { mutableStateOf<Producto?>(null) }
 
-    // Catálogo de respaldo visual si la base de datos Firestore está vacía o en carga inicial
-    val productosMuestra = listOf(
-        Producto(
-            id = "demo_lp_1",
-            nombre = "Kit LifePod",
-            marca = "LifePod",
-            precio = "80",
-            stock = "20",
-            descripcion = "Dispositivo LifePod con batería recargable y display"
-        ),
-        Producto(
-            id = "demo_lp_2",
-            nombre = "Recarga LifePod",
-            marca = "LifePod",
-            precio = "80",
-            stock = "25",
-            descripcion = "Cartucho de recarga con sales de nicotina sabor mora"
-        ),
-        Producto(
-            id = "demo_ox_1",
-            nombre = "Kit LifePod",
-            marca = "Oxbar",
-            precio = "80",
-            stock = "18",
-            descripcion = "Vaporizador Oxbar desechable con flujo de aire regulable"
-        ),
-        Producto(
-            id = "demo_ox_2",
-            nombre = "Recarga LifePod",
-            marca = "Oxbar",
-            precio = "80",
-            stock = "22",
-            descripcion = "Cartucho de recarga con sales de nicotina"
-        ),
-        Producto(
-            id = "demo_nx_1",
-            nombre = "Nexa Pro",
-            marca = "Nexa",
-            precio = "85",
-            stock = "15",
-            descripcion = "Dispositivo Nexa con doble pantalla digital"
-        )
-    )
-
     // Carga de productos desde Firebase Firestore REST API
     LaunchedEffect(Unit) {
         scope.launch {
@@ -216,109 +172,144 @@ fun CatalogoScreen(
 
                 Spacer(modifier = Modifier.height(20.dp))
 
-                // Filtrado reactivo de productos
-                val listaBase =
-                    if (productosFirebase.isNotEmpty()) productosFirebase else productosMuestra
+                // ==========================================
+                // 3. ESTADO DE CARGA O LISTA DE PRODUCTOS
+                // ==========================================
+                if (cargando) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(250.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            CircularProgressIndicator(
+                                color = VapeOnGold,
+                                modifier = Modifier.size(42.dp)
+                            )
+                            Spacer(modifier = Modifier.height(14.dp))
+                            Text(
+                                text = "Cargando catálogo...",
+                                color = VapeOnTextSecondary,
+                                fontSize = 14.sp
+                            )
+                        }
+                    }
+                } else {
+                    // Filtrado reactivo de productos
+                    val listaFiltrada = productosFirebase.filter { prod ->
+                        val coincideTexto = busqueda.isBlank() ||
+                                prod.nombre.contains(busqueda, ignoreCase = true) ||
+                                prod.marca.contains(busqueda, ignoreCase = true) ||
+                                prod.descripcion.contains(busqueda, ignoreCase = true)
 
-                val listaFiltrada = listaBase.filter { prod ->
-                    val coincideTexto = busqueda.isBlank() ||
-                            prod.nombre.contains(busqueda, ignoreCase = true) ||
-                            prod.marca.contains(busqueda, ignoreCase = true) ||
-                            prod.descripcion.contains(busqueda, ignoreCase = true)
+                        val coincideCategoria = when (categoriaSeleccionada) {
+                            "Nuevos" -> prod.id.length > 5
+                            "Promociones" -> prod.precio.toDoubleOrNull()?.let { it < 75 } ?: false
+                            else -> true
+                        }
 
-                    val coincideCategoria = when (categoriaSeleccionada) {
-                        "Nuevos" -> prod.id.contains("demo") || prod.id.length > 5
-                        "Promociones" -> prod.precio.toDoubleOrNull()?.let { it < 75 } ?: false
-                        else -> true
+                        coincideTexto && coincideCategoria
                     }
 
-                    coincideTexto && coincideCategoria
-                }
+                    if (listaFiltrada.isEmpty()) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 40.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "No se encontraron productos disponibles.",
+                                color = VapeOnTextSecondary,
+                                fontSize = 15.sp
+                            )
+                        }
+                    } else {
+                        // ==========================================
+                        // SECCIÓN: LIFEPOD
+                        // ==========================================
+                        val productosLifePod = listaFiltrada.filter {
+                            it.marca.equals("LifePod", ignoreCase = true) || it.marca.equals("LifePood", ignoreCase = true)
+                        }
 
-                // ==========================================
-                // 3. SECCIÓN: LIFEPOD
-                // ==========================================
-                val productosLifePod = listaFiltrada.filter {
-                    it.marca.equals("LifePod", ignoreCase = true) || it.marca.equals(
-                        "LifePood",
-                        ignoreCase = true
-                    )
-                }
+                        if (productosLifePod.isNotEmpty()) {
+                            MarcaSection(
+                                nombreMarca = "LifePod",
+                                productos = productosLifePod,
+                                irDetalleProducto = irDetalleProducto,
+                                esAdmin = esAdmin,
+                                onVerTodos = { busqueda = "LifePod" },
+                                eliminarProducto = { productoAEliminar = it },
+                                editarProducto = { irEditarProducto(it) }
+                            )
+                        }
 
-                if (productosLifePod.isNotEmpty()) {
-                    MarcaSection(
-                        nombreMarca = "LifePod",
-                        productos = productosLifePod,
-                        irDetalleProducto = irDetalleProducto,
-                        esAdmin = esAdmin,
-                        onVerTodos = { busqueda = "LifePod" },
-                        eliminarProducto = { productoAEliminar = it },
-                        editarProducto = { irEditarProducto(it) }
-                    )
-                }
+                        // ==========================================
+                        // SECCIÓN: OXBAR
+                        // ==========================================
+                        val productosOxbar = listaFiltrada.filter {
+                            it.marca.equals("Oxbar", ignoreCase = true)
+                        }
 
-                // ==========================================
-                // 4. SECCIÓN: OXBAR
-                // ==========================================
-                val productosOxbar = listaFiltrada.filter {
-                    it.marca.equals("Oxbar", ignoreCase = true)
-                }
+                        if (productosOxbar.isNotEmpty()) {
+                            MarcaSection(
+                                nombreMarca = "Oxbar",
+                                productos = productosOxbar,
+                                irDetalleProducto = irDetalleProducto,
+                                esAdmin = esAdmin,
+                                onVerTodos = { busqueda = "Oxbar" },
+                                eliminarProducto = { productoAEliminar = it },
+                                editarProducto = { irEditarProducto(it) }
+                            )
+                        }
 
-                if (productosOxbar.isNotEmpty()) {
-                    MarcaSection(
-                        nombreMarca = "Oxbar",
-                        productos = productosOxbar,
-                        irDetalleProducto = irDetalleProducto,
-                        esAdmin = esAdmin,
-                        onVerTodos = { busqueda = "Oxbar" },
-                        eliminarProducto = { productoAEliminar = it },
-                        editarProducto = { irEditarProducto(it) }
-                    )
-                }
+                        // ==========================================
+                        // SECCIÓN: NEXA
+                        // ==========================================
+                        val productosNexa = listaFiltrada.filter {
+                            it.marca.equals("Nexa", ignoreCase = true)
+                        }
 
-                // ==========================================
-                // 5. SECCIÓN: NEXA
-                // ==========================================
-                val productosNexa = listaFiltrada.filter {
-                    it.marca.equals("Nexa", ignoreCase = true)
-                }
+                        if (productosNexa.isNotEmpty()) {
+                            MarcaSection(
+                                nombreMarca = "Nexa",
+                                productos = productosNexa,
+                                irDetalleProducto = irDetalleProducto,
+                                esAdmin = esAdmin,
+                                onVerTodos = { busqueda = "Nexa" },
+                                eliminarProducto = { productoAEliminar = it },
+                                editarProducto = { irEditarProducto(it) }
+                            )
+                        }
 
-                if (productosNexa.isNotEmpty()) {
-                    MarcaSection(
-                        nombreMarca = "Nexa",
-                        productos = productosNexa,
-                        irDetalleProducto = irDetalleProducto,
-                        esAdmin = esAdmin,
-                        onVerTodos = { busqueda = "Nexa" },
-                        eliminarProducto = { productoAEliminar = it },
-                        editarProducto = { irEditarProducto(it) }
-                    )
-                }
+                        // Secciones dinámicas para otras marcas agregadas por el administrador
+                        val otrasMarcas = listaFiltrada
+                            .map { it.marca.trim() }
+                            .distinct()
+                            .filter {
+                                !it.equals("LifePod", ignoreCase = true) &&
+                                        !it.equals("LifePood", ignoreCase = true) &&
+                                        !it.equals("Oxbar", ignoreCase = true) &&
+                                        !it.equals("Nexa", ignoreCase = true)
+                            }
 
-                // Secciones dinámicas para otras marcas agregadas por el administrador
-                val otrasMarcas = listaFiltrada
-                    .map { it.marca.trim() }
-                    .distinct()
-                    .filter {
-                        !it.equals("LifePod", ignoreCase = true) &&
-                                !it.equals("LifePood", ignoreCase = true) &&
-                                !it.equals("Oxbar", ignoreCase = true) &&
-                                !it.equals("Nexa", ignoreCase = true)
-                    }
-
-                otrasMarcas.forEach { marca ->
-                    val productosMarca =
-                        listaFiltrada.filter { it.marca.equals(marca, ignoreCase = true) }
-                    if (productosMarca.isNotEmpty()) {
-                        MarcaSection(
-                            nombreMarca = marca,
-                            productos = productosMarca,
-                            irDetalleProducto = irDetalleProducto,
-                            esAdmin = esAdmin,
-                            onVerTodos = { busqueda = marca },
-                            eliminarProducto = { productoAEliminar = it },
-                            editarProducto = { irEditarProducto(it) }
-                        )
+                        otrasMarcas.forEach { marca ->
+                            val productosMarca = listaFiltrada.filter { it.marca.equals(marca, ignoreCase = true) }
+                            if (productosMarca.isNotEmpty()) {
+                                MarcaSection(
+                                    nombreMarca = marca,
+                                    productos = productosMarca,
+                                    irDetalleProducto = irDetalleProducto,
+                                    esAdmin = esAdmin,
+                                    onVerTodos = { busqueda = marca },
+                                    eliminarProducto = { productoAEliminar = it },
+                                    editarProducto = { irEditarProducto(it) }
+                                )
+                            }
+                        }
                     }
                 }
 
