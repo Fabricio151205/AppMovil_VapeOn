@@ -1,4 +1,4 @@
-package com.example.vapeon_movil
+package com.example.vapeon_movil.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -217,13 +217,14 @@ fun CatalogoScreen(
                 Spacer(modifier = Modifier.height(20.dp))
 
                 // Filtrado reactivo de productos
-                val listaBase = if (productosFirebase.isNotEmpty()) productosFirebase else productosMuestra
+                val listaBase =
+                    if (productosFirebase.isNotEmpty()) productosFirebase else productosMuestra
 
                 val listaFiltrada = listaBase.filter { prod ->
                     val coincideTexto = busqueda.isBlank() ||
-                        prod.nombre.contains(busqueda, ignoreCase = true) ||
-                        prod.marca.contains(busqueda, ignoreCase = true) ||
-                        prod.descripcion.contains(busqueda, ignoreCase = true)
+                            prod.nombre.contains(busqueda, ignoreCase = true) ||
+                            prod.marca.contains(busqueda, ignoreCase = true) ||
+                            prod.descripcion.contains(busqueda, ignoreCase = true)
 
                     val coincideCategoria = when (categoriaSeleccionada) {
                         "Nuevos" -> prod.id.contains("demo") || prod.id.length > 5
@@ -238,7 +239,10 @@ fun CatalogoScreen(
                 // 3. SECCIÓN: LIFEPOD
                 // ==========================================
                 val productosLifePod = listaFiltrada.filter {
-                    it.marca.equals("LifePod", ignoreCase = true) || it.marca.equals("LifePood", ignoreCase = true)
+                    it.marca.equals("LifePod", ignoreCase = true) || it.marca.equals(
+                        "LifePood",
+                        ignoreCase = true
+                    )
                 }
 
                 if (productosLifePod.isNotEmpty()) {
@@ -297,13 +301,14 @@ fun CatalogoScreen(
                     .distinct()
                     .filter {
                         !it.equals("LifePod", ignoreCase = true) &&
-                        !it.equals("LifePood", ignoreCase = true) &&
-                        !it.equals("Oxbar", ignoreCase = true) &&
-                        !it.equals("Nexa", ignoreCase = true)
+                                !it.equals("LifePood", ignoreCase = true) &&
+                                !it.equals("Oxbar", ignoreCase = true) &&
+                                !it.equals("Nexa", ignoreCase = true)
                     }
 
                 otrasMarcas.forEach { marca ->
-                    val productosMarca = listaFiltrada.filter { it.marca.equals(marca, ignoreCase = true) }
+                    val productosMarca =
+                        listaFiltrada.filter { it.marca.equals(marca, ignoreCase = true) }
                     if (productosMarca.isNotEmpty()) {
                         MarcaSection(
                             nombreMarca = marca,

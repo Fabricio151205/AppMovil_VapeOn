@@ -1,4 +1,4 @@
-package com.example.vapeon_movil
+package com.example.vapeon_movil.ui
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -24,6 +24,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.vapeon_movil.R
 import com.example.vapeon_movil.entities.Producto
 import com.example.vapeon_movil.services.ProductoService
 import com.example.vapeon_movil.ui.theme.*
@@ -264,7 +265,8 @@ fun AdminHomeScreen(
                 )
             }
 
-            val listaMostrar = if (productosFirebase.isNotEmpty()) productosFirebase else productosMuestra
+            val listaMostrar =
+                if (productosFirebase.isNotEmpty()) productosFirebase else productosMuestra
 
             LazyRow(
                 horizontalArrangement = Arrangement.spacedBy(14.dp),

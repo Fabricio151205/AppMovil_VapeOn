@@ -1,4 +1,4 @@
-package com.example.vapeon_movil
+package com.example.vapeon_movil.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable

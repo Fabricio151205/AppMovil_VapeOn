@@ -1,4 +1,4 @@
-package com.example.vapeon_movil
+package com.example.vapeon_movil.ui
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
@@ -20,6 +20,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.vapeon_movil.R
 import com.example.vapeon_movil.services.FirestoreFieldsContainer
 import com.example.vapeon_movil.services.FirestoreStringValue
 import com.example.vapeon_movil.services.UsuarioFields
