@@ -21,9 +21,9 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.vapeon_movil.R
-import com.example.vapeon_movil.services.FirestoreFieldsContainer
-import com.example.vapeon_movil.services.FirestoreStringValue
-import com.example.vapeon_movil.services.UsuarioFields
+import com.example.vapeon_movil.services.dto.UsuarioContainer
+import com.example.vapeon_movil.services.dto.UsuarioCampos
+import com.example.vapeon_movil.services.dto.FirestoreStringValue
 import com.example.vapeon_movil.services.UsuarioService
 import com.example.vapeon_movil.ui.theme.*
 import com.example.vapeon_movil.utils.RetrofitClient
@@ -339,9 +339,9 @@ fun RegisterScreen(
                     cargando = true
                     mensajeError = ""
 
-                    // Estructuramos el objeto según lo que pide la API REST de Firebase
-                    val usuarioFirebaseFormat = FirestoreFieldsContainer(
-                        fields = UsuarioFields(
+                    // Estructuramos el objeto según lo que pide la API REST de Firestore
+                    val usuarioFirebaseFormat = UsuarioContainer(
+                        fields = UsuarioCampos(
                             nombre = FirestoreStringValue(nombre.trim()),
                             apellido = FirestoreStringValue(apellidos.trim()),
                             telefono = FirestoreStringValue(telefono.trim()),

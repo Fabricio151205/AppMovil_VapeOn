@@ -64,8 +64,12 @@ El proyecto sigue una arquitectura **Single-Activity** con interfaz declarativa 
   - `ProductoService.kt` y `UsuarioService.kt` definen los contratos HTTP contra Firestore REST.
   - Toda llamada a la red debe declararse como función suspendida (`suspend fun`).
   - Respetar la estructura de transporte de Google Cloud Firestore (campos envueltos en `{ "fields": { "campo": { "stringValue": "..." } } }`):
-    - Usar `FirestoreFieldsContainer`, `FirestoreStringValue`, `FirestoreProductosResponse`, etc.
+    - Los DTOs de transporte viven en `services/dto/`: `FirestoreStringValue`, `ProductoContainer`, `ProductoCampos`, `UsuarioContainer`, `UsuarioCampos`, etc.
     - El ID del documento se extrae del path devuelto por Firebase: `doc.name.substringAfterLast("/")`.
+- **ViewModels (`viewmodels/`)**:
+  - `ProductoViewModel.kt`: gestiona la lista de productos, carga y eliminación.
+  - `UsuarioViewModel.kt`: gestiona la sesión activa (login, rol, cierre de sesión).
+  - Se instancian con `viewModel()` en `VapeONApp.kt` (scope de Activity) y se pasan como parámetros a las pantallas.
 
 ---
 

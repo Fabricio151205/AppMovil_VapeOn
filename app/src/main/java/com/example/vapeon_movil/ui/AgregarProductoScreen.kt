@@ -18,6 +18,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.vapeon_movil.services.*
+import com.example.vapeon_movil.services.dto.*
 import com.example.vapeon_movil.ui.theme.*
 import com.example.vapeon_movil.utils.RetrofitClient
 import kotlinx.coroutines.launch
@@ -261,8 +262,8 @@ fun AgregarProductoScreen(
                     cargando = true
                     mensajeError = ""
 
-                    val nuevoProducto = FirestoreProductoContainer(
-                        fields = ProductoFields(
+                    val nuevoProducto = ProductoContainer(
+                        fields = ProductoCampos(
                             nombre = FirestoreStringValue(nombre),
                             marca = FirestoreStringValue(marca),
                             precio = FirestoreStringValue(precio),

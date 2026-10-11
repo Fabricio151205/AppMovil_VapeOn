@@ -19,13 +19,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.vapeon_movil.components.MarcaSection
 import com.example.vapeon_movil.entities.Producto
-import com.example.vapeon_movil.services.ProductoService
 import com.example.vapeon_movil.ui.theme.*
-import com.example.vapeon_movil.utils.RetrofitClient
-import kotlinx.coroutines.launch
+import com.example.vapeon_movil.viewmodels.ProductoViewModel
 
 @Composable
 fun CatalogoScreen(
+    productoViewModel: ProductoViewModel,
     irDetalleProducto: (Producto) -> Unit,
     esAdmin: Boolean = false,
     irAgregarProducto: () -> Unit = {},
@@ -33,54 +32,28 @@ fun CatalogoScreen(
     onPerfilClick: () -> Unit = {},
     irAdmin: () -> Unit = {}
 ) {
-    val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
 
-    val productoService = remember {
-        RetrofitClient.retrofit.create(ProductoService::class.java)
-    }
+    // Estado del ViewModel
+    val productos      = productoViewModel.productos
+    val cargando       = productoViewModel.cargando
+    val errorRed       = productoViewModel.error
 
-    var busqueda by remember { mutableStateOf("") }
+    // Estado local de UI
+    var busqueda              by remember { mutableStateOf("") }
     var categoriaSeleccionada by remember { mutableStateOf("Todos") }
+    var productoAEliminar     by remember { mutableStateOf<Producto?>(null) }
 
-    var productosFirebase by remember { mutableStateOf(emptyList<Producto>()) }
-    var cargando by remember { mutableStateOf(true) }
-    var productoAEliminar by remember { mutableStateOf<Producto?>(null) }
-
-    // Carga de productos desde Firebase Firestore REST API
+    // Carga inicial de productos
     LaunchedEffect(Unit) {
-        scope.launch {
-            try {
-                val respuesta = productoService.listarProductos()
-                val lista = respuesta.documents?.map { doc ->
-                    Producto(
-                        id = doc.name.substringAfterLast("/"),
-                        nombre = doc.fields.nombre?.stringValue ?: "",
-                        marca = doc.fields.marca?.stringValue ?: "",
-                        precio = doc.fields.precio?.stringValue ?: "",
-                        stock = doc.fields.stock?.stringValue ?: "",
-                        descripcion = doc.fields.descripcion?.stringValue ?: ""
-                    )
-                } ?: emptyList()
-                productosFirebase = lista
-            } catch (e: Exception) {
-                println("Error al cargar productos en Catalogo: ${e.localizedMessage}")
-            } finally {
-                cargando = false
-            }
-        }
+        productoViewModel.cargarProductos()
     }
 
-    // Función segura de eliminación para administradores
-    fun eliminarProductoFirebase(producto: Producto) {
-        scope.launch {
-            try {
-                productoService.eliminarProducto(producto.id)
-                productosFirebase = productosFirebase.filter { it.id != producto.id }
-                snackbarHostState.showSnackbar("Producto '${producto.nombre}' eliminado correctamente")
-            } catch (e: Exception) {
-                snackbarHostState.showSnackbar("Error al eliminar: ${e.localizedMessage}")
-            }
+    // Mostrar error de red como Snackbar
+    LaunchedEffect(errorRed) {
+        errorRed?.let {
+            snackbarHostState.showSnackbar(it)
+            productoViewModel.limpiarError()
         }
     }
 
@@ -182,9 +155,7 @@ fun CatalogoScreen(
                             .height(250.dp),
                         contentAlignment = Alignment.Center
                     ) {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             CircularProgressIndicator(
                                 color = VapeOnGold,
                                 modifier = Modifier.size(42.dp)
@@ -199,16 +170,16 @@ fun CatalogoScreen(
                     }
                 } else {
                     // Filtrado reactivo de productos
-                    val listaFiltrada = productosFirebase.filter { prod ->
+                    val listaFiltrada = productos.filter { prod ->
                         val coincideTexto = busqueda.isBlank() ||
                                 prod.nombre.contains(busqueda, ignoreCase = true) ||
                                 prod.marca.contains(busqueda, ignoreCase = true) ||
                                 prod.descripcion.contains(busqueda, ignoreCase = true)
 
                         val coincideCategoria = when (categoriaSeleccionada) {
-                            "Nuevos" -> prod.id.length > 5
+                            "Nuevos"      -> prod.id.length > 5
                             "Promociones" -> prod.precio.toDoubleOrNull()?.let { it < 75 } ?: false
-                            else -> true
+                            else          -> true
                         }
 
                         coincideTexto && coincideCategoria
@@ -228,13 +199,11 @@ fun CatalogoScreen(
                             )
                         }
                     } else {
-                        // ==========================================
-                        // SECCIÓN: LIFEPOD
-                        // ==========================================
+                        // ── SECCIÓN: LIFEPOD ──────────────────────────────
                         val productosLifePod = listaFiltrada.filter {
-                            it.marca.equals("LifePod", ignoreCase = true) || it.marca.equals("LifePood", ignoreCase = true)
+                            it.marca.equals("LifePod", ignoreCase = true) ||
+                            it.marca.equals("LifePood", ignoreCase = true)
                         }
-
                         if (productosLifePod.isNotEmpty()) {
                             MarcaSection(
                                 nombreMarca = "LifePod",
@@ -247,13 +216,10 @@ fun CatalogoScreen(
                             )
                         }
 
-                        // ==========================================
-                        // SECCIÓN: OXBAR
-                        // ==========================================
+                        // ── SECCIÓN: OXBAR ────────────────────────────────
                         val productosOxbar = listaFiltrada.filter {
                             it.marca.equals("Oxbar", ignoreCase = true)
                         }
-
                         if (productosOxbar.isNotEmpty()) {
                             MarcaSection(
                                 nombreMarca = "Oxbar",
@@ -266,13 +232,10 @@ fun CatalogoScreen(
                             )
                         }
 
-                        // ==========================================
-                        // SECCIÓN: NEXA
-                        // ==========================================
+                        // ── SECCIÓN: NEXA ─────────────────────────────────
                         val productosNexa = listaFiltrada.filter {
                             it.marca.equals("Nexa", ignoreCase = true)
                         }
-
                         if (productosNexa.isNotEmpty()) {
                             MarcaSection(
                                 nombreMarca = "Nexa",
@@ -285,19 +248,21 @@ fun CatalogoScreen(
                             )
                         }
 
-                        // Secciones dinámicas para otras marcas agregadas por el administrador
+                        // ── SECCIONES DINÁMICAS (otras marcas) ────────────
                         val otrasMarcas = listaFiltrada
                             .map { it.marca.trim() }
                             .distinct()
                             .filter {
-                                !it.equals("LifePod", ignoreCase = true) &&
-                                        !it.equals("LifePood", ignoreCase = true) &&
-                                        !it.equals("Oxbar", ignoreCase = true) &&
-                                        !it.equals("Nexa", ignoreCase = true)
+                                !it.equals("LifePod",  ignoreCase = true) &&
+                                !it.equals("LifePood", ignoreCase = true) &&
+                                !it.equals("Oxbar",    ignoreCase = true) &&
+                                !it.equals("Nexa",     ignoreCase = true)
                             }
 
                         otrasMarcas.forEach { marca ->
-                            val productosMarca = listaFiltrada.filter { it.marca.equals(marca, ignoreCase = true) }
+                            val productosMarca = listaFiltrada.filter {
+                                it.marca.equals(marca, ignoreCase = true)
+                            }
                             if (productosMarca.isNotEmpty()) {
                                 MarcaSection(
                                     nombreMarca = marca,
@@ -313,7 +278,7 @@ fun CatalogoScreen(
                     }
                 }
 
-                // Espacio inferior para evitar que el contenido quede tapado por el botón flotante
+                // Espacio inferior para el botón flotante
                 Spacer(modifier = Modifier.height(70.dp))
             }
 
@@ -364,7 +329,9 @@ fun CatalogoScreen(
             confirmButton = {
                 Button(
                     onClick = {
-                        eliminarProductoFirebase(prod)
+                        productoViewModel.eliminarProducto(prod.id) {
+                            // Snackbar de feedback post-eliminación
+                        }
                         productoAEliminar = null
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = VapeOnRed)

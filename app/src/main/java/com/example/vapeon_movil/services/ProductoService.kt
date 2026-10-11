@@ -1,84 +1,37 @@
 package com.example.vapeon_movil.services
 
+import com.example.vapeon_movil.services.dto.ProductoContainer
+import com.example.vapeon_movil.services.dto.ProductoDocumento
+import com.example.vapeon_movil.services.dto.ProductoListResponse
 import retrofit2.http.Body
 import retrofit2.http.DELETE
 import retrofit2.http.GET
-import retrofit2.http.POST
 import retrofit2.http.PATCH
+import retrofit2.http.POST
 import retrofit2.http.Path
 
-
+// ─────────────────────────────────────────────
+// Contrato HTTP — Colección "productos" en Firestore
+// DTOs de transporte en: services/dto/ProductoDto.kt
+// ─────────────────────────────────────────────
 interface ProductoService {
 
-
-    // Obtener todos los productos
+    // Listar todos los productos
     @GET("productos")
-    suspend fun listarProductos(): FirestoreProductosResponse
+    suspend fun listarProductos(): ProductoListResponse
 
-
-
-    // Crear producto nuevo
+    // Crear un producto nuevo
     @POST("productos")
-    suspend fun crearProducto(
-        @Body producto: FirestoreProductoContainer
-    ): Any
+    suspend fun crearProducto(@Body body: ProductoContainer): Any
 
-
-
-    // Actualizar producto existente
+    // Actualizar un producto existente por su ID
     @PATCH("productos/{id}")
     suspend fun actualizarProducto(
         @Path("id") id: String,
-        @Body producto: FirestoreProductoContainer
-    ): FirestoreProducto
+        @Body body: ProductoContainer
+    ): ProductoDocumento
 
-
-
-    // Eliminar producto
+    // Eliminar un producto por su ID
     @DELETE("productos/{id}")
-    suspend fun eliminarProducto(
-        @Path("id") id: String
-    ): Any
-
+    suspend fun eliminarProducto(@Path("id") id: String): Any
 }
-
-
-
-// Formato que necesita Firebase REST
-data class FirestoreProductoContainer(
-    val fields: ProductoFields
-)
-
-
-
-data class ProductoFields(
-
-    val nombre: FirestoreStringValue? = null,
-
-    val marca: FirestoreStringValue? = null,
-
-    val precio: FirestoreStringValue? = null,
-
-    val stock: FirestoreStringValue? = null,
-
-    val descripcion: FirestoreStringValue? = null
-
-)
-
-
-
-data class FirestoreProductosResponse(
-
-    val documents: List<FirestoreProducto>?
-
-)
-
-
-
-data class FirestoreProducto(
-
-    val name: String,
-
-    val fields: ProductoFields
-
-)

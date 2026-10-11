@@ -21,29 +21,25 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.vapeon_movil.R
-import com.example.vapeon_movil.services.UsuarioService
+import com.example.vapeon_movil.viewmodels.UsuarioViewModel
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.vapeon_movil.ui.theme.*
-import com.example.vapeon_movil.utils.RetrofitClient
-import kotlinx.coroutines.launch
 
 @Composable
 fun LoginScreen(
     irRegistro: () -> Unit,
     irRecuperar: () -> Unit,
     irHome: () -> Unit,
-    irAdmin: () -> Unit
+    irAdmin: () -> Unit,
+    usuarioViewModel: UsuarioViewModel
 ) {
-    val scope = rememberCoroutineScope()
-    val usuarioService = remember {
-        RetrofitClient.retrofit.create(UsuarioService::class.java)
-    }
-
+    // Estado local solo de UI (campos del formulario)
     var correo by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
 
-    // Variable para manejar estados de error visibles en consola o textos
-    var mensajeError by remember { mutableStateOf("") }
-    var cargando by remember { mutableStateOf(false) }
+    // Estado del ViewModel (login, carga, error)
+    val cargando = usuarioViewModel.cargandoLogin
+    val mensajeError = usuarioViewModel.errorLogin ?: ""
 
     Surface(
         modifier = Modifier.fillMaxSize(),
@@ -162,38 +158,13 @@ fun LoginScreen(
             // Botón principal: INICIAR SESIÓN (estilo píldora roja)
             Button(
                 onClick = {
-                    cargando = true
-                    mensajeError = ""
-
-                    scope.launch {
-                        try {
-                            val respuesta = usuarioService.listarUsuarios()
-                            val listaUsuarios = respuesta.documents
-
-                            val usuarioValido = listaUsuarios?.find { doc ->
-                                doc.fields.correo.stringValue == correo &&
-                                        doc.fields.password.stringValue == password
-                            }
-
-                            cargando = false
-
-                            if (usuarioValido != null) {
-                                val rol = usuarioValido.fields.rol.stringValue
-                                if (rol == "ADMIN") {
-                                    irAdmin()
-                                } else {
-                                    irHome()
-                                }
-                            } else {
-                                mensajeError = "Correo o contraseña incorrectos"
-                                println(mensajeError)
-                            }
-                        } catch (e: Exception) {
-                            cargando = false
-                            mensajeError = "Error de conexión: ${e.localizedMessage}"
-                            println(mensajeError)
+                    usuarioViewModel.iniciarSesion(
+                        correo = correo,
+                        password = password,
+                        onExito = { esAdmin ->
+                            if (esAdmin) irAdmin() else irHome()
                         }
-                    }
+                    )
                 },
                 enabled = !cargando,
                 shape = RoundedCornerShape(50),
