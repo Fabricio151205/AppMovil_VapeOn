@@ -57,6 +57,8 @@ El proyecto sigue una arquitectura **Single-Activity** con interfaz declarativa 
 - Deben definirse como `data class` inmutables sin dependencias a librerías de UI o frameworks de red:
   - `Producto`: `id`, `nombre`, `marca`, `precio`, `stock`, `descripcion`.
   - `Usuario`: `id`, `nombre`, `apellido`, `telefono`, `fechaNacimiento`, `correo`, `password`, `rol`.
+  - `ItemCarrito`: `productoId`, `nombre`, `marca`, `precioUnit`, `cantidad`, `imagenRes` — local en memoria, solo CLIENTE.
+  - `ResumenPago`: `subTotal`, `delivery`, `igv`, `total` — calculado desde `ItemCarrito` con factory method `calcular()`.
 
 ### 3.3 Capa de Red y Acceso a Datos (Data & Network Layer)
 - **Cliente HTTP**: Configurado como Singleton en `utils/RetrofitClient.kt`.

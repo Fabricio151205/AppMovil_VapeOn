@@ -63,26 +63,40 @@ class UsuarioViewModel : ViewModel() {
         onExito: (esAdmin: Boolean) -> Unit,
         onError: (mensaje: String) -> Unit = {}
     ) {
+        // ── Validar que no se envíen campos vacíos ──────────────────────────
+        val correoLimpio = correo.trim()
+        val passwordLimpia = password.trim()
+
+        if (correoLimpio.isEmpty() || passwordLimpia.isEmpty()) {
+            errorLogin = "Por favor, ingresa tu correo y contraseña"
+            onError(errorLogin!!)
+            return
+        }
+
         viewModelScope.launch {
             cargandoLogin = true
             errorLogin = null
             try {
                 val respuesta = usuarioService.listarUsuarios()
                 val doc = respuesta.documents?.firstOrNull { doc ->
-                    doc.fields.correo.stringValue.equals(correo.trim(), ignoreCase = true) &&
-                    doc.fields.password.stringValue == password
+                    val docCorreo = doc.fields.correo?.stringValue?.trim() ?: ""
+                    val docPassword = doc.fields.password?.stringValue ?: ""
+
+                    docCorreo.isNotEmpty() && docPassword.isNotEmpty() &&
+                    docCorreo.equals(correoLimpio, ignoreCase = true) &&
+                    docPassword == passwordLimpia
                 }
 
                 if (doc != null) {
                     usuarioActual = Usuario(
                         id              = doc.name.substringAfterLast("/"),
-                        nombre          = doc.fields.nombre.stringValue,
-                        apellido        = doc.fields.apellido.stringValue,
-                        telefono        = doc.fields.telefono.stringValue,
-                        fechaNacimiento = doc.fields.fechaNacimiento.stringValue,
-                        correo          = doc.fields.correo.stringValue,
+                        nombre          = doc.fields.nombre?.stringValue ?: "",
+                        apellido        = doc.fields.apellido?.stringValue ?: "",
+                        telefono        = doc.fields.telefono?.stringValue ?: "",
+                        fechaNacimiento = doc.fields.fechaNacimiento?.stringValue ?: "",
+                        correo          = doc.fields.correo?.stringValue ?: "",
                         password        = "",       // No se persiste la contraseña en memoria
-                        rol             = doc.fields.rol.stringValue
+                        rol             = doc.fields.rol?.stringValue ?: "CLIENTE"
                     )
                     esAdmin = usuarioActual?.rol?.equals("ADMIN", ignoreCase = true) == true
                     onExito(esAdmin)
@@ -91,7 +105,8 @@ class UsuarioViewModel : ViewModel() {
                     onError(errorLogin!!)
                 }
             } catch (e: Exception) {
-                errorLogin = "Error de conexión: ${e.localizedMessage}"
+                println("Error al iniciar sesión: ${e.localizedMessage}")
+                errorLogin = "Error al conectar con el servidor. Inténtalo de nuevo."
                 onError(errorLogin!!)
             } finally {
                 cargandoLogin = false

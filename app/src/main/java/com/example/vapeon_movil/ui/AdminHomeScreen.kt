@@ -34,6 +34,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun AdminHomeScreen(
     irCatalogo: () -> Unit,
+    irDetalleProducto: (Producto) -> Unit = {},
     irEditarProducto: (Producto) -> Unit = {},
     onPerfilClick: () -> Unit = {},
     onCajaTotalClick: () -> Unit = {},
@@ -94,6 +95,7 @@ fun AdminHomeScreen(
 
     MenuScreen(
         irCatalogo = irCatalogo,
+        esAdmin = true,
         onPerfilClick = onPerfilClick,
         onTituloClick = { /* Ya estamos en AdminHome */ }
     ) { paddingValues ->
@@ -281,6 +283,7 @@ fun AdminHomeScreen(
                 ) {
                     items(productosFirebase) { prod ->
                         Card(
+                            onClick = { irDetalleProducto(prod) },
                             shape = RoundedCornerShape(22.dp),
                             colors = CardDefaults.cardColors(containerColor = VapeOnCardBackground),
                             modifier = Modifier.width(170.dp)

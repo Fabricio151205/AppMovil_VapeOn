@@ -34,7 +34,8 @@ fun DetalleProductoScreen(
     producto: Producto,
     esAdmin: Boolean = false,
     volver: () -> Unit,
-    irEditarProducto: ((Producto) -> Unit)? = null
+    irEditarProducto: ((Producto) -> Unit)? = null,
+    onAgregarAlCarrito: (() -> Unit)? = null   // null para ADMIN (no aplica)
 ) {
     var esFavorito by remember { mutableStateOf(false) }
 
@@ -259,7 +260,7 @@ fun DetalleProductoScreen(
                         }
                     } else {
                         Button(
-                            onClick = { /* Agregar al carrito */ },
+                            onClick = { onAgregarAlCarrito?.invoke() },
                             shape = RoundedCornerShape(50),
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = VapeOnRed,

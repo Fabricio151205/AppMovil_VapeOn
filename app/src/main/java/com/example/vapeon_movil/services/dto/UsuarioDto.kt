@@ -9,15 +9,15 @@ data class UsuarioContainer(
     val fields: UsuarioCampos
 )
 
-/** Campos del documento "usuario" en Firestore */
+/** Campos del documento "usuario" en Firestore (campos opcionales para evitar NullPointerException) */
 data class UsuarioCampos(
-    val nombre: FirestoreStringValue,
-    val apellido: FirestoreStringValue,
-    val telefono: FirestoreStringValue,
-    val fechaNacimiento: FirestoreStringValue,
-    val correo: FirestoreStringValue,
-    val password: FirestoreStringValue,
-    val rol: FirestoreStringValue
+    val nombre: FirestoreStringValue? = null,
+    val apellido: FirestoreStringValue? = null,
+    val telefono: FirestoreStringValue? = null,
+    val fechaNacimiento: FirestoreStringValue? = null,
+    val correo: FirestoreStringValue? = null,
+    val password: FirestoreStringValue? = null,
+    val rol: FirestoreStringValue? = null
 )
 
 /** Respuesta de listado: array de documentos de usuario */

@@ -7,6 +7,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -23,6 +24,8 @@ import kotlinx.coroutines.launch
 @Composable
 fun MenuScreen(
     irCatalogo: () -> Unit = {},
+    irCarrito: () -> Unit = {},
+    esAdmin: Boolean = false,
     onPerfilClick: () -> Unit = {},
     onOpcionMenuClick: (String) -> Unit = {},
     onTituloClick: () -> Unit = {},
@@ -35,11 +38,15 @@ fun MenuScreen(
     val opcionesMenu = listOf(
         "Roles",
         "Catálogo",
+        "Carrito",
         "Pedidos",
         "Pagos",
         "Clientes",
         "Proveedores"
-    )
+    ).filter { opcion ->
+        // Ocultar la opción "Carrito" del menú lateral únicamente si es administrador
+        !(esAdmin && opcion == "Carrito")
+    }
 
     ModalNavigationDrawer(
         drawerState = drawerState,
@@ -82,6 +89,7 @@ fun MenuScreen(
                             scope.launch { drawerState.close() }
                             when (opcion) {
                                 "Catálogo" -> irCatalogo()
+                                "Carrito"  -> irCarrito()
                                 else -> {
                                     onOpcionMenuClick(opcion)
                                     scope.launch {
@@ -126,10 +134,22 @@ fun MenuScreen(
                         }
                     },
                     actions = {
-                        // Avatar circular de perfil del administrador
+                        // Ícono de Carrito de Compras (Exclusivo para CLIENTE)
+                        if (!esAdmin) {
+                            IconButton(onClick = irCarrito) {
+                                Icon(
+                                    imageVector = Icons.Default.ShoppingCart,
+                                    contentDescription = "Carrito de Compras",
+                                    tint = VapeOnTextPrimary,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
+                        }
+
+                        // Avatar circular de perfil del usuario/administrador
                         Box(
                             modifier = Modifier
-                                .padding(end = 16.dp)
+                                .padding(end = 16.dp, start = 4.dp)
                                 .size(40.dp)
                                 .clip(CircleShape)
                                 .background(VapeOnRedDark)
@@ -138,7 +158,7 @@ fun MenuScreen(
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Person,
-                                contentDescription = "Perfil Administrador",
+                                contentDescription = "Perfil",
                                 tint = VapeOnTextPrimary,
                                 modifier = Modifier.size(24.dp)
                             )

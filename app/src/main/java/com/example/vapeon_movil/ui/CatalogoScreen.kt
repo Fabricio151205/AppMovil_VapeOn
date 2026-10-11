@@ -30,7 +30,8 @@ fun CatalogoScreen(
     irAgregarProducto: () -> Unit = {},
     irEditarProducto: (Producto) -> Unit = {},
     onPerfilClick: () -> Unit = {},
-    irAdmin: () -> Unit = {}
+    irAdmin: () -> Unit = {},
+    irCarrito: () -> Unit = {}
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -60,6 +61,8 @@ fun CatalogoScreen(
     // Contenedor principal reutilizando el menú lateral y la barra superior oficial de VapeON
     MenuScreen(
         irCatalogo = { /* Ya estamos en el catálogo */ },
+        irCarrito = irCarrito,
+        esAdmin = esAdmin,
         onPerfilClick = onPerfilClick,
         // Solo admin puede navegar al panel administrativo pulsando el título VAPEON
         onTituloClick = { if (esAdmin) irAdmin() }
