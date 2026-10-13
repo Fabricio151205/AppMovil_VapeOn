@@ -20,8 +20,8 @@ fun RegisterScreen(
 ){
 
     val scope = rememberCoroutineScope()
-    val usuarioService = remember { 
-        RetrofitClient.retrofit.create(UsuarioService::class.java) 
+    val usuarioService = remember {
+        RetrofitClient.retrofit.create(UsuarioService::class.java)
     }
 
     var nombre by remember {
@@ -39,13 +39,17 @@ fun RegisterScreen(
     var telefono by remember {
         mutableStateOf("")
     }
-
+    var mensajeError by remember {
+        mutableStateOf("")
+    }
     var fechaNacimiento by remember {
         mutableStateOf("")
     }
 
     var password by remember {
         mutableStateOf("")
+
+
     }
 
     var passwordConfirm by remember {
@@ -149,7 +153,11 @@ fun RegisterScreen(
 
             onValueChange = {
                 telefono = it
+
+
             },
+
+
 
             label = {
                 Text("987654321")
@@ -245,12 +253,25 @@ fun RegisterScreen(
             modifier = Modifier.height(20.dp)
         )
 
+        if (mensajeError.isNotEmpty()) {
+
+            Text(
+                text = mensajeError,
+                color = MaterialTheme.colorScheme.error
+            )
+
+        }
 
         Button(
             onClick = {
-                if (password == passwordConfirm) {
 
-                    // Estructuramos el objeto según lo que pide la API REST de Firebase
+                if(!telefono.startsWith("9")){
+                    mensajeError("El telefono debe comenzar con 9")
+                }else if  (password == passwordConfirm) {
+                    println("Las contraseñas no coinciden")
+
+                }else{    // Estructuramos el objeto según lo que pide la API REST de Firebase
+                    mensajeError = ""
                     val usuarioFirebaseFormat = FirestoreFieldsContainer(
                         fields = UsuarioFields(
                             nombre = FirestoreStringValue(nombre),
@@ -276,8 +297,12 @@ fun RegisterScreen(
                             println("Error en la API REST de Firebase: ${e.localizedMessage}")
                         }
                     }
+
                 }
             },
+
+
+
             modifier = Modifier.fillMaxWidth()
         ) {
             Text(text = "Crear cuenta")
