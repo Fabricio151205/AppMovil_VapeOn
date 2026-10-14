@@ -6,6 +6,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.vapeon_movil.entities.Producto
 import com.example.vapeon_movil.ui.AdminHomeScreen
 import com.example.vapeon_movil.ui.AgregarProductoScreen
+import com.example.vapeon_movil.ui.CheckoutScreen
 import com.example.vapeon_movil.ui.CarritoScreen
 import com.example.vapeon_movil.ui.CatalogoScreen
 import com.example.vapeon_movil.ui.DetalleProductoScreen
@@ -14,6 +15,7 @@ import com.example.vapeon_movil.ui.ForgotPasswordScreen
 import com.example.vapeon_movil.ui.HomeScreen
 import com.example.vapeon_movil.ui.LoginScreen
 import com.example.vapeon_movil.ui.RegisterScreen
+import com.example.vapeon_movil.viewmodels.PedidoViewModel
 import com.example.vapeon_movil.viewmodels.CarritoViewModel
 import com.example.vapeon_movil.viewmodels.ProductoViewModel
 import com.example.vapeon_movil.viewmodels.UsuarioViewModel
@@ -30,8 +32,10 @@ fun VapeONApp() {
     val productoViewModel: ProductoViewModel = viewModel()
     val carritoViewModel: CarritoViewModel  = viewModel()
 
-    LaunchedEffect(Unit) {
-        carritoViewModel.cargarCarrito(context)
+    val pedidoViewModel: PedidoViewModel = viewModel()
+
+    LaunchedEffect(usuarioViewModel.usuarioActual?.id) {
+        carritoViewModel.cargarCarrito(context, usuarioViewModel.usuarioActual?.id)
     }
 
     // ── Estado de navegación ──────────────────────────────────────────────────
@@ -50,7 +54,9 @@ fun VapeONApp() {
                 usuarioViewModel = usuarioViewModel,
                 irRegistro  = { pantallaActual = "registro" },
                 irRecuperar = { pantallaActual = "recuperar" },
-                irHome      = { pantallaActual = "home" },
+                irHome      = {
+                    pantallaActual = if (pedidoViewModel.requiereComprobacion) "checkout" else "home"
+                },
                 irAdmin     = { pantallaActual = "admin" }
             )
         }
@@ -144,8 +150,25 @@ fun VapeONApp() {
             } else {
                 CarritoScreen(
                     carritoViewModel = carritoViewModel,
-                    volver           = { pantallaActual = "home" }
+                    volver           = { pantallaActual = "home" },
+                    irCheckout = {
+                        pedidoViewModel.iniciarCheckout()
+                        pantallaActual = "checkout"
+                    }
                 )
+            }
+        }
+
+        "checkout" -> {
+            com.example.vapeon_movil.ui.theme.VapeON_MovilTheme {
+            CheckoutScreen(
+                usuario = usuarioViewModel.usuarioActual,
+                carritoViewModel = carritoViewModel,
+                productoViewModel = productoViewModel,
+                pedidoViewModel = pedidoViewModel,
+                volver = { pantallaActual = "carrito" },
+                irHome = { pantallaActual = "home" }
+            )
             }
         }
 

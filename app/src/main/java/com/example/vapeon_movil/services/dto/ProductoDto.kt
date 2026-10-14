@@ -29,5 +29,6 @@ data class ProductoListResponse(
 /** Documento individual de producto tal como lo devuelve Firestore REST */
 data class ProductoDocumento(
     val name: String,       // Path completo: "projects/.../documents/productos/{id}"
-    val fields: ProductoCampos
+    val fields: ProductoCampos,
+    val updateTime: String? = null
 )

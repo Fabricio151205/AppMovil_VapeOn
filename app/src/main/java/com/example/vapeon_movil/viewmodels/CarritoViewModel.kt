@@ -24,6 +24,9 @@ class CarritoViewModel : ViewModel() {
     private val PREFS_NAME = "vapeon_carrito_prefs"
     private val KEY_ITEMS = "carrito_items"
 
+    private var usuarioId: String? = null
+    private val claveItems: String get() = "${KEY_ITEMS}_${usuarioId.orEmpty()}"
+
     private var appContext: Context? = null
 
     // ─── Estado observable ─────────────────────────────────────────────────
@@ -45,11 +48,14 @@ class CarritoViewModel : ViewModel() {
     /**
      * Carga la lista de ítems guardados en SharedPreferences.
      */
-    fun cargarCarrito(context: Context) {
+    fun cargarCarrito(context: Context, usuarioId: String? = null) {
+        this.usuarioId = usuarioId
+        items = emptyList()
+        if (usuarioId.isNullOrBlank()) return
         appContext = context.applicationContext
         try {
             val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-            val json = prefs.getString(KEY_ITEMS, null)
+            val json = prefs.getString(claveItems, null)
             if (!json.isNullOrEmpty()) {
                 val type = object : TypeToken<List<ItemCarrito>>() {}.type
                 val itemsGuardados: List<ItemCarrito>? = gson.fromJson(json, type)
@@ -70,7 +76,7 @@ class CarritoViewModel : ViewModel() {
         try {
             val prefs = targetContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             val json = gson.toJson(items)
-            prefs.edit().putString(KEY_ITEMS, json).apply()
+            prefs.edit().putString(claveItems, json).apply()
         } catch (e: Exception) {
             println("Error al guardar carrito persistente: ${e.localizedMessage}")
         }
@@ -151,7 +157,7 @@ class CarritoViewModel : ViewModel() {
         if (targetContext != null) {
             try {
                 val prefs = targetContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-                prefs.edit().remove(KEY_ITEMS).apply()
+                prefs.edit().remove(claveItems).commit()
             } catch (e: Exception) {
                 println("Error al limpiar carrito en prefs: ${e.localizedMessage}")
             }

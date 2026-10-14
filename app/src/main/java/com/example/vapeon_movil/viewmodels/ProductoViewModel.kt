@@ -42,6 +42,9 @@ class ProductoViewModel : ViewModel() {
 
     // ─── Acciones ──────────────────────────────────────────────────────────
 
+    /** Lectura fresca para checkout; los errores los presenta PedidoViewModel. */
+    suspend fun consultarProducto(id: String) = productoService.mostrarProducto(id)
+
     /**
      * Carga todos los productos desde Firestore REST API.
      * Actualiza [productos], [cargando] y [error] reactivamente.
