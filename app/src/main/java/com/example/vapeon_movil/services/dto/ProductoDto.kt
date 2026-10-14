@@ -11,14 +11,14 @@ data class ProductoContainer(
 
 /**
  * Campos del documento "producto" en Firestore.
- * Todos son opcionales (nullable) para permitir actualizaciones parciales con PATCH.
+ * Todos son opcionales (nullable) y usan FirestoreValue para soportar tanto números como texto.
  */
 data class ProductoCampos(
-    val nombre: FirestoreStringValue? = null,
-    val marca: FirestoreStringValue? = null,
-    val precio: FirestoreStringValue? = null,
-    val stock: FirestoreStringValue? = null,
-    val descripcion: FirestoreStringValue? = null
+    val nombre: FirestoreValue? = null,
+    val marca: FirestoreValue? = null,
+    val precio: FirestoreValue? = null,
+    val stock: FirestoreValue? = null,
+    val descripcion: FirestoreValue? = null
 )
 
 /** Respuesta de listado: array de documentos de producto */

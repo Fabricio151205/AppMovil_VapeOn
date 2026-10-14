@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -15,6 +16,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.vapeon_movil.services.*
@@ -177,6 +179,7 @@ fun AgregarProductoScreen(
                 placeholder = {
                     Text(text = "Precio", color = VapeOnTextSecondary, fontSize = 15.sp)
                 },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 singleLine = true,
                 shape = RoundedCornerShape(12.dp),
                 colors = OutlinedTextFieldDefaults.colors(
@@ -201,6 +204,7 @@ fun AgregarProductoScreen(
                 placeholder = {
                     Text(text = "Stock", color = VapeOnTextSecondary, fontSize = 15.sp)
                 },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 singleLine = true,
                 shape = RoundedCornerShape(12.dp),
                 colors = OutlinedTextFieldDefaults.colors(
@@ -258,16 +262,34 @@ fun AgregarProductoScreen(
             // ==========================================
             Button(
                 onClick = {
+                    val precioDouble = precio.toDoubleOrNull()
+                    val stockInt = stock.toIntOrNull()
+
+                    if (nombre.isBlank()) {
+                        mensajeError = "Por favor ingresa el nombre del producto"
+                        return@Button
+                    }
+
+                    if (precioDouble == null || precioDouble <= 0.0) {
+                        mensajeError = "Por favor ingresa un precio válido mayor a 0"
+                        return@Button
+                    }
+
+                    if (stockInt == null || stockInt < 0) {
+                        mensajeError = "Por favor ingresa un stock válido"
+                        return@Button
+                    }
+
                     cargando = true
                     mensajeError = ""
 
                     val nuevoProducto = ProductoContainer(
                         fields = ProductoCampos(
-                            nombre = FirestoreStringValue(nombre),
-                            marca = FirestoreStringValue(marca),
-                            precio = FirestoreStringValue(precio),
-                            stock = FirestoreStringValue(stock),
-                            descripcion = FirestoreStringValue(descripcion)
+                            nombre = FirestoreValue(stringValue = nombre),
+                            marca = FirestoreValue(stringValue = marca),
+                            precio = FirestoreValue(doubleValue = precioDouble),
+                            stock = FirestoreValue(integerValue = stockInt.toString(), doubleValue = stockInt.toDouble()),
+                            descripcion = FirestoreValue(stringValue = descripcion)
                         )
                     )
 

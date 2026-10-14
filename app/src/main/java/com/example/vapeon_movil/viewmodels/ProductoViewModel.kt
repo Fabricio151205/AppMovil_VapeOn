@@ -58,11 +58,11 @@ class ProductoViewModel : ViewModel() {
                 productos = respuesta.documents?.map { doc ->
                     Producto(
                         id          = doc.name.substringAfterLast("/"),
-                        nombre      = doc.fields.nombre?.stringValue      ?: "",
-                        marca       = doc.fields.marca?.stringValue       ?: "",
-                        precio      = doc.fields.precio?.stringValue      ?: "",
-                        stock       = doc.fields.stock?.stringValue       ?: "",
-                        descripcion = doc.fields.descripcion?.stringValue ?: ""
+                        nombre      = doc.fields.nombre?.asString()      ?: "",
+                        marca       = doc.fields.marca?.asString()       ?: "",
+                        precio      = doc.fields.precio?.asDouble()      ?: 0.0,
+                        stock       = doc.fields.stock?.asInt()         ?: 0,
+                        descripcion = doc.fields.descripcion?.asString() ?: ""
                     )
                 } ?: emptyList()
             } catch (e: Exception) {

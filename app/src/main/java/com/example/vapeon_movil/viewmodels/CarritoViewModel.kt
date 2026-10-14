@@ -92,7 +92,7 @@ class CarritoViewModel : ViewModel() {
     fun agregarProducto(producto: Producto, context: Context? = null) {
         if (context != null) appContext = context.applicationContext
 
-        val precio = producto.precio.toDoubleOrNull() ?: 0.0
+        val precio = producto.precio
         val existente = items.find { it.productoId == producto.id }
 
         items = if (existente != null) {

@@ -36,8 +36,8 @@ fun EditarProductoScreen(
 
     var nombre by remember { mutableStateOf(producto.nombre) }
     var marca by remember { mutableStateOf(producto.marca) }
-    var precio by remember { mutableStateOf(producto.precio) }
-    var stock by remember { mutableStateOf(producto.stock) }
+    var precio by remember { mutableStateOf(if (producto.precio % 1.0 == 0.0) producto.precio.toInt().toString() else producto.precio.toString()) }
+    var stock by remember { mutableStateOf(producto.stock.toString()) }
     var descripcion by remember { mutableStateOf(producto.descripcion) }
 
     var cargando by remember { mutableStateOf(false) }
@@ -305,16 +305,39 @@ fun EditarProductoScreen(
             // ==========================================
             Button(
                 onClick = {
+                    val precioDouble = precio.toDoubleOrNull()
+                    val stockInt = stock.toIntOrNull()
+
+                    if (nombre.isBlank()) {
+                        mensajeError = "Por favor ingresa el nombre del producto"
+                        return@Button
+                    }
+
+                    if (precioDouble == null || precioDouble <= 0.0) {
+                        mensajeError = "Por favor ingresa un precio válido mayor a 0"
+                        return@Button
+                    }
+
+                    if (stockInt == null || stockInt < 0) {
+                        mensajeError = "Por favor ingresa un stock válido"
+                        return@Button
+                    }
+
                     cargando = true
                     mensajeError = ""
 
                     val productoActualizado = ProductoContainer(
                         fields = ProductoCampos(
-                            nombre = FirestoreStringValue(nombre),
-                            marca = FirestoreStringValue(marca),
-                            precio = FirestoreStringValue(precio),
-                            stock = FirestoreStringValue(stock),
-                            descripcion = FirestoreStringValue(descripcion)
+                            nombre = FirestoreValue(stringValue = nombre),
+                            marca = FirestoreValue(stringValue = marca),
+                            precio = FirestoreValue(
+                                doubleValue = precio.toDoubleOrNull() ?: 0.0
+                            ),
+                            stock = FirestoreValue(
+                                integerValue = (stock.toIntOrNull() ?: 0).toString(),
+                                doubleValue = (stock.toDoubleOrNull() ?: 0.0)
+                            ),
+                            descripcion = FirestoreValue(stringValue = descripcion)
                         )
                     )
 
