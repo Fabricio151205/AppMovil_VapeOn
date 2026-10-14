@@ -12,6 +12,8 @@ import com.example.vapeon_movil.ui.CatalogoScreen
 import com.example.vapeon_movil.ui.DetalleProductoScreen
 import com.example.vapeon_movil.ui.EditarProductoScreen
 import com.example.vapeon_movil.ui.ForgotPasswordScreen
+import com.example.vapeon_movil.ui.HistorialComprasScreen
+import com.example.vapeon_movil.ui.DetallePedidoScreen
 import com.example.vapeon_movil.ui.HomeScreen
 import com.example.vapeon_movil.ui.LoginScreen
 import com.example.vapeon_movil.ui.RegisterScreen
@@ -36,12 +38,15 @@ fun VapeONApp() {
 
     LaunchedEffect(usuarioViewModel.usuarioActual?.id) {
         carritoViewModel.cargarCarrito(context, usuarioViewModel.usuarioActual?.id)
+        pedidoViewModel.actualizarUsuarioHistorial(usuarioViewModel.usuarioActual)
     }
 
     // ── Estado de navegación ──────────────────────────────────────────────────
     var pantallaActual       by remember { mutableStateOf("login") }
     var productoSeleccionado by remember { mutableStateOf<Producto?>(null) }
     var productoEditar       by remember { mutableStateOf<Producto?>(null) }
+
+    var pedidoSeleccionadoId by remember { mutableStateOf("") }
 
     // Derivado del ViewModel — evita duplicar estado
     val esAdminUser = usuarioViewModel.esAdmin
@@ -83,7 +88,8 @@ fun VapeONApp() {
                     productoSeleccionado = producto
                     pantallaActual = "detalle"
                 },
-                irCarrito = { pantallaActual = "carrito" }
+                irCarrito = { pantallaActual = "carrito" },
+                irHistorial = { pantallaActual = "historialCompras" }
             )
         }
 
@@ -117,7 +123,8 @@ fun VapeONApp() {
                     pantallaActual = "editarProducto"
                 },
                 irAdmin   = { pantallaActual = "admin" },
-                irCarrito = { pantallaActual = "carrito" }
+                irCarrito = { pantallaActual = "carrito" },
+                irHistorial = { pantallaActual = "historialCompras" }
             )
         }
 
@@ -157,6 +164,27 @@ fun VapeONApp() {
                     }
                 )
             }
+        }
+
+        "historialCompras" -> {
+            HistorialComprasScreen(
+                usuario = usuarioViewModel.usuarioActual,
+                pedidoViewModel = pedidoViewModel,
+                volver = { pantallaActual = "home" },
+                irDetallePedido = { id ->
+                    pedidoSeleccionadoId = id
+                    pantallaActual = "detallePedido"
+                }
+            )
+        }
+
+        "detallePedido" -> {
+            DetallePedidoScreen(
+                usuario = usuarioViewModel.usuarioActual,
+                pedidoId = pedidoSeleccionadoId,
+                pedidoViewModel = pedidoViewModel,
+                volver = { pantallaActual = "historialCompras" }
+            )
         }
 
         "checkout" -> {

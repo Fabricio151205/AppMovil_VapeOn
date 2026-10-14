@@ -29,6 +29,7 @@ fun MenuScreen(
     onPerfilClick: () -> Unit = {},
     onOpcionMenuClick: (String) -> Unit = {},
     onTituloClick: () -> Unit = {},
+    irHistorial: () -> Unit = {},
     content: @Composable (PaddingValues) -> Unit
 ) {
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
@@ -39,7 +40,7 @@ fun MenuScreen(
         "Roles",
         "Catálogo",
         "Carrito",
-        "Pedidos",
+        if (esAdmin) "Pedidos" else "Historial de compras",
         "Pagos",
         "Clientes",
         "Proveedores"
@@ -67,7 +68,7 @@ fun MenuScreen(
                         fontWeight = FontWeight.Bold
                     )
                     Text(
-                        text = "ADMIN",
+                        text = if (esAdmin) "ADMIN" else "CLIENTE",
                         style = MaterialTheme.typography.titleLarge,
                         color = VapeOnTextPrimary,
                         fontWeight = FontWeight.Bold
@@ -90,6 +91,7 @@ fun MenuScreen(
                             when (opcion) {
                                 "Catálogo" -> irCatalogo()
                                 "Carrito"  -> irCarrito()
+                                "Historial de compras" -> if (!esAdmin) irHistorial()
                                 else -> {
                                     onOpcionMenuClick(opcion)
                                     scope.launch {

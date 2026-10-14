@@ -12,6 +12,7 @@ import com.example.vapeon_movil.services.PedidoService
 import com.example.vapeon_movil.services.dto.*
 import com.example.vapeon_movil.utils.RetrofitClient
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import retrofit2.HttpException
 import java.math.BigDecimal
@@ -34,6 +35,94 @@ class PedidoViewModel(application: Application) : AndroidViewModel(application) 
         private set
     var requiereComprobacion by mutableStateOf(false)
         private set
+
+    // RF26: estados independientes; no se reutiliza ni altera el estado del checkout.
+    var usuarioHistorialId by mutableStateOf<String?>(null)
+        private set
+    var historial by mutableStateOf<List<Pedido>>(emptyList())
+        private set
+    var cargandoHistorial by mutableStateOf(false)
+        private set
+    var errorHistorial by mutableStateOf<String?>(null)
+        private set
+    var detallePedido by mutableStateOf<Pedido?>(null)
+        private set
+    var cargandoDetalle by mutableStateOf(false)
+        private set
+    var errorDetalle by mutableStateOf<String?>(null)
+        private set
+    private var cargaHistorial: Job? = null
+    private var cargaDetalle: Job? = null
+    private var detalleSolicitadoId: String? = null
+
+    fun actualizarUsuarioHistorial(usuario: Usuario?) {
+        val id = usuario?.takeIf { it.rol.equals("CLIENTE", true) && it.id.isNotBlank() }?.id
+        if (usuarioHistorialId == id) return
+        cargaHistorial?.cancel()
+        cargaDetalle?.cancel()
+        usuarioHistorialId = id
+        historial = emptyList()
+        detallePedido = null
+        detalleSolicitadoId = null
+        errorHistorial = null
+        errorDetalle = null
+        cargandoHistorial = false
+        cargandoDetalle = false
+    }
+
+    fun cargarHistorial(usuarioId: String) {
+        if (usuarioId.isBlank() || usuarioId != usuarioHistorialId) return
+        cargaHistorial?.cancel()
+        historial = emptyList()
+        errorHistorial = null
+        cargandoHistorial = true
+        cargaHistorial = viewModelScope.launch {
+            try {
+                val respuesta = service.consultarPedidos(consultaPedidosDelUsuario(usuarioId))
+                val pedidos = respuesta.mapNotNull { it.document }.pedidosDelUsuario(usuarioId)
+                if (usuarioHistorialId == usuarioId) historial = pedidos
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                if (usuarioHistorialId == usuarioId) errorHistorial =
+                    "No se pudieron cargar tus compras. Comprueba la conexión y los permisos de Firestore."
+            } finally {
+                if (usuarioHistorialId == usuarioId && coroutineContext[Job]?.isCancelled != true)
+                    cargandoHistorial = false
+            }
+        }
+    }
+
+    fun cargarDetallePedido(usuarioId: String, pedidoId: String) {
+        if (usuarioId.isBlank() || usuarioId != usuarioHistorialId) return
+        cargaDetalle?.cancel()
+        detallePedido = null // Nunca mostrar el detalle previo mientras se valida otro pedido.
+        detalleSolicitadoId = pedidoId
+        errorDetalle = null
+        if (pedidoId.isBlank() || pedidoId.contains('/')) {
+            errorDetalle = "ID de pedido inválido."
+            cargandoDetalle = false
+            return
+        }
+        cargandoDetalle = true
+        cargaDetalle = viewModelScope.launch {
+            try {
+                val doc = service.mostrarPedido(pedidoId)
+                val pedido = doc.aPedidoDelUsuario(usuarioId) // Comprueba pertenencia antes de exponer datos.
+                require(pedido.id == pedidoId) { "ID de pedido inválido." }
+                if (usuarioHistorialId == usuarioId && detalleSolicitadoId == pedidoId) detallePedido = pedido
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                if (usuarioHistorialId == usuarioId && detalleSolicitadoId == pedidoId)
+                    errorDetalle = if (e is IllegalArgumentException) e.message
+                    else "No se pudo cargar el pedido. Comprueba la conexión y los permisos de Firestore."
+            } finally {
+                if (usuarioHistorialId == usuarioId && detalleSolicitadoId == pedidoId &&
+                    coroutineContext[Job]?.isCancelled != true) cargandoDetalle = false
+            }
+        }
+    }
 
     init {
         // Conserva el ID incluso si se cierra la app durante la petición.
