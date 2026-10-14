@@ -24,7 +24,7 @@ import com.example.vapeon_movil.ui.theme.*
 @Composable
 fun ProductCard(
     nombre: String,
-    precio: String,
+    precio: Double,
     esAdmin: Boolean = false,
     onClick: () -> Unit,
     onEliminar: () -> Unit = {},
@@ -72,12 +72,8 @@ fun ProductCard(
 
             Spacer(modifier = Modifier.height(2.dp))
 
-            // Precio formateado (ej. "S/. 80")
-            val precioFormateado = when {
-                precio.startsWith("S/.") -> precio
-                precio.startsWith("S/") -> "S/. ${precio.removePrefix("S/").trim()}"
-                else -> "S/. $precio"
-            }
+
+            val precioFormateado = "S/. ${if (precio % 1.0 == 0.0) precio.toInt().toString() else precio.toString()}"
 
             Text(
                 text = precioFormateado,

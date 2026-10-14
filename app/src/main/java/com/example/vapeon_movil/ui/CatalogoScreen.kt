@@ -181,7 +181,7 @@ fun CatalogoScreen(
 
                         val coincideCategoria = when (categoriaSeleccionada) {
                             "Nuevos"      -> prod.id.length > 5
-                            "Promociones" -> prod.precio.toDoubleOrNull()?.let { it < 75 } ?: false
+                            "Promociones" -> prod.precio < 75.0
                             else          -> true
                         }
 

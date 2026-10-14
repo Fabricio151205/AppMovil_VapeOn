@@ -172,7 +172,7 @@ fun DetalleProductoScreen(
                             append("Stock: ")
                         }
                         withStyle(style = SpanStyle(color = VapeOnGold, fontWeight = FontWeight.Bold)) {
-                            append("${producto.stock.ifEmpty { "4" }} Unidades")
+                            append("${if (producto.stock > 0) producto.stock else 4} Unidades")
                         }
                     },
                     fontSize = 15.sp
@@ -234,7 +234,7 @@ fun DetalleProductoScreen(
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = "S/${producto.precio.ifEmpty { "70" }}",
+                            text = "S/${if (producto.precio > 0.0) (if (producto.precio % 1.0 == 0.0) producto.precio.toInt().toString() else producto.precio.toString()) else "70"}",
                             color = VapeOnTextPrimary,
                             fontSize = 28.sp,
                             fontWeight = FontWeight.Bold
