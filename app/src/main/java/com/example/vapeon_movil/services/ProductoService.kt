@@ -20,6 +20,9 @@ interface ProductoService {
     @GET("productos")
     suspend fun listarProductos(): ProductoListResponse
 
+    @GET("productos/{id}")
+    suspend fun mostrarProducto(@Path("id") id: String): ProductoDocumento
+
     // Crear un producto nuevo
     @POST("productos")
     suspend fun crearProducto(@Body body: ProductoContainer): Any

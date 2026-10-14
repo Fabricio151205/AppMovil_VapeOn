@@ -9,6 +9,7 @@ data class FirestoreStringValue(
     val stringValue: String? = null
 )
 
+<<<<<<< HEAD
 /**
  * Envoltorio flexible para leer o escribir campos que pueden ser texto o números en Firestore.
  */
@@ -32,3 +33,17 @@ data class FirestoreValue(
     fun asInt(): Int =
         integerValue?.toIntOrNull() ?: doubleValue?.toInt() ?: stringValue?.toIntOrNull() ?: 0
 }
+=======
+/** Unión de valores usada por los nuevos documentos de pedidos. */
+data class FirestoreValor(
+    val stringValue: String? = null,
+    val integerValue: String? = null,
+    val doubleValue: Double? = null,
+    val timestampValue: String? = null,
+    val arrayValue: FirestoreArray? = null,
+    val mapValue: FirestoreMapa? = null
+)
+
+data class FirestoreArray(val values: List<FirestoreValor>)
+data class FirestoreMapa(val fields: Map<String, FirestoreValor>)
+>>>>>>> 3b66a1336bdbf532f309b511ba726a497abce3d9

@@ -29,7 +29,7 @@ import com.example.vapeon_movil.viewmodels.CarritoViewModel
  * Muestra:
  *  - Lista scrollable de ítems con controles de cantidad y eliminación.
  *  - Panel inferior fijo "Resumen del Pago" con SubTotal, Delivery, IGV y Total.
- *  - Botón "PAGAR" (deshabilitado en esta versión — flujo de pago v2.0).
+ *  - Botón "PAGAR" para abrir el checkout de efectivo contra entrega.
  *
  * @param carritoViewModel  ViewModel con el estado del carrito.
  * @param volver            Callback para regresar a la pantalla anterior.
@@ -38,7 +38,8 @@ import com.example.vapeon_movil.viewmodels.CarritoViewModel
 @Composable
 fun CarritoScreen(
     carritoViewModel: CarritoViewModel,
-    volver: () -> Unit
+    volver: () -> Unit,
+    irCheckout: () -> Unit = {}
 ) {
     val items   = carritoViewModel.items
     val resumen = carritoViewModel.resumen
@@ -104,7 +105,8 @@ fun CarritoScreen(
                 delivery = resumen.delivery,
                 igv      = resumen.igv,
                 total    = resumen.total,
-                hayItems = items.isNotEmpty()
+                hayItems = items.isNotEmpty(),
+                irCheckout = irCheckout
             )
         }
     ) { paddingValues ->
@@ -171,7 +173,8 @@ private fun ResumenPagoPanel(
     delivery: Double,
     igv: Double,
     total: Double,
-    hayItems: Boolean
+    hayItems: Boolean,
+    irCheckout: () -> Unit
 ) {
     Surface(
         color = VapeOnSurface,
@@ -211,7 +214,7 @@ private fun ResumenPagoPanel(
             // Fila: Sub Total
             FilaResumen(
                 label  = "Sub Total",
-                valor  = "S/. ${subTotal.toInt()}",
+                valor  = "S/. ${"%.2f".format(subTotal)}",
                 negrita = false
             )
 
@@ -220,7 +223,7 @@ private fun ResumenPagoPanel(
             // Fila: Delivery
             FilaResumen(
                 label  = "Delivery",
-                valor  = "S/. ${delivery.toInt()}",
+                valor  = "S/. ${"%.2f".format(delivery)}",
                 negrita = false
             )
 
@@ -229,7 +232,7 @@ private fun ResumenPagoPanel(
             // Fila: IGV
             FilaResumen(
                 label  = "IGV (18%)",
-                valor  = "S/. ${igv.toInt()}",
+                valor  = "S/. ${"%.2f".format(igv)}",
                 negrita = false
             )
 
@@ -242,7 +245,7 @@ private fun ResumenPagoPanel(
             // Fila: Total
             FilaResumen(
                 label   = "TOTAL A PAGAR",
-                valor   = "S/. ${total.toInt()}",
+                valor   = "S/. ${"%.2f".format(total)}",
                 negrita = true,
                 colorLabel = VapeOnTextPrimary,
                 colorValor = VapeOnTextPrimary
@@ -252,7 +255,7 @@ private fun ResumenPagoPanel(
 
             // Botón PAGAR
             Button(
-                onClick = { /* Flujo de pago — v2.0 */ },
+                onClick = irCheckout,
                 enabled = hayItems,
                 shape = RoundedCornerShape(50),
                 colors = ButtonDefaults.buttonColors(
