@@ -117,7 +117,8 @@ class CarritoViewModel : ViewModel() {
     fun incrementar(productoId: String, context: Context? = null) {
         if (context != null) appContext = context.applicationContext
         items = items.map {
-            if (it.productoId == productoId) it.copy(cantidad = it.cantidad + 1)
+            if (it.productoId == productoId || cantidadTotal <= cantidadTotal)
+                it.copy(cantidad = it.cantidad + 1)
             else it
         }
         guardarCarrito(context)
