@@ -1,5 +1,6 @@
 package com.example.vapeon_movil.ui
 
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -33,7 +34,9 @@ fun CatalogoScreen(
     onPerfilClick: () -> Unit = {},
     irAdmin: () -> Unit = {},
     irCarrito: () -> Unit = {},
-    irHistorial: () -> Unit = {}
+    irHistorial: () -> Unit = {},
+    irPedidos: () -> Unit = {},
+    cerrarSesion: () -> Unit = {}
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -56,7 +59,6 @@ fun CatalogoScreen(
     LaunchedEffect(errorRed) {
         errorRed?.let {
             snackbarHostState.showSnackbar(it)
-            productoViewModel.limpiarError()
         }
     }
 
@@ -65,6 +67,8 @@ fun CatalogoScreen(
         irCatalogo = { /* Ya estamos en el catálogo */ },
         irCarrito = irCarrito,
         irHistorial = irHistorial,
+        irPedidos = irPedidos,
+        cerrarSesion = cerrarSesion,
         esAdmin = esAdmin,
         onPerfilClick = onPerfilClick,
         // Solo admin puede navegar al panel administrativo pulsando el título VAPEON
@@ -125,7 +129,7 @@ fun CatalogoScreen(
                 // 2. CHIPS DE CATEGORÍAS (Todos, Nuevos, Promociones)
                 // ==========================================
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     val categorias = listOf("Todos", "Nuevos", "Promociones")
@@ -135,12 +139,12 @@ fun CatalogoScreen(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(50))
                                 .background(if (seleccionada) VapeOnRed else VapeOnRedDark)
-                                .clickable { categoriaSeleccionada = cat }
+                                .clickable(enabled = cat == "Todos") { categoriaSeleccionada = cat }
                                 .padding(horizontal = 22.dp, vertical = 10.dp),
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                text = cat,
+                                text = if (cat == "Todos") cat else "$cat (No disponible)",
                                 color = VapeOnTextPrimary,
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 14.sp
@@ -174,6 +178,9 @@ fun CatalogoScreen(
                             )
                         }
                     }
+                } else if (errorRed != null) {
+                    Text(errorRed, color = MaterialTheme.colorScheme.error)
+                    Button(onClick = { productoViewModel.cargarProductos() }) { Text("Reintentar") }
                 } else {
                     // Filtrado reactivo de productos
                     val listaFiltrada = productos.filter { prod ->
@@ -182,11 +189,7 @@ fun CatalogoScreen(
                                 prod.marca.contains(busqueda, ignoreCase = true) ||
                                 prod.descripcion.contains(busqueda, ignoreCase = true)
 
-                        val coincideCategoria = when (categoriaSeleccionada) {
-                            "Nuevos"      -> prod.id.length > 5
-                            "Promociones" -> prod.precio < 75.0
-                            else          -> true
-                        }
+                        val coincideCategoria = true // Nuevos y promociones requieren datos reales; módulos no disponibles.
 
                         coincideTexto && coincideCategoria
                     }
@@ -267,7 +270,7 @@ fun CatalogoScreen(
 
                         otrasMarcas.forEach { marca ->
                             val productosMarca = listaFiltrada.filter {
-                                it.marca.equals(marca, ignoreCase = true)
+                                it.marca.trim().equals(marca, ignoreCase = true)
                             }
                             if (productosMarca.isNotEmpty()) {
                                 MarcaSection(
@@ -335,14 +338,12 @@ fun CatalogoScreen(
             confirmButton = {
                 Button(
                     onClick = {
-                        productoViewModel.eliminarProducto(prod.id) {
-                            // Snackbar de feedback post-eliminación
-                        }
-                        productoAEliminar = null
+                        productoViewModel.eliminarProducto(prod.id) { productoAEliminar = null }
                     },
+                    enabled = prod.id !in productoViewModel.eliminandoIds,
                     colors = ButtonDefaults.buttonColors(containerColor = VapeOnRed)
                 ) {
-                    Text("Eliminar", color = VapeOnTextPrimary, fontWeight = FontWeight.Bold)
+                    Text(if (prod.id in productoViewModel.eliminandoIds) "Eliminando…" else "Eliminar", color = VapeOnTextPrimary, fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {

@@ -38,7 +38,10 @@ fun HistorialComprasScreen(
     usuario: Usuario?,
     pedidoViewModel: PedidoViewModel,
     volver: () -> Unit,
-    irDetallePedido: (String) -> Unit
+    irDetallePedido: (String) -> Unit,
+    irCarrito: () -> Unit,
+    irHistorial: () -> Unit,
+    cerrarSesion: () -> Unit
 ) {
     val usuarioId = usuario?.takeIf { it.rol.equals("CLIENTE", true) }?.id.orEmpty()
     var filtroEstado by remember { mutableStateOf("Todos") }
@@ -54,6 +57,9 @@ fun HistorialComprasScreen(
 
     MenuScreen(
         irCatalogo = volver,
+        irCarrito = irCarrito,
+        irHistorial = irHistorial,
+        cerrarSesion = cerrarSesion,
         onPerfilClick = { /* Perfil */ },
         onTituloClick = { /* Titulo */ }
     ) { paddingValues ->
@@ -169,6 +175,10 @@ fun HistorialComprasScreen(
                     }
 
                     else -> {
+                        if (pedidoViewModel.invalidosHistorial > 0) item {
+                            Text("${pedidoViewModel.invalidosHistorial} pedido(s) contienen datos inválidos y no se pueden mostrar.",
+                                color = MaterialTheme.colorScheme.error)
+                        }
                         // Lista filtrada estrictamente por el usuarioId del cliente
                         val listaCliente = pedidoViewModel.historial.filter { it.usuarioId == usuarioId }
 
@@ -176,6 +186,7 @@ fun HistorialComprasScreen(
                             "En Curso" -> listaCliente.filter {
                                 it.estado.equals("EN_CURSO", true) ||
                                 it.estado.equals("EN CURSO", true) ||
+                                it.estado.equals("EN CAMINO", true) ||
                                 it.estado.equals("REGISTRADO", true)
                             }
                             "Completados" -> listaCliente.filter {
@@ -194,7 +205,9 @@ fun HistorialComprasScreen(
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Text(
-                                        text = "No tienes pedidos registrados en esta categoría.",
+                                        text = if (listaCliente.isEmpty() && pedidoViewModel.invalidosHistorial > 0)
+                                            "No hay compras válidas disponibles."
+                                        else "No tienes pedidos registrados en esta categoría.",
                                         color = VapeOnTextSecondary,
                                         fontSize = 14.sp
                                     )
@@ -316,7 +329,7 @@ private fun PedidoCard(
                 // Badge Píldora de Estado
                 val estadoNormalizado = pedido.estado.uppercase()
                 val (colorFondo, colorTexto, textoMostrar) = when {
-                    estadoNormalizado.contains("CURSO") -> Triple(VapeOnRedDark, VapeOnTextPrimary, "En Curso")
+                    estadoNormalizado.contains("CURSO") || estadoNormalizado == "EN CAMINO" -> Triple(VapeOnRedDark, VapeOnTextPrimary, "En Curso")
                     estadoNormalizado.contains("ENTREGADO") || estadoNormalizado.contains("COMPLETADO") -> Triple(Color(0xFF4A3C12), VapeOnGold, "Entregado")
                     else -> Triple(Color(0xFF383838), VapeOnTextSecondary, "Registrado")
                 }

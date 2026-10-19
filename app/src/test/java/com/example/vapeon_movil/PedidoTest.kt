@@ -3,6 +3,8 @@ package com.example.vapeon_movil
 import com.example.vapeon_movil.entities.*
 import com.example.vapeon_movil.services.PedidoService
 import com.example.vapeon_movil.services.dto.*
+import com.example.vapeon_movil.viewmodels.leerPrecioProductoParaCompra
+import com.example.vapeon_movil.viewmodels.prepararDescuentoStockParaCompra
 import com.google.gson.Gson
 import org.junit.Assert.*
 import org.junit.Test
@@ -50,9 +52,8 @@ class PedidoTest {
         val ruta = "projects/dbvapeon/databases/(default)/documents"
         val commit = PedidoCommit(listOf(
             PedidoEscritura(pedido.aDocumento(ruta), PedidoPrecondicion(exists = false)),
-            PedidoEscritura(PedidoDocumento("$ruta/productos/p1",
-                mapOf("stock" to FirestoreValor(stringValue = "2"))),
-                PedidoPrecondicion(updateTime = pedido.fecha), PedidoMascara(listOf("stock")))
+            prepararDescuentoStockParaCompra(ProductoDocumento("$ruta/productos/p1",
+                ProductoCampos(stock = FirestoreValue(integerValue = "5")), pedido.fecha), 3)
         ))
         val json = Gson().toJsonTree(commit).asJsonObject.getAsJsonArray("writes")
         assertEquals(2, json.size())
@@ -63,6 +64,10 @@ class PedidoTest {
         assertEquals("REGISTRADO", fields["estado"].asJsonObject["stringValue"].asString)
         assertFalse(fields.has("password"))
         assertEquals("stock", json[1].asJsonObject["updateMask"].asJsonObject["fieldPaths"].asJsonArray[0].asString)
+        val stock = json[1].asJsonObject["update"].asJsonObject["fields"].asJsonObject["stock"].asJsonObject
+        assertEquals(setOf("integerValue"), stock.keySet())
+        assertEquals("2", stock["integerValue"].asString)
+        assertEquals(pedido.fecha, json[1].asJsonObject["currentDocument"].asJsonObject["updateTime"].asString)
         val restaurado = Gson().fromJson(Gson().toJson(pedido), Pedido::class.java)
         assertEquals(pedido, restaurado)
     }
@@ -73,5 +78,56 @@ class PedidoTest {
         val base = URI("https://firestore.googleapis.com/v1/projects/dbvapeon/databases/(default)/documents/")
         assertEquals("https://firestore.googleapis.com/v1/projects/dbvapeon/databases/(default)/documents:commit",
             base.resolve(ruta).toString())
+    }
+
+    @Test fun productoSerializaStockEnteroYPrecioDouble() {
+        val body = ProductoContainer(ProductoCampos(
+            precio = FirestoreValue(doubleValue = 70.90),
+            stock = FirestoreValue(integerValue = "5")
+        ))
+        val campos = Gson().toJsonTree(body).asJsonObject["fields"].asJsonObject
+        assertEquals(setOf("integerValue"), campos["stock"].asJsonObject.keySet())
+        assertEquals("5", campos["stock"].asJsonObject["integerValue"].asString)
+        assertEquals(setOf("doubleValue"), campos["precio"].asJsonObject.keySet())
+        assertEquals(70.90, campos["precio"].asJsonObject["doubleValue"].asDouble, 0.0)
+    }
+
+    @Test fun rf22LeeProductoNumericoYSuDescuento() {
+        // Respuesta realista REST: precio decimal y stock entero, sin stringValue.
+        val json = """{
+            "name":"projects/dbvapeon/databases/(default)/documents/productos/p1",
+            "updateTime":"2026-10-14T12:00:00Z",
+            "fields":{"precio":{"doubleValue":70.90},"stock":{"integerValue":"5"}}
+        }"""
+        val doc = Gson().fromJson(json, ProductoDocumento::class.java)
+        assertEquals(BigDecimal("70.90"), leerPrecioProductoParaCompra(doc))
+        val descuento = prepararDescuentoStockParaCompra(doc, 3)
+        assertEquals(doc.name, descuento.update.name)
+        assertEquals(setOf("stock"), descuento.update.fields.keys)
+        assertEquals("2", descuento.update.fields["stock"]?.integerValue)
+        assertNull(descuento.update.fields["stock"]?.doubleValue)
+        assertNull(descuento.update.fields["stock"]?.stringValue)
+        assertEquals(doc.updateTime, descuento.currentDocument.updateTime)
+        assertEquals(listOf("stock"), descuento.updateMask?.fieldPaths)
+    }
+
+    @Test fun rf22ConservaCompatibilidadConProductosDeTexto() {
+        val doc = ProductoDocumento("productos/p1", ProductoCampos(
+            precio = FirestoreValue(stringValue = "70.90"),
+            stock = FirestoreValue(stringValue = "5")
+        ), "2026-10-14T12:00:00Z")
+        assertEquals(BigDecimal("70.90"), leerPrecioProductoParaCompra(doc))
+        assertEquals("2", prepararDescuentoStockParaCompra(doc, 3).update.fields["stock"]?.integerValue)
+    }
+
+    @Test fun descuentoEnteroValidaStockDisponible() {
+        val doc = ProductoDocumento("productos/p1", ProductoCampos(
+            stock = FirestoreValue(integerValue = "3")
+        ), "2026-10-14T12:00:00Z")
+        assertEquals("0", prepararDescuentoStockParaCompra(doc, 3).update.fields["stock"]?.integerValue)
+        assertThrows(IllegalArgumentException::class.java) { prepararDescuentoStockParaCompra(doc, 4) }
+        assertThrows(IllegalArgumentException::class.java) { prepararDescuentoStockParaCompra(doc, 0) }
+        val invalido = doc.copy(fields = ProductoCampos(stock = FirestoreValue(doubleValue = 3.5)))
+        assertThrows(IllegalArgumentException::class.java) { prepararDescuentoStockParaCompra(invalido, 1) }
     }
 }

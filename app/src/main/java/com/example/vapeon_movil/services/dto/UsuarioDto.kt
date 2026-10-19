@@ -22,7 +22,8 @@ data class UsuarioCampos(
 
 /** Respuesta de listado: array de documentos de usuario */
 data class UsuarioListResponse(
-    val documents: List<UsuarioDocumento>?
+    val documents: List<UsuarioDocumento>?,
+    val nextPageToken: String? = null
 )
 
 /** Documento individual de usuario tal como lo devuelve Firestore REST */

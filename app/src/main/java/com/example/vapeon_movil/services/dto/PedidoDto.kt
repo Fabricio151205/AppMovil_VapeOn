@@ -43,7 +43,7 @@ fun Pedido.aDocumento(ruta: String): PedidoDocumento {
 data class PedidoConsulta(val structuredQuery: PedidoConsultaEstructurada)
 data class PedidoConsultaEstructurada(
     val from: List<PedidoColeccion>,
-    val where: PedidoFiltro
+    val where: PedidoFiltro? = null
 )
 data class PedidoColeccion(val collectionId: String)
 data class PedidoFiltro(val fieldFilter: PedidoFiltroCampo)
@@ -65,6 +65,11 @@ fun PedidoDocumento.aPedidoDelUsuario(usuarioId: String): Pedido {
     require(usuarioId.isNotBlank() && fields["usuarioId"]?.stringValue == usuarioId) {
         "No tienes acceso a este pedido."
     }
+    return aPedido()
+}
+
+/** Conversión compartida; el ViewModel verifica el rol antes de usarla para ADMIN. */
+internal fun PedidoDocumento.aPedido(): Pedido {
     fun Map<String, FirestoreValor>.texto(campo: String): String =
         this[campo]?.stringValue?.takeIf { it.isNotBlank() }
             ?: throw IllegalArgumentException("El pedido tiene datos incompletos: $campo.")
@@ -85,7 +90,7 @@ fun PedidoDocumento.aPedidoDelUsuario(usuarioId: String): Pedido {
         ?: throw IllegalArgumentException("El pedido no tiene productos válidos.")
     require(lineas.isNotEmpty()) { "El pedido no tiene productos válidos." }
     return Pedido(
-        id = idDocumento, usuarioId = usuarioId,
+        id = idDocumento, usuarioId = fields.texto("usuarioId"),
         nombreCliente = fields.texto("nombreCliente"), telefono = fields.texto("telefono"), fecha = fecha,
         productos = lineas.map { linea ->
             val datos = linea.mapValue?.fields
@@ -104,7 +109,20 @@ fun PedidoDocumento.aPedidoDelUsuario(usuarioId: String): Pedido {
 
 fun List<PedidoDocumento>.pedidosDelUsuario(usuarioId: String): List<Pedido> {
     require(usuarioId.isNotBlank()) { "Inicia sesión para consultar tus compras." }
-    return filter { it.fields["usuarioId"]?.stringValue == usuarioId }
-        .map { it.aPedidoDelUsuario(usuarioId) }
-        .sortedByDescending { Instant.parse(it.fecha) }
+    return leerPedidosValidos(usuarioId).first
 }
+
+/** La cantidad de documentos inválidos se informa en la pantalla; no se ocultan silenciosamente. */
+internal fun List<PedidoDocumento>.leerPedidosValidos(usuarioId: String? = null): Pair<List<Pedido>, Int> {
+    val validos = mutableListOf<Pedido>()
+    var invalidos = 0
+    for (documento in this) {
+        if (usuarioId != null && runCatching { documento.fields["usuarioId"]?.stringValue }.getOrNull() != usuarioId) continue
+        try { validos += documento.aPedido() }
+        catch (_: Exception) { invalidos++ }
+    }
+    return validos.sortedByDescending { Instant.parse(it.fecha) } to invalidos
+}
+
+// RF28: cuerpo parcial. La máscara del Service limita la escritura a estado.
+data class PedidoEstadoActualizacion(val fields: Map<String, FirestoreValor>)

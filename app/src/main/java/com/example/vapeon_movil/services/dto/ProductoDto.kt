@@ -23,7 +23,8 @@ data class ProductoCampos(
 
 /** Respuesta de listado: array de documentos de producto */
 data class ProductoListResponse(
-    val documents: List<ProductoDocumento>?
+    val documents: List<ProductoDocumento>?,
+    val nextPageToken: String? = null
 )
 
 /** Documento individual de producto tal como lo devuelve Firestore REST */

@@ -1,5 +1,7 @@
 package com.example.vapeon_movil.ui
 
+import com.example.vapeon_movil.utils.moneda
+
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -21,38 +23,72 @@ import com.example.vapeon_movil.viewmodels.PedidoViewModel
 fun DetallePedidoScreen(
     usuario: Usuario?, pedidoId: String, pedidoViewModel: PedidoViewModel, volver: () -> Unit
 ) {
-    val usuarioId = usuario?.takeIf { it.rol.equals("CLIENTE", true) }?.id.orEmpty()
-    LaunchedEffect(usuarioId, pedidoId) {
-        pedidoViewModel.actualizarUsuarioHistorial(usuario)
-        pedidoViewModel.cargarDetallePedido(usuarioId, pedidoId)
+    val esAdmin = usuario?.rol?.equals("ADMIN", true) == true
+    val usuarioId = usuario?.takeIf { esAdmin || it.rol.equals("CLIENTE", true) }?.id.orEmpty()
+    val guardando = esAdmin && pedidoViewModel.guardandoEstado
+    val actualizar: () -> Unit = {
+        if (esAdmin) pedidoViewModel.cargarDetalleAdmin(usuario, pedidoId)
+        else {
+            pedidoViewModel.actualizarUsuarioHistorial(usuario)
+            pedidoViewModel.cargarDetallePedido(usuarioId, pedidoId)
+        }
     }
-    BackHandler(onBack = volver)
+    LaunchedEffect(usuarioId, esAdmin, pedidoId) { actualizar() }
+    BackHandler { if (!guardando) volver() }
     VapeON_MovilTheme {
         Scaffold(containerColor = VapeOnBackground, topBar = {
             TopAppBar(title = { Text("Detalle del pedido", color = VapeOnGold) }, navigationIcon = {
-                IconButton(onClick = volver) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, "Volver al historial", tint = VapeOnTextPrimary)
+                IconButton(onClick = volver, enabled = !guardando) {
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, "Volver a pedidos", tint = VapeOnTextPrimary)
                 }
             }, colors = TopAppBarDefaults.topAppBarColors(containerColor = VapeOnBackground))
         }) { padding ->
             Column(Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(20.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                val pedido = pedidoViewModel.detallePedido
+                val pedido = if (esAdmin) pedidoViewModel.detalleAdmin else pedidoViewModel.detallePedido
+                val sesionDetalle = if (esAdmin) pedidoViewModel.usuarioAdminId else pedidoViewModel.usuarioHistorialId
+                val cargando = if (esAdmin) pedidoViewModel.cargandoDetalleAdmin else pedidoViewModel.cargandoDetalle
+                val error = if (esAdmin) pedidoViewModel.errorDetalleAdmin else pedidoViewModel.errorDetalle
                 when {
                     usuarioId.isBlank() -> Text("Inicia sesión como cliente para consultar el pedido.",
                         color = MaterialTheme.colorScheme.error)
-                    pedidoViewModel.usuarioHistorialId != usuarioId || pedidoViewModel.cargandoDetalle ->
+                    sesionDetalle != usuarioId || cargando ->
                         CircularProgressIndicator(color = VapeOnGold)
-                    pedidoViewModel.errorDetalle != null -> {
-                        Text(pedidoViewModel.errorDetalle.orEmpty(), color = MaterialTheme.colorScheme.error)
-                        Button(onClick = { pedidoViewModel.cargarDetallePedido(usuarioId, pedidoId) },
+                    error != null -> {
+                        Text(error, color = MaterialTheme.colorScheme.error)
+                        Button(onClick = actualizar,
                             modifier = Modifier.heightIn(min = 48.dp)) { Text("Reintentar") }
                     }
-                    pedido != null && pedido.usuarioId == usuarioId && pedido.id == pedidoId -> {
+                    pedido != null && (esAdmin || pedido.usuarioId == usuarioId) && pedido.id == pedidoId -> {
                         Text("Pedido ${pedido.id}", style = MaterialTheme.typography.titleLarge,
                             color = VapeOnTextPrimary, fontWeight = FontWeight.Bold)
                         Text("Fecha: ${fechaPedidoTexto(pedido.fecha)}", color = VapeOnTextPrimary)
-                        Text("Estado: ${pedido.estado}", color = VapeOnGold)
+                        Text("Estado del pedido: ${pedido.estado}", color = VapeOnGold)
+                        OutlinedButton(onClick = actualizar, enabled = !guardando,
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("Actualizar pedido") }
+                        if (esAdmin) {
+                            Text("Cliente: ${pedido.nombreCliente}\nTeléfono: ${pedido.telefono}", color = VapeOnTextPrimary)
+                            var estadoSeleccionado by remember(pedido.id, pedido.estado) { mutableStateOf(pedido.estado) }
+                            Card(shape = RoundedCornerShape(20.dp),
+                                colors = CardDefaults.cardColors(containerColor = VapeOnSurface)) {
+                                Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    Text("Cambiar estado del envío", color = VapeOnGold,
+                                        style = MaterialTheme.typography.titleMedium)
+                                    PedidoViewModel.ESTADOS_ENVIO.forEach { estado ->
+                                        FilterChip(selected = estadoSeleccionado == estado,
+                                            onClick = { estadoSeleccionado = estado }, enabled = !guardando,
+                                            label = { Text(estado) }, modifier = Modifier.heightIn(min = 48.dp))
+                                    }
+                                    pedidoViewModel.errorEstado?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+                                    pedidoViewModel.mensajeEstado?.let { Text(it, color = VapeOnGold) }
+                                    if (guardando) CircularProgressIndicator(color = VapeOnGold)
+                                    Button(onClick = {
+                                        pedidoViewModel.actualizarEstadoPedido(usuario, pedido.id, estadoSeleccionado)
+                                    }, enabled = !guardando && estadoSeleccionado != pedido.estado,
+                                        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("Guardar estado") }
+                                }
+                            }
+                        }
                         Text("Productos comprados", style = MaterialTheme.typography.titleMedium, color = VapeOnTextPrimary)
                         pedido.productos.forEach { producto ->
                             Card(shape = RoundedCornerShape(20.dp),
@@ -63,8 +99,8 @@ fun DetallePedidoScreen(
                                         color = VapeOnTextPrimary, fontWeight = FontWeight.Bold)
                                     Text(producto.marca, color = VapeOnTextPrimary)
                                     Text("Cantidad: ${producto.cantidad}", color = VapeOnTextPrimary)
-                                    Text("Precio unitario: S/ ${producto.precioUnitario.toPlainString()}", color = VapeOnTextPrimary)
-                                    Text("Subtotal: S/ ${producto.subtotal.toPlainString()}", color = VapeOnGold)
+                                    Text("Precio unitario: ${moneda(producto.precioUnitario)}", color = VapeOnTextPrimary)
+                                    Text("Subtotal: ${moneda(producto.subtotal)}", color = VapeOnGold)
                                 }
                             }
                         }
@@ -72,13 +108,13 @@ fun DetallePedidoScreen(
                             colors = CardDefaults.cardColors(containerColor = VapeOnRedDark)) {
                             Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                 Text("Resumen de la compra", color = VapeOnTextPrimary, fontWeight = FontWeight.Bold)
-                                Text("Subtotal: S/ ${pedido.subtotal.toPlainString()}", color = VapeOnTextPrimary)
-                                Text("Delivery: S/ ${pedido.delivery.toPlainString()}", color = VapeOnTextPrimary)
+                                Text("Subtotal: ${moneda(pedido.subtotal)}", color = VapeOnTextPrimary)
+                                Text("Delivery: ${moneda(pedido.delivery)}", color = VapeOnTextPrimary)
                                 HorizontalDivider(color = VapeOnGold)
-                                Text("Total: S/ ${pedido.total.toPlainString()}", color = VapeOnTextPrimary,
+                                Text("Total: ${moneda(pedido.total)}", color = VapeOnTextPrimary,
                                     style = MaterialTheme.typography.titleMedium)
-                                Text("Monto pagado / efectivo previsto: S/ ${pedido.montoPagado.toPlainString()}", color = VapeOnTextPrimary)
-                                Text("Vuelto: S/ ${pedido.vuelto.toPlainString()}", color = VapeOnTextPrimary)
+                                Text("Monto pagado / efectivo previsto: ${moneda(pedido.montoPagado)}", color = VapeOnTextPrimary)
+                                Text("Vuelto: ${moneda(pedido.vuelto)}", color = VapeOnTextPrimary)
                                 Text("Método de pago: ${pedido.metodoPago}", color = VapeOnTextPrimary)
                             }
                         }

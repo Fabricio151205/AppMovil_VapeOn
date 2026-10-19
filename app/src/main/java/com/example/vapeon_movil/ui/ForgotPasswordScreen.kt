@@ -113,7 +113,7 @@ fun ForgotPasswordScreen(
             Button(
                 onClick = {
                     if (correo.isNotBlank()) {
-                        mensajeConfirmacion = "Se ha enviado un código de verificación a $correo"
+                        mensajeConfirmacion = "La recuperación por correo no está disponible. No se ha enviado ningún mensaje."
                     } else {
                         mensajeConfirmacion = "Por favor ingresa un correo válido"
                     }
@@ -128,7 +128,7 @@ fun ForgotPasswordScreen(
                     .height(52.dp)
             ) {
                 Text(
-                    text = "RECUPERAR CONTRASEÑA",
+                    text = "RECUPERACIÓN NO DISPONIBLE",
                     fontWeight = FontWeight.Bold,
                     fontSize = 15.sp,
                     letterSpacing = 0.5.sp

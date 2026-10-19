@@ -1,5 +1,7 @@
 package com.example.vapeon_movil.components
 
+import com.example.vapeon_movil.utils.moneda
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -84,7 +86,7 @@ fun ItemCarritoCard(
 
                 // Precio unitario
                 Text(
-                    text = "S/. ${item.precioUnit.toInt()} c/u.",
+                    text = "${moneda(item.precioUnit)} c/u.",
                     color = VapeOnGold,
                     fontWeight = FontWeight.Bold,
                     fontSize = 18.sp
@@ -97,7 +99,8 @@ fun ItemCarritoCard(
                     // Botón decrementar
                     FilledTonalIconButton(
                         onClick = onDecrementar,
-                        modifier = Modifier.size(36.dp),
+                        enabled = item.cantidad > 1,
+                        modifier = Modifier.size(48.dp),
                         colors = IconButtonDefaults.filledTonalIconButtonColors(
                             containerColor = VapeOnRed,
                             contentColor = VapeOnTextPrimary
@@ -124,7 +127,8 @@ fun ItemCarritoCard(
                     // Botón incrementar
                     FilledTonalIconButton(
                         onClick = onIncrementar,
-                        modifier = Modifier.size(36.dp),
+                        enabled = item.stockDisponible?.let { item.cantidad < it } == true,
+                        modifier = Modifier.size(48.dp),
                         colors = IconButtonDefaults.filledTonalIconButtonColors(
                             containerColor = VapeOnRed,
                             contentColor = VapeOnTextPrimary

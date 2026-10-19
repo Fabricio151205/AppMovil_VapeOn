@@ -1,7 +1,8 @@
 package com.example.vapeon_movil.ui
 
+import com.example.vapeon_movil.utils.moneda
+
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -81,13 +82,12 @@ fun CarritoScreen(
                             .padding(end = 16.dp)
                             .size(36.dp)
                             .clip(CircleShape)
-                            .background(VapeOnRedDark)
-                            .clickable { /* Perfil */ },
+                            .background(VapeOnRedDark),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = Icons.Default.Person,
-                            contentDescription = "Perfil",
+                            contentDescription = "Perfil no disponible",
                             tint = VapeOnTextPrimary,
                             modifier = Modifier.size(22.dp)
                         )
@@ -105,7 +105,7 @@ fun CarritoScreen(
                 delivery = resumen.delivery,
                 igv      = resumen.igv,
                 total    = resumen.total,
-                hayItems = items.isNotEmpty(),
+                hayItems = carritoViewModel.puedeComprar,
                 irCheckout = irCheckout
             )
         }
@@ -133,6 +133,7 @@ fun CarritoScreen(
                         fontSize = 17.sp,
                         fontWeight = FontWeight.Medium
                     )
+                    carritoViewModel.aviso?.let { Text(it, color = VapeOnGold, modifier = Modifier.padding(16.dp)) }
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
                         text = "Agrega productos desde el catálogo",
@@ -151,6 +152,7 @@ fun CarritoScreen(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
                 contentPadding = PaddingValues(vertical = 16.dp)
             ) {
+                carritoViewModel.aviso?.let { aviso -> item { Text(aviso, color = VapeOnGold) } }
                 items(items, key = { it.productoId }) { item ->
                     ItemCarritoCard(
                         item = item,
@@ -217,7 +219,7 @@ private fun ResumenPagoPanel(
             // Fila: Sub Total
             FilaResumen(
                 label  = "Sub Total",
-                valor  = "S/. ${"%.2f".format(subTotal)}",
+                valor  = moneda(subTotal),
                 negrita = false
             )
 
@@ -226,7 +228,7 @@ private fun ResumenPagoPanel(
             // Fila: Delivery
             FilaResumen(
                 label  = "Delivery",
-                valor  = "S/. ${"%.2f".format(delivery)}",
+                valor  = moneda(delivery),
                 negrita = false
             )
 
@@ -235,7 +237,7 @@ private fun ResumenPagoPanel(
             // Fila: IGV
             FilaResumen(
                 label  = "IGV (18%)",
-                valor  = "S/. ${"%.2f".format(igv)}",
+                valor  = moneda(igv),
                 negrita = false
             )
 
@@ -248,7 +250,7 @@ private fun ResumenPagoPanel(
             // Fila: Total
             FilaResumen(
                 label   = "TOTAL A PAGAR",
-                valor   = "S/. ${"%.2f".format(total)}",
+                valor   = moneda(total),
                 negrita = true,
                 colorLabel = VapeOnTextPrimary,
                 colorValor = VapeOnTextPrimary

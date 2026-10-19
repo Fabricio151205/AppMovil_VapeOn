@@ -9,6 +9,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
@@ -21,33 +22,26 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.vapeon_movil.R
-import com.example.vapeon_movil.services.dto.UsuarioContainer
-import com.example.vapeon_movil.services.dto.UsuarioCampos
-import com.example.vapeon_movil.services.dto.FirestoreStringValue
-import com.example.vapeon_movil.services.UsuarioService
 import com.example.vapeon_movil.ui.theme.*
-import com.example.vapeon_movil.utils.RetrofitClient
-import kotlinx.coroutines.launch
+import com.example.vapeon_movil.viewmodels.UsuarioViewModel
+import com.example.vapeon_movil.viewmodels.telefonoRegistroValido
 
 @Composable
 fun RegisterScreen(
+    usuarioViewModel: UsuarioViewModel,
     volverLogin: () -> Unit
 ) {
-    val scope = rememberCoroutineScope()
-    val usuarioService = remember {
-        RetrofitClient.retrofit.create(UsuarioService::class.java)
-    }
 
-    var nombre by remember { mutableStateOf("") }
-    var apellidos by remember { mutableStateOf("") }
-    var correo by remember { mutableStateOf("") }
-    var telefono by remember { mutableStateOf("") }
-    var fechaNacimiento by remember { mutableStateOf("") }
-    var password by remember { mutableStateOf("") }
-    var passwordConfirm by remember { mutableStateOf("") }
+    var nombre by rememberSaveable { mutableStateOf("") }
+    var apellidos by rememberSaveable { mutableStateOf("") }
+    var correo by rememberSaveable { mutableStateOf("") }
+    var telefono by rememberSaveable { mutableStateOf("") }
+    var fechaNacimiento by rememberSaveable { mutableStateOf("") }
+    var password by rememberSaveable { mutableStateOf("") }
+    var passwordConfirm by rememberSaveable { mutableStateOf("") }
 
-    var mensajeError by remember { mutableStateOf("") }
-    var cargando by remember { mutableStateOf(false) }
+    val mensajeError = usuarioViewModel.errorRegistro.orEmpty()
+    val cargando = usuarioViewModel.cargandoRegistro
 
     Surface(
         modifier = Modifier.fillMaxSize(),
@@ -209,10 +203,10 @@ fun RegisterScreen(
                 modifier = Modifier.fillMaxWidth()
             )
 
-            if (telefono.isNotEmpty() && !telefono.startsWith("9")) {
+            if (telefono.isNotEmpty() && !telefonoRegistroValido(telefono)) {
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = "El número de teléfono debe empezar con 9",
+                    text = "Ingresa 9 dígitos comenzando con 9, sin espacios ni otros caracteres",
                     color = MaterialTheme.colorScheme.error,
                     fontSize = 12.sp,
                     modifier = Modifier.align(Alignment.Start)
@@ -227,7 +221,7 @@ fun RegisterScreen(
                 onValueChange = { fechaNacimiento = it },
                 placeholder = {
                     Text(
-                        text = "Fecha de Nacimiento",
+                        text = "Fecha de Nacimiento (dd/mm/aaaa)",
                         color = VapeOnTextSecondary,
                         fontSize = 15.sp
                     )
@@ -341,51 +335,8 @@ fun RegisterScreen(
             // Botón principal: REGISTRARSE (Estilo píldora roja)
             Button(
                 onClick = {
-                    if (nombre.isBlank() || apellidos.isBlank() || correo.isBlank() || password.isBlank()) {
-                        mensajeError = "Por favor completa todos los campos requeridos"
-                        return@Button
-                    }
-
-                    if (!telefono.startsWith("9")) {
-                        mensajeError = "El número de teléfono debe empezar con 9"
-                        return@Button
-                    }
-
-                    if (password != passwordConfirm) {
-                        mensajeError = "Las contraseñas no coinciden"
-                        return@Button
-                    }
-
-                    cargando = true
-                    mensajeError = ""
-
-                    // Estructuramos el objeto según lo que pide la API REST de Firestore
-                    val usuarioFirebaseFormat = UsuarioContainer(
-                        fields = UsuarioCampos(
-                            nombre = FirestoreStringValue(nombre.trim()),
-                            apellido = FirestoreStringValue(apellidos.trim()),
-                            telefono = FirestoreStringValue(telefono.trim()),
-                            fechaNacimiento = FirestoreStringValue(fechaNacimiento.trim()),
-                            correo = FirestoreStringValue(correo.trim()),
-                            password = FirestoreStringValue(password),
-                            rol = FirestoreStringValue("CLIENTE")
-                        )
-                    )
-
-                    scope.launch {
-                        try {
-                            // Consumimos el servicio de la API REST
-                            usuarioService.crearUsuario(usuarioFirebaseFormat)
-                            println("¡Usuario registrado exitosamente en la API REST de Firebase Firestore!")
-                            cargando = false
-                            // Volvemos al Login
-                            volverLogin()
-                        } catch (e: Exception) {
-                            cargando = false
-                            mensajeError = "Error al registrar: ${e.localizedMessage}"
-                            println("Error en la API REST de Firebase: ${e.localizedMessage}")
-                        }
-                    }
+                    usuarioViewModel.registrarUsuario(nombre, apellidos, correo, telefono,
+                        fechaNacimiento, password, passwordConfirm)
                 },
                 enabled = !cargando,
                 shape = RoundedCornerShape(50),
@@ -463,9 +414,7 @@ fun RegisterScreen(
 
             // Botón social: Continuar con Google
             Button(
-                onClick = {
-                    // Acción social: Continuar con Google
-                },
+                onClick = {}, enabled = false,
                 shape = RoundedCornerShape(50),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = VapeOnRedDark,
@@ -476,7 +425,7 @@ fun RegisterScreen(
                     .height(52.dp)
             ) {
                 Text(
-                    text = "Continuar con Google",
+                    text = "Google · No disponible",
                     fontWeight = FontWeight.Bold,
                     fontSize = 15.sp
                 )
@@ -486,9 +435,7 @@ fun RegisterScreen(
 
             // Botón social: Continuar con Facebook
             Button(
-                onClick = {
-                    // Acción social: Continuar con Facebook
-                },
+                onClick = {}, enabled = false,
                 shape = RoundedCornerShape(50),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = VapeOnRedDark,
@@ -499,7 +446,7 @@ fun RegisterScreen(
                     .height(52.dp)
             ) {
                 Text(
-                    text = "Continuar con Facebook",
+                    text = "Facebook · No disponible",
                     fontWeight = FontWeight.Bold,
                     fontSize = 15.sp
                 )
