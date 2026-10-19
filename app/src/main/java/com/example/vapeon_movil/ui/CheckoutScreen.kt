@@ -1,5 +1,8 @@
 package com.example.vapeon_movil.ui
 
+import com.example.vapeon_movil.utils.moneda
+import com.example.vapeon_movil.utils.importe
+
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.BorderStroke
@@ -87,10 +90,18 @@ fun CheckoutScreen(
                     color = VapeOnGold)
                 Text("Pedido: ${confirmado.id}", color = VapeOnTextPrimary)
                 Text("Estado: ${confirmado.estado}", color = VapeOnTextPrimary)
-                Text("Total: S/ ${confirmado.total.toPlainString()}", color = VapeOnTextPrimary)
-                Text("Pagarás con S/ ${confirmado.montoPagado.toPlainString()} al recibir tu pedido. " +
-                    "Vuelto: S/ ${confirmado.vuelto.toPlainString()}", color = VapeOnTextPrimary)
-                Button(onClick = irHome, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+                Text("Total: ${moneda(confirmado.total)}", color = VapeOnTextPrimary)
+                Text("Pagarás con ${moneda(confirmado.montoPagado)} al recibir tu pedido. " +
+                    "Vuelto: ${moneda(confirmado.vuelto)}", color = VapeOnTextPrimary)
+                if (pedidoViewModel.requiereComprobacion) {
+                    pedidoViewModel.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+                    Button(onClick = {
+                        pedidoViewModel.confirmar(usuario, carritoViewModel, productoViewModel, direccion, montoTexto)
+                    }, enabled = !pedidoViewModel.cargando) { Text("Reintentar limpieza local") }
+                    if (pedidoViewModel.cargando) CircularProgressIndicator(color = VapeOnGold)
+                }
+                Button(onClick = irHome, enabled = !pedidoViewModel.requiereComprobacion,
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
                     Text("Volver al catálogo")
                 }
             } else {
@@ -121,7 +132,7 @@ fun CheckoutScreen(
                         HorizontalDivider(color = VapeOnGold.copy(alpha = 0.65f))
                         OutlinedTextField(value = montoTexto, onValueChange = { montoTexto = it },
                             enabled = !bloqueado, label = { Text("¿Con cuanto va a pagar?") },
-                            prefix = { Text("S/.") }, singleLine = true,
+                            prefix = { Text("S/") }, singleLine = true,
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                             colors = OutlinedTextFieldDefaults.colors(
                                 focusedTextColor = VapeOnTextPrimary, unfocusedTextColor = VapeOnTextPrimary,
@@ -137,7 +148,7 @@ fun CheckoutScreen(
                     else -> null
                 }
                 errorMonto?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-                Text("Vuelto: S/ ${vuelto?.toPlainString() ?: "—"}", color = VapeOnGold,
+                Text("Vuelto: S/ ${vuelto?.let { importe(it) } ?: "—"}", color = VapeOnGold,
                     style = MaterialTheme.typography.titleMedium)
                 OpcionPagoNoDisponible("YAPE QR", "Escanea y paga al instante")
                 OpcionPagoNoDisponible("Agregar Tarjeta", "Crédito o Débito")
@@ -151,8 +162,8 @@ fun CheckoutScreen(
                     color = VapeOnTextPrimary, fontWeight = FontWeight.Bold)
                 carritoViewModel.items.forEach { item ->
                     Text("${item.nombre} · Cantidad: ${item.cantidad}\n" +
-                        "Precio unitario: S/ ${"%.2f".format(item.precioUnit)} · " +
-                        "Subtotal: S/ ${"%.2f".format(item.precioUnit * item.cantidad)}",
+                        "Precio unitario: S/ ${importe(item.precioUnit)} · " +
+                        "Subtotal: S/ ${importe(BigDecimal.valueOf(item.precioUnit).multiply(BigDecimal.valueOf(item.cantidad.toLong())))}",
                         style = MaterialTheme.typography.bodyMedium, color = VapeOnTextPrimary)
                 }
                 pedidoViewModel.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
@@ -163,11 +174,11 @@ fun CheckoutScreen(
                     Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         Text("Resumen del Pago", color = VapeOnTextPrimary, fontWeight = FontWeight.Bold)
                         Spacer(Modifier.height(2.dp))
-                        FilaPago("Sub Total", subtotal?.toPlainString() ?: "—")
-                        FilaPago("Delivery", delivery.toPlainString())
-                        FilaPago("IGV (18%)", "%.2f".format(carritoViewModel.resumen.igv))
+                        FilaPago("Sub Total", subtotal?.let { importe(it) } ?: "—")
+                        FilaPago("Delivery", importe(delivery))
+                        FilaPago("IGV (18%)", importe(carritoViewModel.resumen.igv))
                         HorizontalDivider(thickness = 2.dp, color = VapeOnGold)
-                        FilaPago("TOTAL A PAGAR", total?.toPlainString() ?: "—", destacado = true)
+                        FilaPago("TOTAL A PAGAR", total?.let { importe(it) } ?: "—", destacado = true)
                         if (pedidoViewModel.cargando) CircularProgressIndicator(
                             color = VapeOnGold, modifier = Modifier.align(Alignment.CenterHorizontally))
                         Button(onClick = {
@@ -215,7 +226,7 @@ private fun FilaPago(titulo: String, valor: String, destacado: Boolean = false) 
             style = MaterialTheme.typography.bodyMedium,
             fontWeight = if (destacado) FontWeight.Bold else FontWeight.Normal)
         Spacer(Modifier.width(12.dp))
-        Text("S/. $valor", color = VapeOnTextPrimary, style = MaterialTheme.typography.bodyMedium,
+        Text("S/ $valor", color = VapeOnTextPrimary, style = MaterialTheme.typography.bodyMedium,
             fontWeight = if (destacado) FontWeight.Bold else FontWeight.Normal)
     }
 }

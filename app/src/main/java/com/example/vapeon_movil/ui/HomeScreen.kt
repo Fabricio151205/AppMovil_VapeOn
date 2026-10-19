@@ -10,7 +10,8 @@ fun HomeScreen(
     irDetalleProducto: (Producto) -> Unit,
     onPerfilClick: () -> Unit = {},
     irCarrito: () -> Unit = {},
-    irHistorial: () -> Unit = {}
+    irHistorial: () -> Unit = {},
+    cerrarSesion: () -> Unit = {}
 ) {
     // Reutiliza la interfaz del catálogo en modo CLIENTE (esAdmin = false)
     // El ViewModel se recibe desde VapeONApp para mantener un único estado compartido
@@ -20,6 +21,7 @@ fun HomeScreen(
         esAdmin = false,
         onPerfilClick = onPerfilClick,
         irCarrito = irCarrito,
-        irHistorial = irHistorial
+        irHistorial = irHistorial,
+        cerrarSesion = cerrarSesion
     )
 }

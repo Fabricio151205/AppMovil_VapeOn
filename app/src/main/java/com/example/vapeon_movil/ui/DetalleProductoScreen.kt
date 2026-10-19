@@ -1,5 +1,7 @@
 package com.example.vapeon_movil.ui
 
+import com.example.vapeon_movil.utils.moneda
+
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -9,7 +11,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material3.*
@@ -17,7 +18,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -37,13 +37,6 @@ fun DetalleProductoScreen(
     irEditarProducto: ((Producto) -> Unit)? = null,
     onAgregarAlCarrito: (() -> Unit)? = null   // null para ADMIN (no aplica)
 ) {
-    var esFavorito by remember { mutableStateOf(false) }
-
-    // Lista de sabores por defecto mostrada en la imagen
-    val listaSabores = remember {
-        listOf("Strawberry Watermelon", "Blue Razz Ice", "Miami Mint", "Peach Ice")
-    }
-    var saborSeleccionado by remember { mutableStateOf(listaSabores.first()) }
 
     Surface(
         modifier = Modifier
@@ -132,15 +125,15 @@ fun DetalleProductoScreen(
 
                     // Botón de Corazón (Favoritos) interactivo
                     IconButton(
-                        onClick = { esFavorito = !esFavorito },
+                        onClick = {}, enabled = false,
                         modifier = Modifier
                             .align(Alignment.TopEnd)
                             .padding(12.dp)
                     ) {
                         Icon(
-                            imageVector = if (esFavorito) Icons.Default.Favorite else Icons.Outlined.FavoriteBorder,
-                            contentDescription = "Favorito",
-                            tint = if (esFavorito) VapeOnRed else Color.Black,
+                            imageVector = Icons.Outlined.FavoriteBorder,
+                            contentDescription = "Favoritos no disponible",
+                            tint = VapeOnTextSecondary,
                             modifier = Modifier.size(28.dp)
                         )
                     }
@@ -159,7 +152,7 @@ fun DetalleProductoScreen(
             ) {
                 // Marca
                 Text(
-                    text = producto.marca.ifEmpty { "Life Pod Eco" },
+                    text = producto.marca.ifBlank { "No disponible" },
                     color = VapeOnTextPrimary,
                     fontSize = 15.sp,
                     fontWeight = FontWeight.Medium
@@ -172,7 +165,7 @@ fun DetalleProductoScreen(
                             append("Stock: ")
                         }
                         withStyle(style = SpanStyle(color = VapeOnGold, fontWeight = FontWeight.Bold)) {
-                            append("${if (producto.stock > 0) producto.stock else 4} Unidades")
+                            append(if (producto.stock > 0) "${producto.stock} unidades" else "Sin stock")
                         }
                     },
                     fontSize = 15.sp
@@ -185,7 +178,7 @@ fun DetalleProductoScreen(
             // NOMBRE DEL PRODUCTO
             // ==========================================
             Text(
-                text = producto.nombre.ifEmpty { "2 Kit Bateria + Pod 10k Puffs" },
+                text = producto.nombre.ifBlank { "No disponible" },
                 color = VapeOnTextPrimary,
                 fontSize = 24.sp,
                 fontWeight = FontWeight.Bold,
@@ -198,9 +191,7 @@ fun DetalleProductoScreen(
             // DESCRIPCIÓN DEL PRODUCTO
             // ==========================================
             Text(
-                text = producto.descripcion.ifEmpty {
-                    "Es el ultimo lanzamiento de Life Pod, ofreciendo el doble de caladas que su predecesor. Presenta Sabores Unicos y una construccion de alta calidad y priorizando la experiencia del usuario."
-                },
+                text = producto.descripcion.ifBlank { "No disponible" },
                 color = VapeOnTextSecondary,
                 fontSize = 14.sp,
                 lineHeight = 20.sp
@@ -234,7 +225,7 @@ fun DetalleProductoScreen(
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = "S/${if (producto.precio > 0.0) (if (producto.precio % 1.0 == 0.0) producto.precio.toInt().toString() else producto.precio.toString()) else "70"}",
+                            text = if (producto.precio > 0) moneda(producto.precio) else "No disponible",
                             color = VapeOnTextPrimary,
                             fontSize = 28.sp,
                             fontWeight = FontWeight.Bold
@@ -261,6 +252,7 @@ fun DetalleProductoScreen(
                     } else {
                         Button(
                             onClick = { onAgregarAlCarrito?.invoke() },
+                            enabled = producto.stock > 0 && producto.precio.isFinite() && producto.precio > 0 && onAgregarAlCarrito != null,
                             shape = RoundedCornerShape(50),
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = VapeOnRed,
@@ -292,75 +284,9 @@ fun DetalleProductoScreen(
 
             Spacer(modifier = Modifier.height(14.dp))
 
-            // Grid de 2x2 para Sabores
-            Column(
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                // Fila 1: Sabores 1 y 2
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    SaborPillButton(
-                        sabor = listaSabores[0],
-                        estaSeleccionado = (saborSeleccionado == listaSabores[0]),
-                        onClick = { saborSeleccionado = listaSabores[0] },
-                        modifier = Modifier.weight(1f)
-                    )
-                    SaborPillButton(
-                        sabor = listaSabores[1],
-                        estaSeleccionado = (saborSeleccionado == listaSabores[1]),
-                        onClick = { saborSeleccionado = listaSabores[1] },
-                        modifier = Modifier.weight(1f)
-                    )
-                }
-
-                // Fila 2: Sabores 3 y 4
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    SaborPillButton(
-                        sabor = listaSabores[2],
-                        estaSeleccionado = (saborSeleccionado == listaSabores[2]),
-                        onClick = { saborSeleccionado = listaSabores[2] },
-                        modifier = Modifier.weight(1f)
-                    )
-                    SaborPillButton(
-                        sabor = listaSabores[3],
-                        estaSeleccionado = (saborSeleccionado == listaSabores[3]),
-                        onClick = { saborSeleccionado = listaSabores[3] },
-                        modifier = Modifier.weight(1f)
-                    )
-                }
-            }
+            Text("Sabores: No disponible", color = VapeOnTextSecondary)
 
             Spacer(modifier = Modifier.height(24.dp))
         }
-    }
-}
-
-@Composable
-private fun SaborPillButton(
-    sabor: String,
-    estaSeleccionado: Boolean,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Button(
-        onClick = onClick,
-        shape = RoundedCornerShape(24.dp),
-        colors = ButtonDefaults.buttonColors(
-            containerColor = if (estaSeleccionado) VapeOnRed else VapeOnRedDark,
-            contentColor = VapeOnTextPrimary
-        ),
-        modifier = modifier.height(56.dp)
-    ) {
-        Text(
-            text = sabor,
-            fontWeight = FontWeight.Bold,
-            fontSize = 14.sp,
-            lineHeight = 16.sp
-        )
     }
 }

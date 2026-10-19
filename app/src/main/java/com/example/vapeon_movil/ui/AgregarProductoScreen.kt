@@ -12,6 +12,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -19,29 +20,23 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.vapeon_movil.services.*
-import com.example.vapeon_movil.services.dto.*
 import com.example.vapeon_movil.ui.theme.*
-import com.example.vapeon_movil.utils.RetrofitClient
-import kotlinx.coroutines.launch
+import com.example.vapeon_movil.viewmodels.ProductoViewModel
 
 @Composable
 fun AgregarProductoScreen(
+    productoViewModel: ProductoViewModel,
     volver: () -> Unit
 ) {
-    val scope = rememberCoroutineScope()
-    val productoService = remember {
-        RetrofitClient.retrofit.create(ProductoService::class.java)
-    }
+    val anterior = productoViewModel.datosCreacionPendiente
+    var nombre by rememberSaveable { mutableStateOf(anterior?.nombre?.asString().orEmpty()) }
+    var marca by rememberSaveable { mutableStateOf(anterior?.marca?.asString().orEmpty()) }
+    var precio by rememberSaveable { mutableStateOf(anterior?.precio?.asString().orEmpty()) }
+    var stock by rememberSaveable { mutableStateOf(anterior?.stock?.asString().orEmpty()) }
+    var descripcion by rememberSaveable { mutableStateOf(anterior?.descripcion?.asString().orEmpty()) }
 
-    var nombre by remember { mutableStateOf("") }
-    var marca by remember { mutableStateOf("") }
-    var precio by remember { mutableStateOf("") }
-    var stock by remember { mutableStateOf("") }
-    var descripcion by remember { mutableStateOf("") }
-
-    var cargando by remember { mutableStateOf(false) }
-    var mensajeError by remember { mutableStateOf("") }
+    val cargando = productoViewModel.cargandoCreacion
+    var mensajeError by rememberSaveable { mutableStateOf("") }
 
     Surface(
         modifier = Modifier.fillMaxSize(),
@@ -245,10 +240,11 @@ fun AgregarProductoScreen(
                 modifier = Modifier.fillMaxWidth()
             )
 
-            if (mensajeError.isNotEmpty()) {
+            val errorVisible = mensajeError.ifEmpty { productoViewModel.errorCreacion.orEmpty() }
+            if (errorVisible.isNotEmpty()) {
                 Spacer(modifier = Modifier.height(12.dp))
                 Text(
-                    text = mensajeError,
+                    text = errorVisible,
                     color = MaterialTheme.colorScheme.error,
                     fontSize = 14.sp
                 )
@@ -265,12 +261,12 @@ fun AgregarProductoScreen(
                     val precioDouble = precio.toDoubleOrNull()
                     val stockInt = stock.toIntOrNull()
 
-                    if (nombre.isBlank()) {
-                        mensajeError = "Por favor ingresa el nombre del producto"
+                    if (nombre.isBlank() || marca.isBlank()) {
+                        mensajeError = "Por favor ingresa nombre y marca del producto"
                         return@Button
                     }
 
-                    if (precioDouble == null || precioDouble <= 0.0) {
+                    if (precioDouble == null || !precioDouble.isFinite() || precioDouble <= 0.0) {
                         mensajeError = "Por favor ingresa un precio válido mayor a 0"
                         return@Button
                     }
@@ -280,30 +276,8 @@ fun AgregarProductoScreen(
                         return@Button
                     }
 
-                    cargando = true
                     mensajeError = ""
-
-                    val nuevoProducto = ProductoContainer(
-                        fields = ProductoCampos(
-                            nombre = FirestoreValue(stringValue = nombre),
-                            marca = FirestoreValue(stringValue = marca),
-                            precio = FirestoreValue(doubleValue = precioDouble),
-                            stock = FirestoreValue(integerValue = stockInt.toString(), doubleValue = stockInt.toDouble()),
-                            descripcion = FirestoreValue(stringValue = descripcion)
-                        )
-                    )
-
-                    scope.launch {
-                        try {
-                            productoService.crearProducto(nuevoProducto)
-                            cargando = false
-                            volver()
-                        } catch (e: Exception) {
-                            cargando = false
-                            mensajeError = "Error al crear producto: ${e.localizedMessage}"
-                            println(mensajeError)
-                        }
-                    }
+                    productoViewModel.crearProducto(nombre, marca, precioDouble, stockInt, descripcion)
                 },
                 enabled = !cargando,
                 shape = RoundedCornerShape(50),

@@ -17,23 +17,20 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.vapeon_movil.R
 import com.example.vapeon_movil.entities.Producto
-import com.example.vapeon_movil.services.ProductoService
+import com.example.vapeon_movil.viewmodels.ProductoViewModel
 import com.example.vapeon_movil.ui.theme.*
-import com.example.vapeon_movil.utils.RetrofitClient
 import kotlinx.coroutines.launch
 
 @Composable
 fun AdminHomeScreen(
     irCatalogo: () -> Unit,
+    productoViewModel: ProductoViewModel,
     irDetalleProducto: (Producto) -> Unit = {},
     irEditarProducto: (Producto) -> Unit = {},
     onPerfilClick: () -> Unit = {},
@@ -42,60 +39,23 @@ fun AdminHomeScreen(
     onCuponesClick: () -> Unit = {},
     onNuevaVentaClick: () -> Unit = {},
     onEstadisticasClick: () -> Unit = {},
-    onInversionistasClick: () -> Unit = {}
+    onInversionistasClick: () -> Unit = {},
+    irPedidos: () -> Unit = {},
+    cerrarSesion: () -> Unit = {}
 ) {
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
 
-    val productoService = remember {
-        RetrofitClient.retrofit.create(ProductoService::class.java)
-    }
-
-    var productosFirebase by remember { mutableStateOf(emptyList<Producto>()) }
-    var cargandoProductos by remember { mutableStateOf(true) }
+    val productosFirebase = productoViewModel.productos
+    val cargandoProductos = productoViewModel.cargando
     var productoAEliminar by remember { mutableStateOf<Producto?>(null) }
-
-    // Productos de demostración por defecto si la base de datos está vacía
-    
-    // Carga de productos desde Firebase Firestore REST
-    LaunchedEffect(Unit) {
-        scope.launch {
-            try {
-                val respuesta = productoService.listarProductos()
-                val lista = respuesta.documents?.map { doc ->
-                    Producto(
-                        id = doc.name.substringAfterLast("/"),
-                        nombre = doc.fields.nombre?.asString() ?: "",
-                        marca = doc.fields.marca?.asString() ?: "",
-                        precio = doc.fields.precio?.asDouble() ?: 0.0,
-                        stock = doc.fields.stock?.asInt() ?: 0,
-                        descripcion = doc.fields.descripcion?.asString() ?: ""
-                    )
-                } ?: emptyList()
-                productosFirebase = lista
-            } catch (e: Exception) {
-                println("Error al cargar productos en AdminHome: ${e.localizedMessage}")
-            } finally {
-                cargandoProductos = false
-            }
-        }
-    }
-
-    fun eliminarProducto(producto: Producto) {
-        scope.launch {
-            try {
-                productoService.eliminarProducto(producto.id)
-                productosFirebase = productosFirebase.filter { it.id != producto.id }
-                snackbarHostState.showSnackbar("Producto '${producto.nombre}' eliminado correctamente")
-            } catch (e: Exception) {
-                snackbarHostState.showSnackbar("Error al eliminar: ${e.localizedMessage}")
-            }
-        }
-    }
+    LaunchedEffect(Unit) { productoViewModel.cargarProductos() }
 
     MenuScreen(
         irCatalogo = irCatalogo,
         esAdmin = true,
+        irPedidos = irPedidos,
+        cerrarSesion = cerrarSesion,
         onPerfilClick = onPerfilClick,
         onTituloClick = { /* Ya estamos en AdminHome */ }
     ) { paddingValues ->
@@ -115,7 +75,7 @@ fun AdminHomeScreen(
                 onClick = {
                     onCajaTotalClick()
                     scope.launch {
-                        snackbarHostState.showSnackbar("Abriendo módulo de Caja Total...")
+                        snackbarHostState.showSnackbar("Módulo de Caja Total no disponible")
                     }
                 },
                 shape = RoundedCornerShape(26.dp),
@@ -139,7 +99,7 @@ fun AdminHomeScreen(
                         letterSpacing = 0.5.sp
                     )
                     Text(
-                        text = "S/. 2 000.00",
+                        text = "Sin datos",
                         color = VapeOnTextPrimary,
                         fontSize = 22.sp,
                         fontWeight = FontWeight.ExtraBold
@@ -156,7 +116,7 @@ fun AdminHomeScreen(
                 onClick = {
                     onPrediccionClick()
                     scope.launch {
-                        snackbarHostState.showSnackbar("Abriendo módulo de Predicción de Inventario...")
+                        snackbarHostState.showSnackbar("Módulo de Predicción de Inventario no disponible")
                     }
                 },
                 shape = RoundedCornerShape(26.dp),
@@ -183,7 +143,7 @@ fun AdminHomeScreen(
                         )
                         Spacer(modifier = Modifier.height(2.dp))
                         Text(
-                            text = "OXBAR",
+                            text = "No disponible",
                             color = VapeOnTextPrimary,
                             fontSize = 24.sp,
                             fontWeight = FontWeight.Black,
@@ -192,17 +152,7 @@ fun AdminHomeScreen(
                     }
 
                     Text(
-                        text = buildAnnotatedString {
-                            append("El sabor ")
-                            withStyle(style = SpanStyle(fontWeight = FontWeight.Black)) {
-                                append("MORA")
-                            }
-                            append(" va a\nacabarse en ")
-                            withStyle(style = SpanStyle(fontWeight = FontWeight.Black)) {
-                                append("6")
-                            }
-                            append(" días")
-                        },
+                        text = "Sin datos de predicción. Módulo no disponible.",
                         color = VapeOnTextPrimary,
                         fontSize = 15.sp,
                         lineHeight = 20.sp,
@@ -263,6 +213,9 @@ fun AdminHomeScreen(
                         )
                     }
                 }
+            } else if (productoViewModel.error != null) {
+                Text(productoViewModel.error.orEmpty(), color = MaterialTheme.colorScheme.error)
+                Button(onClick = { productoViewModel.cargarProductos() }) { Text("Reintentar") }
             } else if (productosFirebase.isEmpty()) {
                 Box(
                     modifier = Modifier
@@ -384,7 +337,7 @@ fun AdminHomeScreen(
                     onClick = {
                         onCuponesClick()
                         scope.launch {
-                            snackbarHostState.showSnackbar("Abriendo módulo de Cupones...")
+                            snackbarHostState.showSnackbar("Módulo de Cupones no disponible")
                         }
                     },
                     shape = RoundedCornerShape(50),
@@ -413,7 +366,7 @@ fun AdminHomeScreen(
                     onClick = {
                         onNuevaVentaClick()
                         scope.launch {
-                            snackbarHostState.showSnackbar("Abriendo módulo de Nueva Venta...")
+                            snackbarHostState.showSnackbar("Módulo de Nueva Venta no disponible")
                         }
                     },
                     shape = RoundedCornerShape(50),
@@ -449,7 +402,7 @@ fun AdminHomeScreen(
                     onClick = {
                         onEstadisticasClick()
                         scope.launch {
-                            snackbarHostState.showSnackbar("Abriendo módulo de Estadísticas...")
+                            snackbarHostState.showSnackbar("Módulo de Estadísticas no disponible")
                         }
                     },
                     shape = RoundedCornerShape(50),
@@ -478,7 +431,7 @@ fun AdminHomeScreen(
                     onClick = {
                         onInversionistasClick()
                         scope.launch {
-                            snackbarHostState.showSnackbar("Abriendo módulo de Inversionistas...")
+                            snackbarHostState.showSnackbar("Módulo de Inversionistas no disponible")
                         }
                     },
                     shape = RoundedCornerShape(50),
@@ -528,12 +481,12 @@ fun AdminHomeScreen(
             confirmButton = {
                 Button(
                     onClick = {
-                        eliminarProducto(prod)
-                        productoAEliminar = null
+                        productoViewModel.eliminarProducto(prod.id) { productoAEliminar = null }
                     },
+                    enabled = prod.id !in productoViewModel.eliminandoIds,
                     colors = ButtonDefaults.buttonColors(containerColor = VapeOnRed)
                 ) {
-                    Text("Eliminar", color = VapeOnTextPrimary, fontWeight = FontWeight.Bold)
+                    Text(if (prod.id in productoViewModel.eliminandoIds) "Eliminando…" else "Eliminar", color = VapeOnTextPrimary, fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {

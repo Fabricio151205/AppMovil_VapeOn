@@ -1,5 +1,7 @@
 package com.example.vapeon_movil.ui
 
+import com.example.vapeon_movil.utils.moneda
+
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -57,12 +59,16 @@ fun HistorialComprasScreen(
                             modifier = Modifier.heightIn(min = 48.dp)) { Text("Reintentar") }
                     }
                     else -> {
+                        if (pedidoViewModel.invalidosHistorial > 0) item {
+                            Text("${pedidoViewModel.invalidosHistorial} pedido(s) contienen datos inválidos y no se pueden mostrar.",
+                                color = MaterialTheme.colorScheme.error)
+                        }
                         item {
                             OutlinedButton(onClick = { pedidoViewModel.cargarHistorial(usuarioId) },
                                 modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("Actualizar compras") }
                         }
                         if (pedidoViewModel.historial.isEmpty()) item {
-                            Text("Todavía no tienes compras registradas.", color = VapeOnTextPrimary,
+                            Text(if (pedidoViewModel.invalidosHistorial > 0) "No hay compras válidas disponibles." else "Todavía no tienes compras registradas.", color = VapeOnTextPrimary,
                                 style = MaterialTheme.typography.titleMedium)
                         }
                         items(pedidoViewModel.historial.filter { it.usuarioId == usuarioId }, key = { it.id }) { pedido ->
@@ -73,7 +79,7 @@ fun HistorialComprasScreen(
                                     Text("Pedido ${pedido.id}", style = MaterialTheme.typography.titleMedium,
                                         fontWeight = FontWeight.Bold, color = VapeOnTextPrimary)
                                     Text(fechaPedidoTexto(pedido.fecha), color = VapeOnTextPrimary)
-                                    Text("Total: S/ ${pedido.total.toPlainString()}", color = VapeOnGold,
+                                    Text("Total: ${moneda(pedido.total)}", color = VapeOnGold,
                                         style = MaterialTheme.typography.titleMedium)
                                     Text("${pedido.metodoPago} · ${pedido.estado}", color = VapeOnTextPrimary)
                                     Text("Ver detalle", color = VapeOnGold)

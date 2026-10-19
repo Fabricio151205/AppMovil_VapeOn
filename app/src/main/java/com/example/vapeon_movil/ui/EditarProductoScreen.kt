@@ -11,6 +11,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -18,30 +19,61 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.vapeon_movil.entities.Producto
-import com.example.vapeon_movil.services.*
 import com.example.vapeon_movil.services.dto.*
 import com.example.vapeon_movil.ui.theme.*
-import com.example.vapeon_movil.utils.RetrofitClient
-import kotlinx.coroutines.launch
+import com.example.vapeon_movil.viewmodels.ProductoViewModel
 
 @Composable
 fun EditarProductoScreen(
     producto: Producto,
+    productoViewModel: ProductoViewModel,
     volver: () -> Unit
 ) {
-    val scope = rememberCoroutineScope()
-    val productoService = remember {
-        RetrofitClient.retrofit.create(ProductoService::class.java)
+    val context = androidx.compose.ui.platform.LocalContext.current
+    DisposableEffect(producto.id, productoViewModel) {
+        productoViewModel.iniciarEdicion(producto.id)
+        onDispose {
+            if ((context as? android.app.Activity)?.isChangingConfigurations != true) productoViewModel.cerrarEdicion()
+        }
     }
+    val documento = productoViewModel.documentoEdicion
+    if (documento == null) {
+        Surface(color = VapeOnBackground, modifier = Modifier.fillMaxSize()) {
+            Column(Modifier.statusBarsPadding().padding(24.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Text("EDITAR PRODUCTO", style = MaterialTheme.typography.titleLarge)
+                if (productoViewModel.cargandoEdicion) CircularProgressIndicator()
+                productoViewModel.errorEdicion?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+                Button(onClick = { productoViewModel.cargarProductoEdicion(producto.id) },
+                    enabled = !productoViewModel.cargandoEdicion) { Text("Recargar datos") }
+                TextButton(onClick = volver) { Text("Volver") }
+            }
+        }
+        return
+    }
+    key(documento.name, documento.updateTime) {
+        FormularioEditarProducto(documento, productoViewModel, volver)
+    }
+}
 
-    var nombre by remember { mutableStateOf(producto.nombre) }
-    var marca by remember { mutableStateOf(producto.marca) }
-    var precio by remember { mutableStateOf(if (producto.precio % 1.0 == 0.0) producto.precio.toInt().toString() else producto.precio.toString()) }
-    var stock by remember { mutableStateOf(producto.stock.toString()) }
-    var descripcion by remember { mutableStateOf(producto.descripcion) }
+@Composable
+private fun FormularioEditarProducto(
+    documento: ProductoDocumento, productoViewModel: ProductoViewModel, volver: () -> Unit
+) {
+    val producto = Producto(
+        id = documento.name.substringAfterLast('/'), nombre = documento.fields.nombre?.asString().orEmpty(),
+        marca = documento.fields.marca?.asString().orEmpty(), precio = documento.fields.precio?.asDouble() ?: 0.0,
+        stock = documento.fields.stock?.asInt() ?: 0, descripcion = documento.fields.descripcion?.asString().orEmpty()
+    )
 
-    var cargando by remember { mutableStateOf(false) }
-    var mensajeError by remember { mutableStateOf("") }
+    var nombre by rememberSaveable { mutableStateOf(producto.nombre) }
+    var marca by rememberSaveable { mutableStateOf(producto.marca) }
+    var precio by rememberSaveable { mutableStateOf(producto.precio.toString()) }
+    var stock by rememberSaveable { mutableStateOf(producto.stock.toString()) }
+    var descripcion by rememberSaveable { mutableStateOf(producto.descripcion) }
+
+    val cargando = productoViewModel.guardandoEdicion
+    var mensajeError by rememberSaveable { mutableStateOf("") }
 
     Surface(
         modifier = Modifier.fillMaxSize(),
@@ -288,14 +320,19 @@ fun EditarProductoScreen(
                 modifier = Modifier.fillMaxWidth()
             )
 
-            if (mensajeError.isNotEmpty()) {
+            val errorVisible = mensajeError.ifEmpty { productoViewModel.errorEdicion.orEmpty() }
+            if (errorVisible.isNotEmpty()) {
                 Spacer(modifier = Modifier.height(12.dp))
                 Text(
-                    text = mensajeError,
+                    text = errorVisible,
                     color = MaterialTheme.colorScheme.error,
                     fontSize = 14.sp
                 )
             }
+
+            // Recarga explícita: reemplaza el formulario; nunca reenvía la edición antigua.
+            TextButton(onClick = { productoViewModel.cargarProductoEdicion(producto.id) },
+                enabled = !cargando) { Text("Recargar datos") }
 
             Spacer(modifier = Modifier.weight(1f, fill = false))
             Spacer(modifier = Modifier.height(36.dp))
@@ -313,7 +350,7 @@ fun EditarProductoScreen(
                         return@Button
                     }
 
-                    if (precioDouble == null || precioDouble <= 0.0) {
+                    if (precioDouble == null || !precioDouble.isFinite() || precioDouble <= 0.0) {
                         mensajeError = "Por favor ingresa un precio válido mayor a 0"
                         return@Button
                     }
@@ -323,40 +360,11 @@ fun EditarProductoScreen(
                         return@Button
                     }
 
-                    cargando = true
                     mensajeError = ""
-
-                    val productoActualizado = ProductoContainer(
-                        fields = ProductoCampos(
-                            nombre = FirestoreValue(stringValue = nombre),
-                            marca = FirestoreValue(stringValue = marca),
-                            precio = FirestoreValue(
-                                doubleValue = precio.toDoubleOrNull() ?: 0.0
-                            ),
-                            stock = FirestoreValue(
-                                integerValue = (stock.toIntOrNull() ?: 0).toString(),
-                                doubleValue = (stock.toDoubleOrNull() ?: 0.0)
-                            ),
-                            descripcion = FirestoreValue(stringValue = descripcion)
-                        )
-                    )
-
-                    scope.launch {
-                        try {
-                            productoService.actualizarProducto(
-                                producto.id,
-                                productoActualizado
-                            )
-                            cargando = false
-                            volver()
-                        } catch (e: Exception) {
-                            cargando = false
-                            mensajeError = "Error al actualizar producto: ${e.localizedMessage}"
-                            println(mensajeError)
-                        }
-                    }
+                    productoViewModel.guardarProductoEdicion(nombre, marca, precioDouble, stockInt,
+                        descripcion)
                 },
-                enabled = !cargando,
+                enabled = !cargando && !productoViewModel.requiereRecargarEdicion,
                 shape = RoundedCornerShape(50),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = VapeOnRed,

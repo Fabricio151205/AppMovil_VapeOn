@@ -9,6 +9,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
@@ -22,7 +23,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.vapeon_movil.R
 import com.example.vapeon_movil.viewmodels.UsuarioViewModel
-import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.vapeon_movil.ui.theme.*
 
 @Composable
@@ -34,8 +34,8 @@ fun LoginScreen(
     usuarioViewModel: UsuarioViewModel
 ) {
     // Estado local solo de UI (campos del formulario)
-    var correo by remember { mutableStateOf("") }
-    var password by remember { mutableStateOf("") }
+    var correo by rememberSaveable { mutableStateOf("") }
+    var password by rememberSaveable { mutableStateOf("") }
 
     // Estado del ViewModel (login, carga, error)
     val cargando = usuarioViewModel.cargandoLogin
@@ -251,9 +251,7 @@ fun LoginScreen(
 
             // Botón social: Continuar con Google
             Button(
-                onClick = {
-                    // Acción social: Continuar con Google
-                },
+                onClick = {}, enabled = false,
                 shape = RoundedCornerShape(50),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = VapeOnRedDark,
@@ -264,7 +262,7 @@ fun LoginScreen(
                     .height(52.dp)
             ) {
                 Text(
-                    text = "Continuar con Google",
+                    text = "Google · No disponible",
                     fontWeight = FontWeight.Bold,
                     fontSize = 15.sp
                 )
@@ -274,9 +272,7 @@ fun LoginScreen(
 
             // Botón social: Continuar con Facebook
             Button(
-                onClick = {
-                    // Acción social: Continuar con Facebook
-                },
+                onClick = {}, enabled = false,
                 shape = RoundedCornerShape(50),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = VapeOnRedDark,
@@ -287,7 +283,7 @@ fun LoginScreen(
                     .height(52.dp)
             ) {
                 Text(
-                    text = "Continuar con Facebook",
+                    text = "Facebook · No disponible",
                     fontWeight = FontWeight.Bold,
                     fontSize = 15.sp
                 )

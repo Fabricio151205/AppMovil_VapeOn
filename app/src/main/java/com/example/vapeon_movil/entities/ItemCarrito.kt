@@ -19,5 +19,6 @@ data class ItemCarrito(
     val marca: String,
     val precioUnit: Double,
     val cantidad: Int = 1,
-    val imagenRes: Int? = null
+    val imagenRes: Int? = null,
+    val stockDisponible: Int? = null
 )

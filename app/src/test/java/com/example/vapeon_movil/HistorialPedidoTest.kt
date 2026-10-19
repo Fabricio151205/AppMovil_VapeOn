@@ -14,6 +14,31 @@ import java.net.URI
 class HistorialPedidoTest {
     private val ruta = "projects/dbvapeon/databases/(default)/documents"
 
+    @Test fun pedidoCorruptoNoOcultaLosValidosYSeCuentaElProblema() {
+        val antiguo = documento("A", "clienteA", "2026-10-12T12:00:00Z")
+        val reciente = documento("C", "clienteA", "2026-10-14T12:00:00Z")
+        val corrupto = PedidoDocumento("$ruta/pedidos/B", antiguo.fields - "fecha")
+        val (validos, invalidos) = listOf(antiguo, corrupto, reciente).leerPedidosValidos("clienteA")
+        assertEquals(listOf("C", "A"), validos.map { it.id })
+        assertEquals(1, invalidos)
+    }
+
+    @Test fun noExponeNiInterpretaPedidosAjenosInvalidos() {
+        val ajeno = PedidoDocumento("$ruta/pedidos/ajeno", mapOf("usuarioId" to FirestoreValor(stringValue = "clienteB")))
+        val (validos, invalidos) = listOf(ajeno).leerPedidosValidos("clienteA")
+        assertTrue(validos.isEmpty())
+        assertEquals(0, invalidos)
+        assertEquals(1, listOf(ajeno).leerPedidosValidos().second)
+    }
+
+    @Test fun fechaMalformadaNoHaceFallarTodoElListado() {
+        val doc = documento("valido", "clienteA", "2026-10-14T12:00:00Z")
+        val corrupto = doc.copy(fields = doc.fields + ("fecha" to FirestoreValor(timestampValue = "ayer")))
+        val (validos, invalidos) = listOf(doc, corrupto).leerPedidosValidos()
+        assertEquals(1, validos.size)
+        assertEquals(1, invalidos)
+    }
+
     // Documentos de prueba solo en test; la aplicación obtiene sus datos de Firestore.
     private fun documento(id: String, usuario: String, fecha: String): PedidoDocumento {
         val precio = BigDecimal("70.00")

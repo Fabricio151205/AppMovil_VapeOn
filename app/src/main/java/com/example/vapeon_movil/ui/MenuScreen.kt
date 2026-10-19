@@ -30,6 +30,8 @@ fun MenuScreen(
     onOpcionMenuClick: (String) -> Unit = {},
     onTituloClick: () -> Unit = {},
     irHistorial: () -> Unit = {},
+    irPedidos: () -> Unit = {},
+    cerrarSesion: () -> Unit = {},
     content: @Composable (PaddingValues) -> Unit
 ) {
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
@@ -43,7 +45,8 @@ fun MenuScreen(
         if (esAdmin) "Pedidos" else "Historial de compras",
         "Pagos",
         "Clientes",
-        "Proveedores"
+        "Proveedores",
+        "Cerrar sesión"
     ).filter { opcion ->
         // Ocultar la opción "Carrito" del menú lateral únicamente si es administrador
         !(esAdmin && opcion == "Carrito")
@@ -80,7 +83,7 @@ fun MenuScreen(
                     NavigationDrawerItem(
                         label = {
                             Text(
-                                text = opcion,
+                                text = if (opcion in listOf("Catálogo", "Carrito", "Pedidos", "Historial de compras", "Cerrar sesión")) opcion else "$opcion (No disponible)",
                                 color = VapeOnTextPrimary,
                                 fontWeight = FontWeight.Medium
                             )
@@ -92,6 +95,8 @@ fun MenuScreen(
                                 "Catálogo" -> irCatalogo()
                                 "Carrito"  -> irCarrito()
                                 "Historial de compras" -> if (!esAdmin) irHistorial()
+                                "Pedidos" -> if (esAdmin) irPedidos()
+                                "Cerrar sesión" -> cerrarSesion()
                                 else -> {
                                     onOpcionMenuClick(opcion)
                                     scope.launch {
@@ -155,7 +160,7 @@ fun MenuScreen(
                                 .size(40.dp)
                                 .clip(CircleShape)
                                 .background(VapeOnRedDark)
-                                .clickable { onPerfilClick() },
+                                .clickable { scope.launch { snackbarHostState.showSnackbar("Perfil no disponible") } },
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(

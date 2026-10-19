@@ -1,5 +1,7 @@
 package com.example.vapeon_movil.components
 
+import com.example.vapeon_movil.utils.moneda
+
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -73,7 +75,7 @@ fun ProductCard(
             Spacer(modifier = Modifier.height(2.dp))
 
 
-            val precioFormateado = "S/. ${if (precio % 1.0 == 0.0) precio.toInt().toString() else precio.toString()}"
+            val precioFormateado = moneda(precio)
 
             Text(
                 text = precioFormateado,
