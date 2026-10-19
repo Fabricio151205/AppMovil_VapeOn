@@ -164,6 +164,16 @@ fun RegisterScreen(
                 modifier = Modifier.fillMaxWidth()
             )
 
+            if (!correo.endsWith("@gmail.com")) {
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "Solo se permite ingresar correos GMAIL",
+                    color = MaterialTheme.colorScheme.error,
+                    fontSize = 12.sp,
+                    modifier = Modifier.align(Alignment.Start)
+                )
+            }
+
             Spacer(modifier = Modifier.height(12.dp))
 
             // Campo: Telefono
@@ -260,6 +270,16 @@ fun RegisterScreen(
                 ),
                 modifier = Modifier.fillMaxWidth()
             )
+
+            if (password.length > 6) {
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "La contraseña debe terner por lo menos 6 caracteres",
+                    color = MaterialTheme.colorScheme.error,
+                    fontSize = 12.sp,
+                    modifier = Modifier.align(Alignment.Start)
+                )
+            }
 
             Spacer(modifier = Modifier.height(12.dp))
 

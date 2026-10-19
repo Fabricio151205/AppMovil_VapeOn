@@ -155,8 +155,11 @@ fun CarritoScreen(
                 carritoViewModel.aviso?.let { aviso -> item { Text(aviso, color = VapeOnGold) } }
                 items(items, key = { it.productoId }) { item ->
                     ItemCarritoCard(
-                        item         = item,
-                        onIncrementar = { carritoViewModel.incrementar(item.productoId) },
+                        item = item,
+                        onIncrementar = {
+                            carritoViewModel.incrementar(item.productoId)
+
+                        },
                         onDecrementar = { carritoViewModel.decrementar(item.productoId) },
                         onEliminar   = { carritoViewModel.eliminarItem(item.productoId) }
                     )

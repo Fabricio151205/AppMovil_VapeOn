@@ -215,6 +215,10 @@ fun AgregarProductoScreen(
                 modifier = Modifier.fillMaxWidth()
             )
 
+            if (stock < 0.toString()){
+                Text("El stock debe ser al menos de 1 unidad")
+            }
+
             Spacer(modifier = Modifier.height(14.dp))
 
             // Campo: Descripción
@@ -272,7 +276,7 @@ fun AgregarProductoScreen(
                     }
 
                     if (stockInt == null || stockInt < 0) {
-                        mensajeError = "Por favor ingresa un stock válido"
+                        mensajeError = "Por favor ingresa un stock válido o positivo"
                         return@Button
                     }
 

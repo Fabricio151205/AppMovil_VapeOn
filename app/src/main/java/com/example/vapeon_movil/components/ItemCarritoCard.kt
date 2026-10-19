@@ -134,6 +134,7 @@ fun ItemCarritoCard(
                             contentColor = VapeOnTextPrimary
                         ),
                         shape = RoundedCornerShape(8.dp)
+
                     ) {
                         Text(
                             text = "+",
