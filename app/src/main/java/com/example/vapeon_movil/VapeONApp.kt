@@ -272,6 +272,9 @@ fun VapeONApp() {
                 usuario = usuarioViewModel.usuarioActual,
                 pedidoViewModel = pedidoViewModel,
                 volver = { pantallaActual = "home" },
+                irCarrito = { pantallaActual = "carrito" },
+                irHistorial = { pantallaActual = "historialCompras" },
+                cerrarSesion = ::cerrarSesion,
                 irDetallePedido = { id ->
                     pedidoSeleccionadoId = id
                     pantallaActual = "detallePedido"

@@ -1,6 +1,5 @@
 package com.example.vapeon_movil.ui
 
-import com.example.vapeon_movil.utils.moneda
 import com.example.vapeon_movil.utils.importe
 
 import androidx.activity.compose.BackHandler
@@ -24,7 +23,6 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.example.vapeon_movil.entities.Pedido
 import com.example.vapeon_movil.entities.Usuario
 import com.example.vapeon_movil.ui.theme.*
@@ -87,228 +85,16 @@ fun CheckoutScreen(
         Column(Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState())
             .imePadding().padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             if (confirmado != null) {
-<<<<<<< HEAD
-                Text("¡Pedido registrado correctamente!", style = MaterialTheme.typography.titleLarge,
-                    color = VapeOnGold)
-                Text("Pedido: ${confirmado.id}", color = VapeOnTextPrimary)
-                Text("Estado: ${confirmado.estado}", color = VapeOnTextPrimary)
-                Text("Total: ${moneda(confirmado.total)}", color = VapeOnTextPrimary)
-                Text("Pagarás con ${moneda(confirmado.montoPagado)} al recibir tu pedido. " +
-                    "Vuelto: ${moneda(confirmado.vuelto)}", color = VapeOnTextPrimary)
-                if (pedidoViewModel.requiereComprobacion) {
-                    pedidoViewModel.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-                    Button(onClick = {
+                ConfirmacionPedidoScreen(
+                    pedido = confirmado,
+                    requiereComprobacion = pedidoViewModel.requiereComprobacion,
+                    cargando = pedidoViewModel.cargando,
+                    error = pedidoViewModel.error,
+                    reintentarLimpieza = {
                         pedidoViewModel.confirmar(usuario, carritoViewModel, productoViewModel, direccion, montoTexto)
-                    }, enabled = !pedidoViewModel.cargando) { Text("Reintentar limpieza local") }
-                    if (pedidoViewModel.cargando) CircularProgressIndicator(color = VapeOnGold)
-                }
-                Button(onClick = irHome, enabled = !pedidoViewModel.requiereComprobacion,
-                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
-                    Text("Volver al catálogo")
-=======
-                // Título de la pantalla
-                Text(
-                    text = "¡Pedido Registrado\nCorrectamente!",
-                    fontSize = 26.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = VapeOnTextPrimary,
-                    lineHeight = 32.sp
+                    },
+                    volverAlCatalogo = irHome
                 )
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                // Tarjeta de Resumen del Pedido
-                Card(
-                    shape = RoundedCornerShape(22.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = VapeOnCardBackground
-                    ),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(20.dp)
-                    ) {
-                        Text(
-                            text = "Pedido N° 1",
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = VapeOnTextPrimary
-                        )
-
-                        Spacer(modifier = Modifier.height(14.dp))
-
-                        // Fecha
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text(
-                                text = "Fecha:",
-                                color = VapeOnTextSecondary,
-                                fontSize = 14.sp
-                            )
-                            Text(
-                                text = fechaPedidoTexto(confirmado.fecha),
-                                color = VapeOnTextPrimary,
-                                fontSize = 14.sp
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.height(8.dp))
-
-                        // Estado
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text(
-                                text = "Estado:",
-                                color = VapeOnTextSecondary,
-                                fontSize = 14.sp
-                            )
-                            Text(
-                                text = confirmado.estado,
-                                color = VapeOnTextPrimary,
-                                fontSize = 14.sp
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.height(12.dp))
-
-                        // Productos
-                        Text(
-                            text = "Productos:",
-                            color = VapeOnTextSecondary,
-                            fontSize = 14.sp
-                        )
-
-                        Spacer(modifier = Modifier.height(4.dp))
-
-                        confirmado.productos.forEach { prod ->
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = 2.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Text(
-                                    text = prod.nombre,
-                                    color = VapeOnTextPrimary,
-                                    fontSize = 14.sp
-                                )
-                                Text(
-                                    text = "S/. ${"%.2f".format(prod.subtotal.toDouble())}",
-                                    color = VapeOnTextPrimary,
-                                    fontSize = 14.sp
-                                )
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(6.dp))
-
-                        // IGV
-                        val igvCalculado = confirmado.subtotal.toDouble() * 0.18
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text(
-                                text = "IGV",
-                                color = VapeOnTextSecondary,
-                                fontSize = 14.sp
-                            )
-                            Text(
-                                text = "S/. ${"%.2f".format(igvCalculado)}",
-                                color = VapeOnTextPrimary,
-                                fontSize = 14.sp
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.height(12.dp))
-
-                        // Total
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text(
-                                text = "Total:",
-                                color = VapeOnGold,
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Text(
-                                text = "S/. ${"%.2f".format(confirmado.total.toDouble())}",
-                                color = VapeOnGold,
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.height(8.dp))
-
-                        // Pagaras
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text(
-                                text = "Pagaras:",
-                                color = VapeOnTextPrimary,
-                                fontSize = 14.sp
-                            )
-                            Text(
-                                text = "S/.${"%.2f".format(confirmado.montoPagado.toDouble())}",
-                                color = VapeOnTextPrimary,
-                                fontSize = 14.sp
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.height(8.dp))
-
-                        // Vuelto
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text(
-                                text = "Vuelto",
-                                color = VapeOnTextPrimary,
-                                fontSize = 14.sp
-                            )
-                            Text(
-                                text = "S/.${"%.2f".format(confirmado.vuelto.toDouble())}",
-                                color = VapeOnTextPrimary,
-                                fontSize = 14.sp
-                            )
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(20.dp))
-
-                // Botón principal: VOLVER AL CATALOGO
-                Button(
-                    onClick = irHome,
-                    shape = RoundedCornerShape(50),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = VapeOnRed,
-                        contentColor = VapeOnTextPrimary
-                    ),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(52.dp)
-                ) {
-                    Text(
-                        text = "VOLVER AL CATALOGO",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 15.sp,
-                        letterSpacing = 0.5.sp
-                    )
->>>>>>> 7f26e4fe0a697ffcada63b69861397e4c31c81d5
-                }
             } else {
                 Text("¿Cómo desea pagar?", style = MaterialTheme.typography.headlineMedium,
                     fontWeight = FontWeight.Bold, color = VapeOnTextPrimary)
@@ -424,14 +210,20 @@ private fun OpcionPagoNoDisponible(titulo: String, subtitulo: String) {
 
 @Composable
 private fun FilaPago(titulo: String, valor: String, destacado: Boolean = false) {
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically) {
-        Text(titulo, modifier = Modifier.weight(1f),
+    Row(
+        Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            titulo, modifier = Modifier.weight(1f),
             color = VapeOnTextPrimary.copy(alpha = if (destacado) 1f else 0.85f),
             style = MaterialTheme.typography.bodyMedium,
-            fontWeight = if (destacado) FontWeight.Bold else FontWeight.Normal)
+            fontWeight = if (destacado) FontWeight.Bold else FontWeight.Normal
+        )
         Spacer(Modifier.width(12.dp))
-        Text("S/ $valor", color = VapeOnTextPrimary, style = MaterialTheme.typography.bodyMedium,
-            fontWeight = if (destacado) FontWeight.Bold else FontWeight.Normal)
+        Text(
+            "S/ $valor", color = VapeOnTextPrimary, style = MaterialTheme.typography.bodyMedium,
+            fontWeight = if (destacado) FontWeight.Bold else FontWeight.Normal
+        )
     }
 }

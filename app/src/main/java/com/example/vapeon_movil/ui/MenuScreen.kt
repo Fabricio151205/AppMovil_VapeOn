@@ -38,19 +38,20 @@ fun MenuScreen(
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
 
-    val opcionesMenu = listOf(
+    val opcionesMenu = if (esAdmin) listOf(
         "Roles",
         "Catálogo",
-        "Carrito",
-        if (esAdmin) "Pedidos" else "Historial de compras",
+        "Pedidos",
         "Pagos",
         "Clientes",
         "Proveedores",
         "Cerrar sesión"
-    ).filter { opcion ->
-        // Ocultar la opción "Carrito" del menú lateral únicamente si es administrador
-        !(esAdmin && opcion == "Carrito")
-    }
+    ) else listOf(
+        "Catálogo",
+        "Carrito",
+        "Historial de compras",
+        "Cerrar sesión"
+    )
 
     ModalNavigationDrawer(
         drawerState = drawerState,
