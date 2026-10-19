@@ -21,6 +21,7 @@ import com.example.vapeon_movil.components.MarcaSection
 import com.example.vapeon_movil.entities.Producto
 import com.example.vapeon_movil.ui.theme.*
 import com.example.vapeon_movil.viewmodels.ProductoViewModel
+import kotlinx.coroutines.launch
 
 @Composable
 fun CatalogoScreen(

@@ -147,8 +147,6 @@ fun MenuScreen(
                                 )
                             }
                         }
-
-                        // Avatar circular de perfil del usuario/administrador
                         Box(
                             modifier = Modifier
                                 .padding(end = 16.dp, start = 4.dp)
@@ -165,6 +163,7 @@ fun MenuScreen(
                                 modifier = Modifier.size(24.dp)
                             )
                         }
+                        // Avatar circular de perfil del usuario/administrador
                     },
                     colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
                         containerColor = VapeOnBackground

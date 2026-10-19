@@ -69,7 +69,7 @@ fun MarcaSection(
                         esAdmin = esAdmin,
                         onClick = { irDetalleProducto(producto) },
                         onEliminar = { eliminarProducto(producto) },
-                        onEditar = { editarProducto(producto) }
+                        onEditar = { editarProducto(producto) },
                     )
                 }
             }

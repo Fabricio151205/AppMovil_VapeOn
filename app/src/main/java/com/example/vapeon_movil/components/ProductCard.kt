@@ -72,7 +72,6 @@ fun ProductCard(
 
             Spacer(modifier = Modifier.height(2.dp))
 
-
             val precioFormateado = "S/. ${if (precio % 1.0 == 0.0) precio.toInt().toString() else precio.toString()}"
 
             Text(

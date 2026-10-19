@@ -39,6 +39,8 @@ fun DetalleProductoScreen(
 ) {
     var esFavorito by remember { mutableStateOf(false) }
 
+    var totaldescuento by remember { mutableStateOf(0.00) }
+
     // Lista de sabores por defecto mostrada en la imagen
     val listaSabores = remember {
         listOf("Strawberry Watermelon", "Blue Razz Ice", "Miami Mint", "Peach Ice")
