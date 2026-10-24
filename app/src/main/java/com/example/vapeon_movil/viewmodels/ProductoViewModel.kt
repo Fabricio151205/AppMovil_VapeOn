@@ -79,16 +79,22 @@ class ProductoViewModel(
     fun consumirResultadosGuardado() { altaCompletada = false; edicionCompletada = false }
     val datosCreacionPendiente get() = creacionPendiente?.second?.fields
 
-    fun crearProducto(nombre: String, marca: String, precio: Double, stock: Int, descripcion: String,
+    fun crearProducto(nombre: String, marca: String, precio: Double, stock: Int, descripcion: String, sabor: String = "", stockPorSabor: Map<String, Int> = emptyMap(),
         onExito: (() -> Unit)? = null) {
         if (cargandoCreacion) return
         if (nombre.isBlank() || marca.isBlank() || !precioValido(precio) || stock < 0) {
             errorCreacion = "Completa nombre y marca; utiliza un precio válido y stock entero no negativo."
             return
         }
-        val cuerpo = ProductoContainer(ProductoCampos(FirestoreValue(stringValue = nombre),
-            FirestoreValue(stringValue = marca), FirestoreValue(doubleValue = precio),
-            FirestoreValue(integerValue = stock.toString()), FirestoreValue(stringValue = descripcion)))
+        val cuerpo = ProductoContainer(ProductoCampos(
+            nombre = FirestoreValue(stringValue = nombre),
+            marca = FirestoreValue(stringValue = marca),
+            precio = FirestoreValue(doubleValue = precio),
+            stock = FirestoreValue(integerValue = stock.toString()),
+            descripcion = FirestoreValue(stringValue = descripcion),
+            sabor = if (sabor.isNotBlank()) FirestoreValue(stringValue = sabor) else null,
+            stockPorSabor = if (stockPorSabor.isNotEmpty()) stockPorSabor.aFirestoreMapa() else null
+        ))
         val intento = creacionPendiente ?: (UUID.randomUUID().toString() to cuerpo).also { creacionPendiente = it }
         if (intento.second != cuerpo) {
             errorCreacion = "Comprueba el alta anterior reintentando con los mismos datos; no se creará otro producto."
@@ -166,7 +172,9 @@ class ProductoViewModel(
                     marca = doc.fields.marca?.asString().orEmpty(),
                     precio = doc.fields.precio?.asDouble() ?: 0.0,
                     stock = doc.fields.stock?.asInt() ?: 0,
-                    descripcion = doc.fields.descripcion?.asString().orEmpty()
+                    descripcion = doc.fields.descripcion?.asString().orEmpty(),
+                    sabor = doc.fields.sabor?.asString().orEmpty(),
+                    stockPorSabor = doc.fields.stockPorSabor.aStockMap()
                 )
                 if (propietarioProductoRuta == claveSesion) productoParaRuta = producto
             } catch (e: CancellationException) {
@@ -204,7 +212,9 @@ class ProductoViewModel(
                         marca       = doc.fields.marca?.asString()       ?: "",
                         precio      = doc.fields.precio?.asDouble()      ?: 0.0,
                         stock       = doc.fields.stock?.asInt()         ?: 0,
-                        descripcion = doc.fields.descripcion?.asString() ?: ""
+                        descripcion = doc.fields.descripcion?.asString() ?: "",
+                        sabor       = doc.fields.sabor?.asString()       ?: "",
+                        stockPorSabor = doc.fields.stockPorSabor.aStockMap()
                     )
                 } ?: emptyList()
                 inventarioCargado = true
@@ -301,7 +311,7 @@ class ProductoViewModel(
     }
 
     fun guardarProductoEdicion(
-        nombre: String, marca: String, precio: Double, stock: Int, descripcion: String,
+        nombre: String, marca: String, precio: Double, stock: Int, descripcion: String, sabor: String = "", stockPorSabor: Map<String, Int> = emptyMap(),
         onExito: (() -> Unit)? = null
     ) {
         if (guardandoEdicion || cargandoEdicion || requiereRecargarEdicion) return
@@ -321,12 +331,15 @@ class ProductoViewModel(
             marca = if (marca != anteriores.marca?.asString()) FirestoreValue(stringValue = marca) else null,
             precio = if (precio != anteriores.precio?.asDouble()) FirestoreValue(doubleValue = precio) else null,
             stock = if (stock != anteriores.stock?.asInt()) FirestoreValue(integerValue = stock.toString()) else null,
-            descripcion = if (descripcion != anteriores.descripcion?.asString()) FirestoreValue(stringValue = descripcion) else null
+            descripcion = if (descripcion != anteriores.descripcion?.asString()) FirestoreValue(stringValue = descripcion) else null,
+            sabor = if (sabor != anteriores.sabor?.asString().orEmpty()) FirestoreValue(stringValue = sabor) else null,
+            stockPorSabor = if (stockPorSabor != anteriores.stockPorSabor.aStockMap()) stockPorSabor.aFirestoreMapa() else null
         ))
         val campos = listOfNotNull(
             cuerpo.fields.nombre?.let { "nombre" }, cuerpo.fields.marca?.let { "marca" },
             cuerpo.fields.precio?.let { "precio" }, cuerpo.fields.stock?.let { "stock" },
-            cuerpo.fields.descripcion?.let { "descripcion" }
+            cuerpo.fields.descripcion?.let { "descripcion" }, cuerpo.fields.sabor?.let { "sabor" },
+            cuerpo.fields.stockPorSabor?.let { "stockPorSabor" }
         )
         if (campos.isEmpty()) {
             errorEdicion = "No hay cambios para guardar."

@@ -1,7 +1,7 @@
 package com.example.vapeon_movil.services.dto
 
 // ─────────────────────────────────────────────────────────────────────────────
-// DTOs de transporte para la colección "productos" de Firestore REST API
+// DTO de transporte para la colección "productos" de Firestore REST API
 // ─────────────────────────────────────────────────────────────────────────────
 
 /** Envuelve los campos del producto para enviarlos en POST/PATCH a Firestore */
@@ -18,8 +18,27 @@ data class ProductoCampos(
     val marca: FirestoreValue? = null,
     val precio: FirestoreValue? = null,
     val stock: FirestoreValue? = null,
-    val descripcion: FirestoreValue? = null
+    val descripcion: FirestoreValue? = null,
+    val sabor: FirestoreValue? = null,
+    val stockPorSabor: FirestoreValor? = null
 )
+
+fun Map<String, Int>.aFirestoreMapa(): FirestoreValor {
+    val campos = this.mapValues { (_, cantidad) ->
+        // 🟢 Únicamente integerValue dentro de mapValue para cumplir con la API REST de Firestore
+        FirestoreValor(integerValue = cantidad.toString())
+    }
+    return FirestoreValor(mapValue = FirestoreMapa(fields = campos))
+}
+
+fun FirestoreValor?.aStockMap(): Map<String, Int> {
+    if (this == null) return emptyMap()
+    val mapa = this.mapValue ?: return emptyMap()
+    if (mapa.fields.isEmpty()) return emptyMap()
+    return mapa.fields.mapValues { (_, valor) ->
+        valor.asInt()
+    }
+}
 
 /** Respuesta de listado: array de documentos de producto */
 data class ProductoListResponse(

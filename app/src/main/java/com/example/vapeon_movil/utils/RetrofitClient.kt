@@ -15,4 +15,8 @@ object RetrofitClient {
             .addConverterFactory(GsonConverterFactory.create()) // Convierte el JSON a clases Kotlin automáticamente
             .build()
     }
+
+    val saborService: com.example.vapeon_movil.services.SaborService by lazy {
+        retrofit.create(com.example.vapeon_movil.services.SaborService::class.java)
+    }
 }

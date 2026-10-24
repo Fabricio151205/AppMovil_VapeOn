@@ -31,6 +31,7 @@ fun MenuScreen(
     onTituloClick: () -> Unit = {},
     irHistorial: () -> Unit = {},
     irPedidos: () -> Unit = {},
+    irSabores: () -> Unit = {},
     cerrarSesion: () -> Unit = {},
     content: @Composable (PaddingValues) -> Unit
 ) {
@@ -42,6 +43,7 @@ fun MenuScreen(
         "Roles",
         "Catálogo",
         "Pedidos",
+        "Sabores",
         "Pagos",
         "Clientes",
         "Proveedores",
@@ -84,7 +86,7 @@ fun MenuScreen(
                     NavigationDrawerItem(
                         label = {
                             Text(
-                                text = if (opcion in listOf("Catálogo", "Carrito", "Pedidos", "Historial de compras", "Cerrar sesión")) opcion else "$opcion (No disponible)",
+                                text = if (opcion in listOf("Catálogo", "Carrito", "Pedidos", "Sabores", "Historial de compras", "Cerrar sesión")) opcion else "$opcion (No disponible)",
                                 color = VapeOnTextPrimary,
                                 fontWeight = FontWeight.Medium
                             )
@@ -97,6 +99,7 @@ fun MenuScreen(
                                 "Carrito"  -> irCarrito()
                                 "Historial de compras" -> if (!esAdmin) irHistorial()
                                 "Pedidos" -> if (esAdmin) irPedidos()
+                                "Sabores" -> if (esAdmin) irSabores()
                                 "Cerrar sesión" -> cerrarSesion()
                                 else -> {
                                     onOpcionMenuClick(opcion)

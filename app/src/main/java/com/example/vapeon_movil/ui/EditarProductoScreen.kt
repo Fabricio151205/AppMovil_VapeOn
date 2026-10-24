@@ -5,9 +5,11 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -16,19 +18,25 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.vapeon_movil.entities.Producto
 import com.example.vapeon_movil.services.dto.*
 import com.example.vapeon_movil.ui.theme.*
+import com.example.vapeon_movil.utils.LISTA_MARCAS_DISPONIBLES
+import com.example.vapeon_movil.utils.obtenerSaboresPorMarca
 import com.example.vapeon_movil.viewmodels.ProductoViewModel
+import com.example.vapeon_movil.viewmodels.SaboresViewModel
 
 @Composable
 fun EditarProductoScreen(
     producto: Producto,
     productoViewModel: ProductoViewModel,
+    saboresViewModel: SaboresViewModel = androidx.lifecycle.viewmodel.compose.viewModel(),
     volver: () -> Unit
 ) {
+    LaunchedEffect(Unit) { saboresViewModel.cargarSabores() }
     val context = androidx.compose.ui.platform.LocalContext.current
     DisposableEffect(producto.id, productoViewModel) {
         productoViewModel.iniciarEdicion(producto.id)
@@ -52,18 +60,21 @@ fun EditarProductoScreen(
         return
     }
     key(documento.name, documento.updateTime) {
-        FormularioEditarProducto(documento, productoViewModel, volver)
+        FormularioEditarProducto(documento, productoViewModel, saboresViewModel, volver)
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun FormularioEditarProducto(
-    documento: ProductoDocumento, productoViewModel: ProductoViewModel, volver: () -> Unit
+    documento: ProductoDocumento, productoViewModel: ProductoViewModel, saboresViewModel: SaboresViewModel, volver: () -> Unit
 ) {
     val producto = Producto(
         id = documento.name.substringAfterLast('/'), nombre = documento.fields.nombre?.asString().orEmpty(),
         marca = documento.fields.marca?.asString().orEmpty(), precio = documento.fields.precio?.asDouble() ?: 0.0,
-        stock = documento.fields.stock?.asInt() ?: 0, descripcion = documento.fields.descripcion?.asString().orEmpty()
+        stock = documento.fields.stock?.asInt() ?: 0, descripcion = documento.fields.descripcion?.asString().orEmpty(),
+        sabor = documento.fields.sabor?.asString().orEmpty(),
+        stockPorSabor = documento.fields.stockPorSabor.aStockMap() // Bug A: cargar mapa de stock existente
     )
 
     var nombre by rememberSaveable { mutableStateOf(producto.nombre) }
@@ -71,6 +82,8 @@ private fun FormularioEditarProducto(
     var precio by rememberSaveable { mutableStateOf(producto.precio.toString()) }
     var stock by rememberSaveable { mutableStateOf(producto.stock.toString()) }
     var descripcion by rememberSaveable { mutableStateOf(producto.descripcion) }
+    var sabor by rememberSaveable { mutableStateOf(producto.sabor) }
+    var stockPorSaborState by rememberSaveable { mutableStateOf(producto.stockPorSabor.mapValues { it.value.toString() }) }
 
     val cargando = productoViewModel.guardandoEdicion
     var mensajeError by rememberSaveable { mutableStateOf("") }
@@ -83,6 +96,7 @@ private fun FormularioEditarProducto(
             modifier = Modifier
                 .fillMaxSize()
                 .statusBarsPadding()
+                .imePadding()
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 24.dp, vertical = 16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
@@ -189,7 +203,9 @@ private fun FormularioEditarProducto(
 
             Spacer(modifier = Modifier.height(14.dp))
 
-            // Campo: Marca
+            // Campo: Marca (ExposedDropdownMenu)
+            var menuMarcaExpandido by remember { mutableStateOf(false) }
+
             Text(
                 text = "Marca",
                 color = VapeOnTextSecondary,
@@ -199,13 +215,81 @@ private fun FormularioEditarProducto(
                     .fillMaxWidth()
                     .padding(bottom = 6.dp)
             )
+
+            ExposedDropdownMenuBox(
+                expanded = menuMarcaExpandido,
+                onExpandedChange = { menuMarcaExpandido = !menuMarcaExpandido },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                OutlinedTextField(
+                    value = marca,
+                    onValueChange = { marca = it },
+                    readOnly = true,
+                    placeholder = {
+                        Text(text = "Seleccionar Marca", color = VapeOnTextSecondary, fontSize = 15.sp)
+                    },
+                    trailingIcon = {
+                        ExposedDropdownMenuDefaults.TrailingIcon(expanded = menuMarcaExpandido)
+                    },
+                    shape = RoundedCornerShape(12.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedContainerColor = VapeOnInputBackground,
+                        unfocusedContainerColor = VapeOnInputBackground,
+                        disabledContainerColor = VapeOnInputBackground,
+                        focusedBorderColor = VapeOnGold,
+                        unfocusedBorderColor = VapeOnInputBorder,
+                        focusedTextColor = VapeOnTextPrimary,
+                        unfocusedTextColor = VapeOnTextPrimary,
+                        cursorColor = VapeOnGold
+                    ),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .menuAnchor()
+                )
+
+                ExposedDropdownMenu(
+                    expanded = menuMarcaExpandido,
+                    onDismissRequest = { menuMarcaExpandido = false },
+                    modifier = Modifier.background(VapeOnSurface)
+                ) {
+                    LISTA_MARCAS_DISPONIBLES.forEach { opcionMarca ->
+                        DropdownMenuItem(
+                            text = {
+                                Text(
+                                    text = opcionMarca,
+                                    color = VapeOnTextPrimary,
+                                    fontWeight = if (marca == opcionMarca) FontWeight.Bold else FontWeight.Normal
+                                )
+                            },
+                            onClick = {
+                                marca = opcionMarca
+                                menuMarcaExpandido = false
+                            }
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            //Campo: Descripción
+            Text(
+                text = "Descripción del producto",
+                color = VapeOnTextSecondary,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 6.dp)
+            )
             OutlinedTextField(
-                value = marca,
-                onValueChange = { marca = it },
+                value = descripcion,
+                onValueChange = { descripcion = it },
                 placeholder = {
-                    Text(text = "Marca", color = VapeOnTextSecondary, fontSize = 15.sp)
+                    Text(text = "Descripción", color = VapeOnTextSecondary, fontSize = 15.sp)
                 },
-                singleLine = true,
+                singleLine = false,
+                maxLines = 3,
                 shape = RoundedCornerShape(12.dp),
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedContainerColor = VapeOnInputBackground,
@@ -287,10 +371,15 @@ private fun FormularioEditarProducto(
             )
 
             Spacer(modifier = Modifier.height(14.dp))
+            // Bug C: campo Marca libre duplicado eliminado — el ExposedDropdownMenu de arriba ya lo gestiona
 
-            //Campo: Descripción
+            // Selector de Sabores dinámico por Marca con cápsulas y multi-selección
+            val saboresDisponibles = remember(marca, saboresViewModel.listaSabores) { obtenerSaboresPorMarca(marca, saboresViewModel.listaSabores) }
+            // Bug B: derivar directamente en cada recomposición para ser reactivo al cambio de `sabor`
+            val saboresSeleccionados = sabor.split(",").map { it.trim() }.filter { it.isNotBlank() }.toSet()
+
             Text(
-                text = "Descripción del producto",
+                text = "Seleccionar Sabores (${saboresDisponibles.size} disponibles)",
                 color = VapeOnTextSecondary,
                 fontSize = 14.sp,
                 fontWeight = FontWeight.SemiBold,
@@ -298,27 +387,117 @@ private fun FormularioEditarProducto(
                     .fillMaxWidth()
                     .padding(bottom = 6.dp)
             )
-            OutlinedTextField(
-                value = descripcion,
-                onValueChange = { descripcion = it },
-                placeholder = {
-                    Text(text = "Descripción", color = VapeOnTextSecondary, fontSize = 15.sp)
-                },
-                singleLine = false,
-                maxLines = 3,
-                shape = RoundedCornerShape(12.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedContainerColor = VapeOnInputBackground,
-                    unfocusedContainerColor = VapeOnInputBackground,
-                    disabledContainerColor = VapeOnInputBackground,
-                    focusedBorderColor = VapeOnGold,
-                    unfocusedBorderColor = VapeOnInputBorder,
-                    focusedTextColor = VapeOnTextPrimary,
-                    unfocusedTextColor = VapeOnTextPrimary,
-                    cursorColor = VapeOnGold
-                ),
-                modifier = Modifier.fillMaxWidth()
-            )
+
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                saboresDisponibles.chunked(2).forEach { fila ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        fila.forEach { opcionSabor ->
+                            val seleccionado = saboresSeleccionados.any { it.equals(opcionSabor, ignoreCase = true) }
+                            Button(
+                                onClick = {
+                                    val nuevaLista = if (seleccionado) {
+                                        saboresSeleccionados.filterNot { it.equals(opcionSabor, ignoreCase = true) }
+                                    } else {
+                                        saboresSeleccionados + opcionSabor
+                                    }
+                                    sabor = nuevaLista.joinToString(", ")
+                                    if (!seleccionado && !stockPorSaborState.containsKey(opcionSabor)) {
+                                        stockPorSaborState = stockPorSaborState + (opcionSabor to "1")
+                                    }
+                                },
+                                shape = RoundedCornerShape(50),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = if (seleccionado) VapeOnRed else VapeOnInputBackground,
+                                    contentColor = VapeOnTextPrimary
+                                ),
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.Center
+                                ) {
+                                    if (seleccionado) {
+                                        Icon(
+                                            imageVector = Icons.Default.Check,
+                                            contentDescription = "Seleccionado",
+                                            tint = VapeOnTextPrimary,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                    }
+                                    Text(
+                                        text = opcionSabor,
+                                        fontSize = 12.sp,
+                                        fontWeight = if (seleccionado) FontWeight.Bold else FontWeight.Normal,
+                                        maxLines = 1
+                                    )
+                                }
+                            }
+                        }
+                        if (fila.size == 1) {
+                            Spacer(modifier = Modifier.weight(1f))
+                        }
+                    }
+                }
+            }
+
+            // Entradas de Stock individual por cada Sabor seleccionado
+            if (saboresSeleccionados.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(12.dp))
+                Text(
+                    text = "Stock por Sabor seleccionado",
+                    color = VapeOnGold,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(modifier = Modifier.height(6.dp))
+
+                saboresSeleccionados.forEach { saborItem ->
+                    val valorActual = stockPorSaborState[saborItem] ?: "1"
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = saborItem,
+                            color = VapeOnTextPrimary,
+                            fontSize = 14.sp,
+                            modifier = Modifier.weight(1f)
+                        )
+                        OutlinedTextField(
+                            value = valorActual,
+                            onValueChange = { nuevoValor ->
+                                stockPorSaborState = stockPorSaborState + (saborItem to nuevoValor)
+                            },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            singleLine = true,
+                            shape = RoundedCornerShape(8.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedContainerColor = VapeOnInputBackground,
+                                unfocusedContainerColor = VapeOnInputBackground,
+                                focusedBorderColor = VapeOnGold,
+                                unfocusedBorderColor = VapeOnInputBorder,
+                                focusedTextColor = VapeOnTextPrimary,
+                                unfocusedTextColor = VapeOnTextPrimary
+                            ),
+                            modifier = Modifier.width(90.dp)
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(14.dp))
 
             val errorVisible = mensajeError.ifEmpty { productoViewModel.errorEdicion.orEmpty() }
             if (errorVisible.isNotEmpty()) {
@@ -331,8 +510,18 @@ private fun FormularioEditarProducto(
             }
 
             // Recarga explícita: reemplaza el formulario; nunca reenvía la edición antigua.
-            TextButton(onClick = { productoViewModel.cargarProductoEdicion(producto.id) },
-                enabled = !cargando) { Text("Recargar datos") }
+            TextButton(
+                onClick = { productoViewModel.cargarProductoEdicion(producto.id) },
+                enabled = !cargando
+            ) { 
+                Text(
+                    text = "Recargar datos",
+                    color = VapeOnGold,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Medium
+                )
+                
+            }
 
             Spacer(modifier = Modifier.weight(1f, fill = false))
             Spacer(modifier = Modifier.height(36.dp))
@@ -360,9 +549,21 @@ private fun FormularioEditarProducto(
                         return@Button
                     }
 
+                    val stockMap = saboresSeleccionados.associateWith { s ->
+                        (stockPorSaborState[s] ?: "1").toIntOrNull() ?: 1
+                    }
+                    val stockFinal = if (stockMap.isNotEmpty()) stockMap.values.sum() else (stockInt ?: 0)
+
                     mensajeError = ""
-                    productoViewModel.guardarProductoEdicion(nombre, marca, precioDouble, stockInt,
-                        descripcion)
+                    productoViewModel.guardarProductoEdicion(
+                        nombre = nombre,
+                        marca = marca,
+                        precio = precioDouble,
+                        stock = stockFinal,
+                        descripcion = descripcion,
+                        sabor = sabor,
+                        stockPorSabor = stockMap
+                    )
                 },
                 enabled = !cargando && !productoViewModel.requiereRecargarEdicion,
                 shape = RoundedCornerShape(50),

@@ -83,7 +83,7 @@ class EdicionProductoTest {
         ProductoViewModel(servicio, Dispatchers.Unconfined).also { it.cargarProductoEdicion("p1") }
 
     private fun guardar(vm: ProductoViewModel, stock: Int = 10, onExito: () -> Unit = {}) =
-        vm.guardarProductoEdicion("Producto", "Marca", 75.0, stock, "Descripción", onExito)
+        vm.guardarProductoEdicion("Producto", "Marca", 75.0, stock, "Descripción", onExito = onExito)
 
     @Test fun actualizacionNormalUtilizaLaVersionLeida() {
         val servicio = ServicioProductosPrueba()

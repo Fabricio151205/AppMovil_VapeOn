@@ -36,6 +36,7 @@ fun CatalogoScreen(
     irCarrito: () -> Unit = {},
     irHistorial: () -> Unit = {},
     irPedidos: () -> Unit = {},
+    irSabores: () -> Unit = {},
     cerrarSesion: () -> Unit = {}
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
@@ -68,6 +69,7 @@ fun CatalogoScreen(
         irCarrito = irCarrito,
         irHistorial = irHistorial,
         irPedidos = irPedidos,
+        irSabores = irSabores,
         cerrarSesion = cerrarSesion,
         esAdmin = esAdmin,
         onPerfilClick = onPerfilClick,
@@ -83,7 +85,7 @@ fun CatalogoScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 20.dp, vertical = 12.dp)
+                    .padding(start = 20.dp, end = 20.dp, top = 4.dp, bottom = 12.dp)
             ) {
                 SnackbarHost(snackbarHostState)
 
@@ -146,7 +148,7 @@ fun CatalogoScreen(
                             Text(
                                 text = if (cat == "Todos") cat else "$cat (No disponible)",
                                 color = VapeOnTextPrimary,
-                                fontWeight = FontWeight.Bold,
+                                fontWeight = if(seleccionada)FontWeight.Bold else FontWeight.Normal,
                                 fontSize = 14.sp
                             )
                         }

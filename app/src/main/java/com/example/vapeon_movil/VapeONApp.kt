@@ -26,9 +26,13 @@ import com.example.vapeon_movil.ui.DetallePedidoScreen
 import com.example.vapeon_movil.ui.HomeScreen
 import com.example.vapeon_movil.ui.LoginScreen
 import com.example.vapeon_movil.ui.RegisterScreen
+import com.example.vapeon_movil.ui.SaboresAdminScreen
+import com.example.vapeon_movil.ui.AgregarSaborScreen
+import com.example.vapeon_movil.ui.EditarSaborScreen
 import com.example.vapeon_movil.viewmodels.PedidoViewModel
 import com.example.vapeon_movil.viewmodels.CarritoViewModel
 import com.example.vapeon_movil.viewmodels.ProductoViewModel
+import com.example.vapeon_movil.viewmodels.SaboresViewModel
 import com.example.vapeon_movil.viewmodels.UsuarioViewModel
 
 @Composable
@@ -42,8 +46,8 @@ fun VapeONApp() {
     val usuarioViewModel: UsuarioViewModel  = viewModel()
     val productoViewModel: ProductoViewModel = viewModel()
     val carritoViewModel: CarritoViewModel  = viewModel()
-
     val pedidoViewModel: PedidoViewModel = viewModel()
+    val saboresViewModel: SaboresViewModel = viewModel()
 
     val usuarioActual = usuarioViewModel.usuarioActual
     val claveSesion = claveSesionNavegacion(usuarioActual)
@@ -54,6 +58,9 @@ fun VapeONApp() {
     var productoEditarId by rememberSaveable { mutableStateOf("") }
     var pedidoSeleccionadoId by rememberSaveable { mutableStateOf("") }
     var propietarioNavegacion by rememberSaveable { mutableStateOf<String?>(null) }
+    // Identificador del sabor seleccionado para editar (nombre+marca como clave compuesta)
+    var saborEditarNombre by rememberSaveable { mutableStateOf("") }
+    var saborEditarMarca by rememberSaveable { mutableStateOf("") }
 
     // Resultados de formularios observados por la composición vigente, incluso tras una rotación.
     LaunchedEffect(usuarioViewModel.registroCompletado) {
@@ -126,6 +133,25 @@ fun VapeONApp() {
 
     // La guardia se aplica antes de componer una pantalla, no después de mostrarla.
     val pantallaSegura = pantallaRestauradaSegura(pantallaActual, usuarioActual, propietarioNavegacion)
+
+    // Manejador central del botón 'Atrás' del sistema para navegación fluida entre pantallas
+    val puedeVolverAtras = pantallaSegura !in setOf("login", "home", "admin")
+    BackHandler(enabled = puedeVolverAtras) {
+        when (pantallaSegura) {
+            "registro", "recuperar" -> pantallaActual = "login"
+            "catalogo" -> pantallaActual = if (esAdminUser) "admin" else "home"
+            "carrito", "historialCompras" -> pantallaActual = "home"
+            "checkout" -> pantallaActual = "carrito"
+            "detallePedido" -> pantallaActual = "historialCompras"
+            "saboresAdmin", "pedidosAdmin" -> pantallaActual = "admin"
+            "agregarSabor", "editarSabor" -> pantallaActual = "saboresAdmin"
+            "detallePedidoAdmin" -> pantallaActual = "pedidosAdmin"
+            "agregarProducto" -> pantallaActual = "catalogo"
+            "editarProducto" -> pantallaActual = if (esAdminUser) "admin" else "catalogo"
+            "detalle" -> pantallaActual = if (esAdminUser) "catalogo" else "home"
+        }
+    }
+
     key(claveSesion) {
     when (pantallaSegura) {
 
@@ -177,6 +203,7 @@ fun VapeONApp() {
                 productoViewModel = productoViewModel,
                 cerrarSesion = ::cerrarSesion,
                 irPedidos = { pantallaActual = "pedidosAdmin" },
+                irSabores = { pantallaActual = "saboresAdmin" },
                 irCatalogo = { pantallaActual = "catalogo" },
                 irEditarProducto = { producto ->
                     seleccionarProducto(producto, editar = true)
@@ -202,6 +229,7 @@ fun VapeONApp() {
                 },
                 irAdmin   = { pantallaActual = "admin" },
                 irPedidos = { pantallaActual = "pedidosAdmin" },
+                irSabores = { pantallaActual = "saboresAdmin" },
                 irCarrito = { pantallaActual = "carrito" },
                 irHistorial = { pantallaActual = "historialCompras" }
             )
@@ -216,6 +244,7 @@ fun VapeONApp() {
                 DetalleProductoScreen(
                     producto = producto,
                     esAdmin = esAdminUser,
+                    saboresViewModel = saboresViewModel,
                     volver = { pantallaActual = if (esAdminUser) "catalogo" else "home" },
                     irEditarProducto = { seleccionarProducto(it, editar = true) },
                     // Solo CLIENTE puede agregar al carrito (ADMIN no tiene acceso).
@@ -255,6 +284,23 @@ fun VapeONApp() {
                     pedidoSeleccionadoId = id
                     pantallaActual = "detallePedidoAdmin"
                 }
+            )
+        }
+
+        "saboresAdmin" -> {
+            SaboresAdminScreen(
+                usuario = usuarioViewModel.usuarioActual,
+                saboresViewModel = saboresViewModel,
+                volver = { pantallaActual = "admin" },
+                irAgregarSabor = { pantallaActual = "agregarSabor" },
+                irEditarSabor = { sabor ->
+                    saborEditarNombre = sabor.nombre
+                    saborEditarMarca = sabor.marca
+                    pantallaActual = "editarSabor"
+                },
+                irCatalogo = { pantallaActual = "catalogo" },
+                irPedidos = { pantallaActual = "pedidosAdmin" },
+                cerrarSesion = ::cerrarSesion
             )
         }
 
@@ -304,10 +350,35 @@ fun VapeONApp() {
             }
         }
 
+        // ── AGREGAR SABOR (ADMIN) ─────────────────────────────────────────────
+        "agregarSabor" -> {
+            AgregarSaborScreen(
+                saboresViewModel = saboresViewModel,
+                volver = { pantallaActual = "saboresAdmin" }
+            )
+        }
+
+        // ── EDITAR SABOR (ADMIN) ──────────────────────────────────────────────
+        "editarSabor" -> {
+            val saborEditar = saboresViewModel.listaSabores.find {
+                it.nombre == saborEditarNombre && it.marca == saborEditarMarca
+            }
+            if (saborEditar == null) {
+                pantallaActual = "saboresAdmin"
+            } else {
+                EditarSaborScreen(
+                    saborOriginal = saborEditar,
+                    saboresViewModel = saboresViewModel,
+                    volver = { pantallaActual = "saboresAdmin" }
+                )
+            }
+        }
+
         // ── AGREGAR PRODUCTO (ADMIN) ───────────────────────────────────────────
         "agregarProducto" -> {
             AgregarProductoScreen(
                 productoViewModel = productoViewModel,
+                saboresViewModel = saboresViewModel,
                 volver = { pantallaActual = "catalogo" }
             )
         }
@@ -321,6 +392,7 @@ fun VapeONApp() {
                 EditarProductoScreen(
                     producto = producto,
                     productoViewModel = productoViewModel,
+                    saboresViewModel = saboresViewModel,
                     volver = { pantallaActual = if (esAdminUser) "admin" else "catalogo" }
                 )
             }
@@ -331,7 +403,7 @@ fun VapeONApp() {
 
 private val RUTAS_PUBLICAS = setOf("login", "registro", "recuperar")
 private val RUTAS_CLIENTE = setOf("home", "carrito", "checkout", "historialCompras", "detallePedido")
-private val RUTAS_ADMIN = setOf("admin", "agregarProducto", "editarProducto", "pedidosAdmin", "detallePedidoAdmin")
+private val RUTAS_ADMIN = setOf("admin", "agregarProducto", "editarProducto", "pedidosAdmin", "detallePedidoAdmin", "saboresAdmin", "agregarSabor", "editarSabor")
 private val RUTAS_COMPARTIDAS = setOf("catalogo", "detalle")
 
 internal fun claveSesionNavegacion(usuario: Usuario?): String? {

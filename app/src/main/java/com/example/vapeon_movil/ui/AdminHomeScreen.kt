@@ -41,6 +41,7 @@ fun AdminHomeScreen(
     onEstadisticasClick: () -> Unit = {},
     onInversionistasClick: () -> Unit = {},
     irPedidos: () -> Unit = {},
+    irSabores: () -> Unit = {},
     cerrarSesion: () -> Unit = {}
 ) {
     val scope = rememberCoroutineScope()
@@ -55,6 +56,7 @@ fun AdminHomeScreen(
         irCatalogo = irCatalogo,
         esAdmin = true,
         irPedidos = irPedidos,
+        irSabores = irSabores,
         cerrarSesion = cerrarSesion,
         onPerfilClick = onPerfilClick,
         onTituloClick = { /* Ya estamos en AdminHome */ }

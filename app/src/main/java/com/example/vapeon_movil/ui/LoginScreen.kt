@@ -48,6 +48,8 @@ fun LoginScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .statusBarsPadding()
+                .imePadding()
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 28.dp, vertical = 32.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -56,7 +58,7 @@ fun LoginScreen(
             // Logo VapeOn oficial
             Image(
                 painter = painterResource(id = R.drawable.logo_vapeon),
-                contentDescription = "Logo VapeON",
+                contentDescription = "Logo Vapeon",
                 modifier = Modifier
                     .size(170.dp)
                     .padding(bottom = 8.dp)

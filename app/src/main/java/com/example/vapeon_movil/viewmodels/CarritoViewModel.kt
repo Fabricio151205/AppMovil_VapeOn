@@ -184,10 +184,11 @@ class CarritoViewModel(private val eliminarLocal: ((String) -> Boolean)? = null)
             return
         }
         items = items.map {
-            if (it.productoId == productoId || cantidadTotal <= cantidadTotal)
+            if (it.productoId == productoId)
                 it.copy(cantidad = it.cantidad + 1)
             else it
         }
+        if (context != null) appContext = context.applicationContext
         guardarCarrito(context)
     }
 

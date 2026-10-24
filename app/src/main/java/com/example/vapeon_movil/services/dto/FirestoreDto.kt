@@ -8,19 +8,10 @@ data class FirestoreStringValue(
 )
 
 /**
- * Valor flexible utilizado por Firestore.
- *
- * Permite leer diferentes tipos de datos:
- * - texto
- * - números decimales
- * - números enteros
- * - fechas
- * - arrays
- * - mapas
+ * Envoltorio flexible para leer o escribir campos que pueden ser texto o números en Firestore.
  */
 data class FirestoreValue(
     val stringValue: String? = null,
-<<<<<<< HEAD
     val doubleValue: Double? = null,
     val integerValue: String? = null
 ) {
@@ -43,70 +34,38 @@ data class FirestoreValue(
 /** Unión de valores usada por los nuevos documentos de pedidos. */
 data class FirestoreValor(
     val stringValue: String? = null,
-=======
->>>>>>> b242f1cce132296831da28c76db35981fb9e9c10
     val integerValue: String? = null,
     val doubleValue: Double? = null,
     val timestampValue: String? = null,
     val arrayValue: FirestoreArray? = null,
     val mapValue: FirestoreMapa? = null
 ) {
-
-    /**
-     * Extrae el valor como String.
-     */
+    /** Extrae el valor como String. */
     fun asString(): String =
         stringValue
-            ?: doubleValue?.let {
-                if (it % 1.0 == 0.0) {
-                    it.toLong().toString()
-                } else {
-                    it.toString()
-                }
-            }
+            ?: doubleValue?.let { if (it % 1.0 == 0.0) it.toLong().toString() else it.toString() }
             ?: integerValue
             ?: ""
 
-    /**
-     * Extrae el valor como Double.
-     */
+    /** Extrae el valor como Double. */
     fun asDouble(): Double =
-        doubleValue
-            ?: integerValue?.toDoubleOrNull()
-            ?: stringValue?.toDoubleOrNull()
-            ?: 0.0
+        doubleValue ?: integerValue?.toDoubleOrNull() ?: stringValue?.toDoubleOrNull() ?: 0.0
 
-    /**
-     * Extrae el valor como Int.
-     */
+    /** Extrae el valor como Int. */
     fun asInt(): Int =
-        integerValue?.toIntOrNull()
-            ?: doubleValue?.toInt()
-            ?: stringValue?.toIntOrNull()
-            ?: 0
+        integerValue?.toIntOrNull() ?: doubleValue?.toInt() ?: stringValue?.toIntOrNull() ?: 0
 }
-
-/**
- * Alias para mantener compatibilidad con el código
- * que utiliza el nombre FirestoreValor.
- */
-typealias FirestoreValor = FirestoreValue
 
 /**
  * Representa un array de valores de Firestore.
  */
 data class FirestoreArray(
-    val values: List<FirestoreValor>
+    val values: List<FirestoreValor> = emptyList()
 )
 
-<<<<<<< HEAD
-data class FirestoreArray(val values: List<FirestoreValor> = emptyList())
-data class FirestoreMapa(val fields: Map<String, FirestoreValor> = emptyMap())
-=======
 /**
  * Representa un mapa de campos de Firestore.
  */
 data class FirestoreMapa(
-    val fields: Map<String, FirestoreValor>
+    val fields: Map<String, FirestoreValor> = emptyMap()
 )
->>>>>>> b242f1cce132296831da28c76db35981fb9e9c10

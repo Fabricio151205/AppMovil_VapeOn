@@ -1,6 +1,7 @@
 package com.example.vapeon_movil.ui
 
 import com.example.vapeon_movil.utils.moneda
+import com.example.vapeon_movil.utils.obtenerSaboresPorMarca
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -11,6 +12,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material3.*
@@ -28,27 +30,34 @@ import androidx.compose.ui.unit.sp
 import com.example.vapeon_movil.R
 import com.example.vapeon_movil.entities.Producto
 import com.example.vapeon_movil.ui.theme.*
+import com.example.vapeon_movil.viewmodels.SaboresViewModel
 
 @Composable
 fun DetalleProductoScreen(
     producto: Producto,
     esAdmin: Boolean = false,
+    saboresViewModel: SaboresViewModel = androidx.lifecycle.viewmodel.compose.viewModel(),
     volver: () -> Unit,
     irEditarProducto: ((Producto) -> Unit)? = null,
     onAgregarAlCarrito: (() -> Unit)? = null   // null para ADMIN (no aplica)
 ) {
-<<<<<<< HEAD
+    LaunchedEffect(Unit) { saboresViewModel.cargarSabores() }
     var esFavorito by remember { mutableStateOf(false) }
 
-    var totaldescuento by remember { mutableStateOf(0.00) }
-
-    // Lista de sabores por defecto mostrada en la imagen
-    val listaSabores = remember {
-        listOf("Strawberry Watermelon", "Blue Razz Ice", "Miami Mint", "Peach Ice")
+    // Sabores dinámicos por marca o guardados
+    val saboresLista = remember(producto.sabor, producto.marca, saboresViewModel.listaSabores) {
+        val guardados = producto.sabor.split(",").map { it.trim() }.filter { it.isNotBlank() }
+        if (guardados.isNotEmpty()) guardados else obtenerSaboresPorMarca(producto.marca, saboresViewModel.listaSabores)
     }
-    var saborSeleccionado by remember { mutableStateOf(listaSabores.first()) }
-=======
->>>>>>> b242f1cce132296831da28c76db35981fb9e9c10
+    var saborSeleccionado by remember(saboresLista) { mutableStateOf(saboresLista.firstOrNull().orEmpty()) }
+
+    val stockSaborSeleccionado = remember(saborSeleccionado, producto.stockPorSabor, producto.stockTotal) {
+        if (producto.stockPorSabor.isNotEmpty()) {
+            producto.stockPorSabor.entries.find { it.key.equals(saborSeleccionado, ignoreCase = true) }?.value ?: 0
+        } else {
+            producto.stockTotal
+        }
+    }
 
     Surface(
         modifier = Modifier
@@ -176,8 +185,8 @@ fun DetalleProductoScreen(
                         withStyle(style = SpanStyle(color = VapeOnTextPrimary)) {
                             append("Stock: ")
                         }
-                        withStyle(style = SpanStyle(color = VapeOnGold, fontWeight = FontWeight.Bold)) {
-                            append(if (producto.stock > 0) "${producto.stock} unidades" else "Sin stock")
+                        withStyle(style = SpanStyle(color = if (stockSaborSeleccionado < 5 && stockSaborSeleccionado > 0) VapeOnRed else VapeOnGold, fontWeight = FontWeight.Bold)) {
+                            append(if (stockSaborSeleccionado > 0) "$stockSaborSeleccionado unidades" else "Sin stock")
                         }
                     },
                     fontSize = 15.sp
@@ -264,7 +273,7 @@ fun DetalleProductoScreen(
                     } else {
                         Button(
                             onClick = { onAgregarAlCarrito?.invoke() },
-                            enabled = producto.stock > 0 && producto.precio.isFinite() && producto.precio > 0 && onAgregarAlCarrito != null,
+                            enabled = stockSaborSeleccionado > 0 && producto.precio.isFinite() && producto.precio > 0 && onAgregarAlCarrito != null,
                             shape = RoundedCornerShape(50),
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = VapeOnRed,
@@ -273,7 +282,7 @@ fun DetalleProductoScreen(
                             contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp)
                         ) {
                             Text(
-                                text = "Agregar al carrito",
+                                text = if (stockSaborSeleccionado > 0) "Agregar al carrito" else "Sabor sin stock",
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 15.sp
                             )
@@ -287,18 +296,81 @@ fun DetalleProductoScreen(
             // ==========================================
             // SECTOR DE SELECCIÓN DE SABOR
             // ==========================================
+            if (saboresLista.isNotEmpty()) {
+                Text(
+                    text = "Seleccionar Sabor",
+                    color = VapeOnTextPrimary,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    saboresLista.chunked(2).forEach { fila ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            fila.forEach { opcionSabor ->
+                                val estaSeleccionado = saborSeleccionado.equals(opcionSabor, ignoreCase = true)
+                                SaborPillButton(
+                                    sabor = opcionSabor,
+                                    estaSeleccionado = estaSeleccionado,
+                                    onClick = { saborSeleccionado = opcionSabor },
+                                    modifier = Modifier.weight(1f)
+                                )
+                            }
+                            if (fila.size == 1) {
+                                Spacer(modifier = Modifier.weight(1f))
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(24.dp))
+            }
+        }
+    }
+}
+
+@Composable
+private fun SaborPillButton(
+    sabor: String,
+    estaSeleccionado: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Button(
+        onClick = onClick,
+        shape = RoundedCornerShape(50),
+        colors = ButtonDefaults.buttonColors(
+            containerColor = if (estaSeleccionado) VapeOnRed else VapeOnRedDark,
+            contentColor = VapeOnTextPrimary
+        ),
+        modifier = modifier.height(52.dp)
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center
+        ) {
+            if (estaSeleccionado) {
+                Icon(
+                    imageVector = Icons.Default.Check,
+                    contentDescription = "Seleccionado",
+                    tint = VapeOnTextPrimary,
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+            }
             Text(
-                text = "Seleccionar Sabor",
-                color = VapeOnTextPrimary,
-                fontSize = 16.sp,
-                fontWeight = FontWeight.SemiBold
+                text = sabor,
+                fontWeight = if (estaSeleccionado) FontWeight.Bold else FontWeight.Medium,
+                fontSize = 13.sp,
+                maxLines = 1
             )
-
-            Spacer(modifier = Modifier.height(14.dp))
-
-            Text("Sabores: No disponible", color = VapeOnTextSecondary)
-
-            Spacer(modifier = Modifier.height(24.dp))
         }
     }
 }
