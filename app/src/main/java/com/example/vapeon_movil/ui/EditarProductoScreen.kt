@@ -554,6 +554,28 @@ private fun FormularioEditarProducto(
                     }
                     val stockFinal = if (stockMap.isNotEmpty()) stockMap.values.sum() else (stockInt ?: 0)
 
+                    // Registrar o actualizar automáticamente en la colección máster /sabores
+                    stockMap.forEach { (nombreSabor, stockSabor) ->
+                        val existente = saboresViewModel.listaSabores.find {
+                            it.nombre.equals(nombreSabor.trim(), ignoreCase = true) &&
+                                    it.marca.equals(marca.trim(), ignoreCase = true)
+                        }
+                        if (existente != null) {
+                            saboresViewModel.editarSabor(
+                                saborAntiguo = existente,
+                                nuevoNombre = existente.nombre,
+                                nuevaMarca = existente.marca,
+                                nuevoStock = stockSabor
+                            )
+                        } else {
+                            saboresViewModel.agregarSabor(
+                                nombre = nombreSabor.trim(),
+                                marca = marca.trim(),
+                                stock = stockSabor
+                            )
+                        }
+                    }
+
                     mensajeError = ""
                     productoViewModel.guardarProductoEdicion(
                         nombre = nombre,

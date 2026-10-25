@@ -221,6 +221,32 @@ fun AgregarProductoScreen(
 
             Spacer(modifier = Modifier.height(14.dp))
 
+            // Campo: Descripción
+            OutlinedTextField(
+                value = descripcion,
+                onValueChange = { descripcion = it },
+                placeholder = {
+                    Text(text = "Descripción", color = VapeOnTextSecondary, fontSize = 15.sp)
+                },
+                singleLine = false,
+                maxLines = 3,
+                shape = RoundedCornerShape(12.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedContainerColor = VapeOnInputBackground,
+                    unfocusedContainerColor = VapeOnInputBackground,
+                    disabledContainerColor = VapeOnInputBackground,
+                    focusedBorderColor = VapeOnGold,
+                    unfocusedBorderColor = VapeOnInputBorder,
+                    focusedTextColor = VapeOnTextPrimary,
+                    unfocusedTextColor = VapeOnTextPrimary,
+                    cursorColor = VapeOnGold
+                ),
+                modifier = Modifier.fillMaxWidth(),
+
+                )
+
+            Spacer(modifier = Modifier.height(14.dp))
+
             // Campo: Precio
             OutlinedTextField(
                 value = precio,
@@ -268,6 +294,7 @@ fun AgregarProductoScreen(
                 ),
                 modifier = Modifier.fillMaxWidth()
             )
+            Spacer(modifier = Modifier.height(14.dp))
 
             // Selector de Sabores dinámico por Marca con cápsulas y multi-selección
             val saboresDisponibles = remember(marca, saboresViewModel.listaSabores) { obtenerSaboresPorMarca(marca, saboresViewModel.listaSabores) }
@@ -401,30 +428,6 @@ fun AgregarProductoScreen(
 
             Spacer(modifier = Modifier.height(14.dp))
 
-            // Campo: Descripción
-            OutlinedTextField(
-                value = descripcion,
-                onValueChange = { descripcion = it },
-                placeholder = {
-                    Text(text = "Descripción", color = VapeOnTextSecondary, fontSize = 15.sp)
-                },
-                singleLine = false,
-                maxLines = 3,
-                shape = RoundedCornerShape(12.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedContainerColor = VapeOnInputBackground,
-                    unfocusedContainerColor = VapeOnInputBackground,
-                    disabledContainerColor = VapeOnInputBackground,
-                    focusedBorderColor = VapeOnGold,
-                    unfocusedBorderColor = VapeOnInputBorder,
-                    focusedTextColor = VapeOnTextPrimary,
-                    unfocusedTextColor = VapeOnTextPrimary,
-                    cursorColor = VapeOnGold
-                ),
-                modifier = Modifier.fillMaxWidth(),
-
-            )
-
             val errorVisible = mensajeError.ifEmpty { productoViewModel.errorCreacion.orEmpty() }
             if (errorVisible.isNotEmpty()) {
                 Spacer(modifier = Modifier.height(12.dp))
@@ -465,6 +468,28 @@ fun AgregarProductoScreen(
                         (stockPorSaborState[s] ?: "1").toIntOrNull() ?: 1
                     }
                     val stockFinal = if (stockMap.isNotEmpty()) stockMap.values.sum() else (stockInt ?: 0)
+
+                    // Registrar o actualizar automáticamente en la colección máster /sabores
+                    stockMap.forEach { (nombreSabor, stockSabor) ->
+                        val existente = saboresViewModel.listaSabores.find {
+                            it.nombre.equals(nombreSabor.trim(), ignoreCase = true) &&
+                                    it.marca.equals(marca.trim(), ignoreCase = true)
+                        }
+                        if (existente != null) {
+                            saboresViewModel.editarSabor(
+                                saborAntiguo = existente,
+                                nuevoNombre = existente.nombre,
+                                nuevaMarca = existente.marca,
+                                nuevoStock = stockSabor
+                            )
+                        } else {
+                            saboresViewModel.agregarSabor(
+                                nombre = nombreSabor.trim(),
+                                marca = marca.trim(),
+                                stock = stockSabor
+                            )
+                        }
+                    }
 
                     mensajeError = ""
                     productoViewModel.crearProducto(
