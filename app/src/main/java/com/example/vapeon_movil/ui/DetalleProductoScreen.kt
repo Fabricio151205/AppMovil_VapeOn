@@ -1,7 +1,6 @@
 package com.example.vapeon_movil.ui
 
 import com.example.vapeon_movil.utils.moneda
-import com.example.vapeon_movil.utils.obtenerSaboresPorMarca
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -44,15 +43,20 @@ fun DetalleProductoScreen(
     LaunchedEffect(Unit) { saboresViewModel.cargarSabores() }
     var esFavorito by remember { mutableStateOf(false) }
 
-    // Sabores dinámicos por marca o guardados
-    val saboresLista = remember(producto.sabor, producto.marca, saboresViewModel.listaSabores) {
-        val guardados = producto.sabor.split(",").map { it.trim() }.filter { it.isNotBlank() }
-        if (guardados.isNotEmpty()) guardados else obtenerSaboresPorMarca(producto.marca, saboresViewModel.listaSabores)
+    // Sabores pertenecientes únicamente a este producto (desde stockPorSabor o sabor guardado)
+    val saboresLista = remember(producto.sabor, producto.stockPorSabor) {
+        if (producto.stockPorSabor.isNotEmpty()) {
+            producto.stockPorSabor.keys.toList()
+        } else if (producto.sabor.isNotBlank()) {
+            producto.sabor.split(",").map { it.trim() }.filter { it.isNotBlank() }
+        } else {
+            emptyList()
+        }
     }
     var saborSeleccionado by remember(saboresLista) { mutableStateOf(saboresLista.firstOrNull().orEmpty()) }
 
     val stockSaborSeleccionado = remember(saborSeleccionado, producto.stockPorSabor, producto.stockTotal) {
-        if (producto.stockPorSabor.isNotEmpty()) {
+        if (saboresLista.isNotEmpty() && producto.stockPorSabor.isNotEmpty()) {
             producto.stockPorSabor.entries.find { it.key.equals(saborSeleccionado, ignoreCase = true) }?.value ?: 0
         } else {
             producto.stockTotal
@@ -282,7 +286,7 @@ fun DetalleProductoScreen(
                             contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp)
                         ) {
                             Text(
-                                text = if (stockSaborSeleccionado > 0) "Agregar al carrito" else "Sabor sin stock",
+                                text = if (stockSaborSeleccionado > 0) "Agregar al carrito" else if (saboresLista.isNotEmpty()) "Sabor sin stock" else "Sin stock",
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 15.sp
                             )
