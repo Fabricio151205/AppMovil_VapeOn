@@ -11,9 +11,11 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.example.vapeon_movil.entities.Usuario
 import com.example.vapeon_movil.ui.theme.*
 import com.example.vapeon_movil.viewmodels.PedidoViewModel
@@ -53,7 +55,27 @@ fun DetallePedidoScreen(
                     usuarioId.isBlank() -> Text("Inicia sesión como cliente para consultar el pedido.",
                         color = MaterialTheme.colorScheme.error)
                     sesionDetalle != usuarioId || cargando ->
-                        CircularProgressIndicator(color = VapeOnGold)
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(180.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                CircularProgressIndicator(
+                                    color = VapeOnGold,
+                                    modifier = Modifier.size(36.dp)
+                                )
+                                Spacer(modifier = Modifier.height(10.dp))
+                                Text(
+                                    text = "Cargando pedido...",
+                                    color = VapeOnTextSecondary,
+                                    fontSize = 13.sp
+                                )
+                            }
+                        }
                     error != null -> {
                         Text(error, color = MaterialTheme.colorScheme.error)
                         Button(onClick = actualizar,

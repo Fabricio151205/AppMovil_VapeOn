@@ -28,6 +28,7 @@ fun ProductCard(
     nombre: String,
     precio: Double,
     esAdmin: Boolean = false,
+    stockTotal: Int = 1,
     onClick: () -> Unit,
     onEliminar: () -> Unit = {},
     onEditar: () -> Unit = {}
@@ -58,6 +59,25 @@ fun ProductCard(
                     contentDescription = nombre,
                     modifier = Modifier.size(80.dp)
                 )
+
+                // Etiqueta "Sin stock" visible para ADMIN
+                if (esAdmin && stockTotal <= 0) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.TopStart)
+                            .padding(8.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(VapeOnRed)
+                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                    ) {
+                        Text(
+                            text = "Sin stock",
+                            color = VapeOnTextPrimary,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
             }
 
             Spacer(modifier = Modifier.height(12.dp))

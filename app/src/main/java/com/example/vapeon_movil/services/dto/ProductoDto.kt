@@ -50,5 +50,6 @@ data class ProductoListResponse(
 data class ProductoDocumento(
     val name: String,       // Path completo: "projects/.../documents/productos/{id}"
     val fields: ProductoCampos,
-    val updateTime: String? = null
+    val updateTime: String? = null,
+    val createTime: String? = null
 )

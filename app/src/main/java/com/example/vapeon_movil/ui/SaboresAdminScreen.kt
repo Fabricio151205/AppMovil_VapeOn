@@ -195,7 +195,20 @@ fun SaboresAdminScreen(
                             .weight(1f),
                         contentAlignment = Alignment.Center
                     ) {
-                        CircularProgressIndicator(color = VapeOnGold)
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            CircularProgressIndicator(
+                                color = VapeOnGold,
+                                modifier = Modifier.size(36.dp)
+                            )
+                            Spacer(modifier = Modifier.height(10.dp))
+                            Text(
+                                text = "Cargando sabores...",
+                                color = VapeOnTextSecondary,
+                                fontSize = 13.sp
+                            )
+                        }
                     }
                 } else if (listaFiltrada.isEmpty()) {
                     Box(

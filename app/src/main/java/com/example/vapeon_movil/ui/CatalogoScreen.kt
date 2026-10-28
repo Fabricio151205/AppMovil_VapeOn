@@ -10,6 +10,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -22,7 +23,6 @@ import com.example.vapeon_movil.components.MarcaSection
 import com.example.vapeon_movil.entities.Producto
 import com.example.vapeon_movil.ui.theme.*
 import com.example.vapeon_movil.viewmodels.ProductoViewModel
-import kotlinx.coroutines.launch
 
 @Composable
 fun CatalogoScreen(
@@ -48,8 +48,20 @@ fun CatalogoScreen(
 
     // Estado local de UI
     var busqueda              by remember { mutableStateOf("") }
-    var categoriaSeleccionada by remember { mutableStateOf("Todos") }
+    var categoriaSeleccionada by remember { mutableStateOf("Todos") } // Todos, Nuevos, Promociones
+    var marcaFiltro           by remember { mutableStateOf("Todas") }  // Filtro flotante por Marca
+    var ordenPrecio           by remember { mutableStateOf("Sin orden") } // Sin orden, Menor a Mayor, Mayor a Menor
+    var mostrarModalFiltros   by remember { mutableStateOf(false) }
     var productoAEliminar     by remember { mutableStateOf<Producto?>(null) }
+
+    // Regla RNE01: El cliente solo puede ver productos con stock > 0, mientras que el admin ve todos.
+    val productosPorRol = remember(productos, esAdmin) {
+        if (esAdmin) productos else productos.filter { it.stockTotal > 0 }
+    }
+
+    val tieneFiltrosFlotantesActivos = remember(marcaFiltro, ordenPrecio) {
+        marcaFiltro != "Todas" || ordenPrecio != "Sin orden"
+    }
 
     // Carga inicial de productos
     LaunchedEffect(Unit) {
@@ -90,14 +102,14 @@ fun CatalogoScreen(
                 SnackbarHost(snackbarHostState)
 
                 // ==========================================
-                // 1. BARRA DE BÚSQUEDA REDONDEADA
+                // 1. BARRA DE BÚSQUEDA REDONDEADA (RF12)
                 // ==========================================
                 OutlinedTextField(
                     value = busqueda,
                     onValueChange = { busqueda = it },
                     placeholder = {
                         Text(
-                            text = "Buscar Productos",
+                            text = "Buscar Productos...",
                             color = VapeOnTextSecondary,
                             fontSize = 15.sp
                         )
@@ -125,40 +137,72 @@ fun CatalogoScreen(
                     modifier = Modifier.fillMaxWidth()
                 )
 
-                Spacer(modifier = Modifier.height(18.dp))
+                Spacer(modifier = Modifier.height(14.dp))
 
                 // ==========================================
-                // 2. CHIPS DE CATEGORÍAS (Todos, Nuevos, Promociones)
+                // 2. FILTRO FLOTANTE + BOTONES "TODOS", "NUEVOS", "PROMOCIONES"
                 // ==========================================
                 Row(
-                    modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
+                    // Ícono de Filtros ubicado exactamente al lado izquierdo del botón "Todos"
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(50))
+                            .background(if (tieneFiltrosFlotantesActivos) VapeOnGold else VapeOnRedDark)
+                            .clickable { mostrarModalFiltros = true }
+                            .padding(horizontal = 14.dp, vertical = 10.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.Tune,
+                                contentDescription = "Filtros de Marca y Precio",
+                                tint = if (tieneFiltrosFlotantesActivos) VapeOnBackground else VapeOnTextPrimary,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            if (tieneFiltrosFlotantesActivos) {
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "Filtros",
+                                    color = VapeOnBackground,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 12.sp
+                                )
+                            }
+                        }
+                    }
+
+                    // Botones de categoría principales
                     val categorias = listOf("Todos", "Nuevos", "Promociones")
                     categorias.forEach { cat ->
-                        val seleccionada = cat == categoriaSeleccionada
+                        val seleccionada = cat.equals(categoriaSeleccionada, ignoreCase = true)
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(50))
                                 .background(if (seleccionada) VapeOnRed else VapeOnRedDark)
-                                .clickable(enabled = cat == "Todos") { categoriaSeleccionada = cat }
-                                .padding(horizontal = 22.dp, vertical = 10.dp),
+                                .clickable { categoriaSeleccionada = cat }
+                                .padding(horizontal = 20.dp, vertical = 10.dp),
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                text = if (cat == "Todos") cat else "$cat (No disponible)",
+                                text = cat,
                                 color = VapeOnTextPrimary,
-                                fontWeight = if(seleccionada)FontWeight.Bold else FontWeight.Normal,
+                                fontWeight = if (seleccionada) FontWeight.Bold else FontWeight.Normal,
                                 fontSize = 14.sp
                             )
                         }
                     }
                 }
 
-                Spacer(modifier = Modifier.height(20.dp))
+                Spacer(modifier = Modifier.height(18.dp))
 
                 // ==========================================
-                // 3. ESTADO DE CARGA O LISTA DE PRODUCTOS
+                // 3. ESTADO DE CARGA O LISTA DE PRODUCTOS (RF12 / RF13 / RNE01)
                 // ==========================================
                 if (cargando) {
                     Box(
@@ -181,19 +225,48 @@ fun CatalogoScreen(
                         }
                     }
                 } else if (errorRed != null) {
-                    Text(errorRed, color = MaterialTheme.colorScheme.error)
-                    Button(onClick = { productoViewModel.cargarProductos() }) { Text("Reintentar") }
+                    Text(errorRed, color = VapeOnTextSecondary)
+                    Button(
+                        onClick = { productoViewModel.cargarProductos() },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = VapeOnGold,
+                            contentColor = VapeOnTextPrimary)
+                    ) {
+                        Text("Reintentar")
+                    }
                 } else {
-                    // Filtrado reactivo de productos
-                    val listaFiltrada = productos.filter { prod ->
-                        val coincideTexto = busqueda.isBlank() ||
-                                prod.nombre.contains(busqueda, ignoreCase = true) ||
-                                prod.marca.contains(busqueda, ignoreCase = true) ||
-                                prod.descripcion.contains(busqueda, ignoreCase = true)
+                    // Filtrado reactivo completo
+                    val listaFiltrada = remember(productosPorRol, busqueda, categoriaSeleccionada, marcaFiltro, ordenPrecio) {
+                        var resultado = productosPorRol.filter { prod ->
+                            // 1. Filtro por texto de búsqueda
+                            val coincideTexto = busqueda.isBlank() ||
+                                    prod.nombre.contains(busqueda, ignoreCase = true) ||
+                                    prod.marca.contains(busqueda, ignoreCase = true) ||
+                                    prod.descripcion.contains(busqueda, ignoreCase = true)
 
-                        val coincideCategoria = true // Nuevos y promociones requieren datos reales; módulos no disponibles.
+                            // 2. Filtro por categoría principal (Todos, Nuevos, Promociones)
+                            val coincideCategoria = when {
+                                categoriaSeleccionada.equals("Nuevos", ignoreCase = true) -> prod.esNuevo()
+                                categoriaSeleccionada.equals("Promociones", ignoreCase = true) -> prod.precio <= 60.0
+                                else -> true // "Todos"
+                            }
 
-                        coincideTexto && coincideCategoria
+                            // 3. Filtro por Marca seleccionada en la vista flotante
+                            val coincideMarca = when {
+                                marcaFiltro.equals("Todas", ignoreCase = true) -> true
+                                else -> prod.marca.equals(marcaFiltro, ignoreCase = true)
+                            }
+
+                            coincideTexto && coincideCategoria && coincideMarca
+                        }
+
+                        // 4. Ordenamiento por Precio seleccionado en la vista flotante
+                        when (ordenPrecio) {
+                            "Menor a Mayor" -> resultado = resultado.sortedBy { it.precio }
+                            "Mayor a Menor" -> resultado = resultado.sortedByDescending { it.precio }
+                        }
+
+                        resultado
                     }
 
                     if (listaFiltrada.isEmpty()) {
@@ -210,81 +283,22 @@ fun CatalogoScreen(
                             )
                         }
                     } else {
-                        // ── SECCIÓN: LIFEPOD ──────────────────────────────
-                        val productosLifePod = listaFiltrada.filter {
-                            it.marca.equals("LifePod", ignoreCase = true) ||
-                            it.marca.equals("LifePood", ignoreCase = true)
+                        // Agrupación por marca manteniendo el orden filtrado
+                        val marcasOrdenadas = listOf("LifePod", "Oxbar", "Nexa")
+                        val agrupados = listaFiltrada.groupBy { prod ->
+                            marcasOrdenadas.find { it.equals(prod.marca.trim(), ignoreCase = true) } ?: prod.marca.trim()
                         }
-                        if (productosLifePod.isNotEmpty()) {
+
+                        agrupados.forEach { (nombreMarca, prods) ->
                             MarcaSection(
-                                nombreMarca = "LifePod",
-                                productos = productosLifePod,
+                                nombreMarca = nombreMarca,
+                                productos = prods,
                                 irDetalleProducto = irDetalleProducto,
                                 esAdmin = esAdmin,
-                                onVerTodos = { busqueda = "LifePod" },
+                                onVerTodos = { busqueda = nombreMarca },
                                 eliminarProducto = { productoAEliminar = it },
                                 editarProducto = { irEditarProducto(it) }
                             )
-                        }
-
-                        // ── SECCIÓN: OXBAR ────────────────────────────────
-                        val productosOxbar = listaFiltrada.filter {
-                            it.marca.equals("Oxbar", ignoreCase = true)
-                        }
-                        if (productosOxbar.isNotEmpty()) {
-                            MarcaSection(
-                                nombreMarca = "Oxbar",
-                                productos = productosOxbar,
-                                irDetalleProducto = irDetalleProducto,
-                                esAdmin = esAdmin,
-                                onVerTodos = { busqueda = "Oxbar" },
-                                eliminarProducto = { productoAEliminar = it },
-                                editarProducto = { irEditarProducto(it) }
-                            )
-                        }
-
-                        // ── SECCIÓN: NEXA ─────────────────────────────────
-                        val productosNexa = listaFiltrada.filter {
-                            it.marca.equals("Nexa", ignoreCase = true)
-                        }
-                        if (productosNexa.isNotEmpty()) {
-                            MarcaSection(
-                                nombreMarca = "Nexa",
-                                productos = productosNexa,
-                                irDetalleProducto = irDetalleProducto,
-                                esAdmin = esAdmin,
-                                onVerTodos = { busqueda = "Nexa" },
-                                eliminarProducto = { productoAEliminar = it },
-                                editarProducto = { irEditarProducto(it) }
-                            )
-                        }
-
-                        // ── SECCIONES DINÁMICAS (otras marcas) ────────────
-                        val otrasMarcas = listaFiltrada
-                            .map { it.marca.trim() }
-                            .distinct()
-                            .filter {
-                                !it.equals("LifePod",  ignoreCase = true) &&
-                                !it.equals("LifePood", ignoreCase = true) &&
-                                !it.equals("Oxbar",    ignoreCase = true) &&
-                                !it.equals("Nexa",     ignoreCase = true)
-                            }
-
-                        otrasMarcas.forEach { marca ->
-                            val productosMarca = listaFiltrada.filter {
-                                it.marca.trim().equals(marca, ignoreCase = true)
-                            }
-                            if (productosMarca.isNotEmpty()) {
-                                MarcaSection(
-                                    nombreMarca = marca,
-                                    productos = productosMarca,
-                                    irDetalleProducto = irDetalleProducto,
-                                    esAdmin = esAdmin,
-                                    onVerTodos = { busqueda = marca },
-                                    eliminarProducto = { productoAEliminar = it },
-                                    editarProducto = { irEditarProducto(it) }
-                                )
-                            }
                         }
                     }
                 }
@@ -319,7 +333,133 @@ fun CatalogoScreen(
     }
 
     // ==========================================
-    // 7. DIÁLOGO DE CONFIRMACIÓN DE ELIMINACIÓN
+    // VISTA FLOTANTE DE FILTROS POR MARCA Y PRECIO (DIALOG)
+    // ==========================================
+    if (mostrarModalFiltros) {
+        val marcasDisponibles = remember(productosPorRol) {
+            val conocidas = listOf("LifePod", "Oxbar", "Nexa")
+            val otras = productosPorRol
+                .map { it.marca.trim() }
+                .filter { m -> m.isNotBlank() && conocidas.none { c -> c.equals(m, ignoreCase = true) } }
+                .distinct()
+            listOf("Todas") + conocidas + otras
+        }
+
+        AlertDialog(
+            onDismissRequest = { mostrarModalFiltros = false },
+            containerColor = VapeOnSurface,
+            shape = RoundedCornerShape(20.dp),
+            title = {
+                Text(
+                    text = "FILTRAR PRODUCTOS",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 18.sp,
+                    color = VapeOnGold
+                )
+            },
+            text = {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    // SECCIÓN: MARCAS
+                    Text(
+                        text = "Filtrar por Marca",
+                        fontWeight = FontWeight.Bold,
+                        color = VapeOnTextPrimary,
+                        fontSize = 14.sp
+                    )
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        marcasDisponibles.forEach { m ->
+                            val seleccionada = m.equals(marcaFiltro, ignoreCase = true)
+                            Button(
+                                onClick = { marcaFiltro = m },
+                                shape = RoundedCornerShape(50),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = if (seleccionada) VapeOnRed else VapeOnInputBackground,
+                                    contentColor = VapeOnTextPrimary
+                                ),
+                                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
+                            ) {
+                                Text(
+                                    text = m,
+                                    fontSize = 12.sp,
+                                    fontWeight = if (seleccionada) FontWeight.Bold else FontWeight.Normal
+                                )
+                            }
+                        }
+                    }
+
+                    HorizontalDivider(color = VapeOnInputBorder)
+
+                    // SECCIÓN: PRECIO
+                    Text(
+                        text = "Ordenar por Precio",
+                        fontWeight = FontWeight.Bold,
+                        color = VapeOnTextPrimary,
+                        fontSize = 14.sp
+                    )
+
+                    val opcionesOrden = listOf("Sin orden", "Menor a Mayor", "Mayor a Menor")
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        opcionesOrden.forEach { op ->
+                            val seleccionada = op == ordenPrecio
+                            Button(
+                                onClick = { ordenPrecio = op },
+                                shape = RoundedCornerShape(50),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = if (seleccionada) VapeOnRed else VapeOnInputBackground,
+                                    contentColor = VapeOnTextPrimary
+                                ),
+                                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
+                            ) {
+                                Text(
+                                    text = op,
+                                    fontSize = 12.sp,
+                                    fontWeight = if (seleccionada) FontWeight.Bold else FontWeight.Normal
+                                )
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = { mostrarModalFiltros = false },
+                    colors = ButtonDefaults.buttonColors(containerColor = VapeOnRed)
+                ) {
+                    Text("Aplicar Filtros", color = VapeOnTextPrimary, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        marcaFiltro = "Todas"
+                        ordenPrecio = "Sin orden"
+                        mostrarModalFiltros = false
+                    }
+                ) {
+                    Text("Restablecer", color = VapeOnTextSecondary)
+                }
+            }
+        )
+    }
+
+    // ==========================================
+    // DIÁLOGO DE CONFIRMACIÓN DE ELIMINACIÓN
     // ==========================================
     productoAEliminar?.let { prod ->
         AlertDialog(

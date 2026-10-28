@@ -11,9 +11,11 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.example.vapeon_movil.entities.Usuario
 import com.example.vapeon_movil.ui.theme.*
 import com.example.vapeon_movil.viewmodels.PedidoViewModel
@@ -41,7 +43,29 @@ fun PedidosAdminScreen(
                     !esAdmin -> item { Text("Solo un administrador puede ver los pedidos.",
                         color = MaterialTheme.colorScheme.error) }
                     pedidoViewModel.usuarioAdminId != usuario?.id || pedidoViewModel.cargandoPedidosAdmin ->
-                        item { CircularProgressIndicator(color = VapeOnGold) }
+                        item {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(180.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Column(
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    CircularProgressIndicator(
+                                        color = VapeOnGold,
+                                        modifier = Modifier.size(36.dp)
+                                    )
+                                    Spacer(modifier = Modifier.height(10.dp))
+                                    Text(
+                                        text = "Cargando pedidos...",
+                                        color = VapeOnTextSecondary,
+                                        fontSize = 13.sp
+                                    )
+                                }
+                            }
+                        }
                     pedidoViewModel.errorPedidosAdmin != null -> item {
                         Text(pedidoViewModel.errorPedidosAdmin.orEmpty(), color = MaterialTheme.colorScheme.error)
                         Button(onClick = { pedidoViewModel.cargarPedidosAdmin(usuario) },

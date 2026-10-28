@@ -145,7 +145,20 @@ fun HistorialComprasScreen(
                                     .height(200.dp),
                                 contentAlignment = Alignment.Center
                             ) {
-                                CircularProgressIndicator(color = VapeOnGold)
+                                Column(
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    CircularProgressIndicator(
+                                        color = VapeOnGold,
+                                        modifier = Modifier.size(36.dp)
+                                    )
+                                    Spacer(modifier = Modifier.height(10.dp))
+                                    Text(
+                                        text = "Cargando historial...",
+                                        color = VapeOnTextSecondary,
+                                        fontSize = 13.sp
+                                    )
+                                }
                             }
                         }
                     }

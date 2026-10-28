@@ -8,8 +8,22 @@ data class Producto(
     val stock: Int = 0,
     val descripcion: String,
     val sabor: String = "",
-    val stockPorSabor: Map<String, Int> = emptyMap()
+    val stockPorSabor: Map<String, Int> = emptyMap(),
+    val fechaCreacion: String = ""
 ) {
+    /**
+     * Determina si el producto fue agregado recientemente (máximo hace 1 semana / 7 días).
+     */
+    fun esNuevo(): Boolean {
+        if (fechaCreacion.isBlank()) return true
+        return try {
+            val fechaDoc = java.time.Instant.parse(fechaCreacion)
+            val haceSieteDias = java.time.Instant.now().minus(java.time.Duration.ofDays(7))
+            fechaDoc.isAfter(haceSieteDias)
+        } catch (_: Exception) {
+            true
+        }
+    }
     /**
      * Convierte el mapa interno en una lista de SaborItem vinculados a la marca del producto.
      */

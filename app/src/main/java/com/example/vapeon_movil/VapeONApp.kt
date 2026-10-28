@@ -5,8 +5,11 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.example.vapeon_movil.entities.Usuario
 import com.example.vapeon_movil.ui.theme.*
 import androidx.compose.ui.platform.LocalContext
@@ -447,10 +450,24 @@ private fun ProductoDeNavegacion(
         else -> VapeON_MovilTheme {
             BackHandler(onBack = volver)
             Surface(color = VapeOnBackground, modifier = Modifier.fillMaxSize()) {
-                Column(Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                    CircularProgressIndicator()
-                    Text("Recuperando producto…")
-                    Button(onClick = volver) { Text("Volver") }
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        CircularProgressIndicator(
+                            color = VapeOnGold,
+                            modifier = Modifier.size(36.dp)
+                        )
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Text(
+                            text = "Cargando producto...",
+                            color = VapeOnTextSecondary,
+                            fontSize = 13.sp
+                        )
+                    }
                 }
             }
         }
@@ -462,9 +479,29 @@ private fun SituacionProducto(mensaje: String, volver: () -> Unit) {
     BackHandler(onBack = volver)
     VapeON_MovilTheme {
         Surface(color = VapeOnBackground, modifier = Modifier.fillMaxSize()) {
-            Column(Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                Text(mensaje, color = MaterialTheme.colorScheme.error)
-                Button(onClick = volver) { Text("Volver") }
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(24.dp),
+                verticalArrangement = Arrangement.Center,
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = mensaje,
+                    color = MaterialTheme.colorScheme.error,
+                    fontSize = 14.sp
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                Button(
+                    onClick = volver,
+                    shape = androidx.compose.foundation.shape.RoundedCornerShape(50),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = VapeOnGold,
+                        contentColor = VapeOnBackground
+                    )
+                ) {
+                    Text("Volver", fontWeight = FontWeight.Bold)
+                }
             }
         }
     }

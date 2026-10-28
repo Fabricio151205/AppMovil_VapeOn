@@ -216,8 +216,19 @@ fun AdminHomeScreen(
                     }
                 }
             } else if (productoViewModel.error != null) {
-                Text(productoViewModel.error.orEmpty(), color = MaterialTheme.colorScheme.error)
-                Button(onClick = { productoViewModel.cargarProductos() }) { Text("Reintentar") }
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ){
+                    Text(productoViewModel.error.orEmpty(), color = VapeOnTextSecondary)
+                    Button(onClick = { productoViewModel.cargarProductos() },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = VapeOnGold,
+                            contentColor = VapeOnTextPrimary),
+                        )
+                    { Text("Reintentar") }
+                }
+
             } else if (productosFirebase.isEmpty()) {
                 Box(
                     modifier = Modifier

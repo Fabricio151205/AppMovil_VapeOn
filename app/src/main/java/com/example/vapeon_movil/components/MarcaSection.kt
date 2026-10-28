@@ -67,6 +67,7 @@ fun MarcaSection(
                         nombre = producto.nombre,
                         precio = producto.precio,
                         esAdmin = esAdmin,
+                        stockTotal = producto.stockTotal,
                         onClick = { irDetalleProducto(producto) },
                         onEliminar = { eliminarProducto(producto) },
                         onEditar = { editarProducto(producto) },

@@ -19,6 +19,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -49,14 +50,118 @@ fun EditarProductoScreen(
     val documento = productoViewModel.documentoEdicion
     if (documento == null) {
         Surface(color = VapeOnBackground, modifier = Modifier.fillMaxSize()) {
-            Column(Modifier.statusBarsPadding().padding(24.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                Text("EDITAR PRODUCTO", style = MaterialTheme.typography.titleLarge)
-                if (productoViewModel.cargandoEdicion) CircularProgressIndicator()
-                productoViewModel.errorEdicion?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-                Button(onClick = { productoViewModel.cargarProductoEdicion(producto.id) },
-                    enabled = !productoViewModel.cargandoEdicion) { Text("Recargar datos") }
-                TextButton(onClick = volver) { Text("Volver") }
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .statusBarsPadding()
+                    .padding(24.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    IconButton(onClick = { volver() }) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Regresar",
+                            tint = VapeOnTextPrimary,
+                            modifier = Modifier.size(28.dp)
+                        )
+                    }
+
+                    Text(
+                        text = "VAPEON",
+                        fontSize = 22.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = VapeOnGold,
+                        letterSpacing = 1.sp
+                    )
+
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(CircleShape)
+                            .background(VapeOnRedDark),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Person,
+                            contentDescription = "Perfil",
+                            tint = VapeOnTextPrimary,
+                            modifier = Modifier.size(22.dp)
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Box(
+                    modifier = Modifier.fillMaxWidth(),
+                    contentAlignment = Alignment.CenterStart
+                ) {
+                    Text(
+                        text = "EDITAR PRODUCTO",
+                        fontSize = 24.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = VapeOnTextPrimary,
+                        letterSpacing = 0.5.sp
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(20.dp))
+
+                if (productoViewModel.cargandoEdicion) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(180.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            CircularProgressIndicator(
+                                color = VapeOnGold,
+                                modifier = Modifier.size(36.dp)
+                            )
+                            Spacer(modifier = Modifier.height(10.dp))
+                            Text(
+                                text = "Cargando producto...",
+                                color = VapeOnTextSecondary,
+                                fontSize = 13.sp
+                            )
+                        }
+                    }
+                } else {
+                    productoViewModel.errorEdicion?.let {
+                        Text(it, color = MaterialTheme.colorScheme.error, fontSize = 14.sp)
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Button(
+                        onClick = { productoViewModel.cargarProductoEdicion(producto.id) },
+                        shape = RoundedCornerShape(50),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = VapeOnGold,
+                            contentColor = VapeOnBackground
+                        ),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(48.dp)
+                    ) {
+                        Text("RECARGAR DATOS", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                    }
+
+                    TextButton(onClick = volver) {
+                        Text("Volver", color = VapeOnGold, fontSize = 15.sp)
+                    }
+                }
             }
         }
         return
