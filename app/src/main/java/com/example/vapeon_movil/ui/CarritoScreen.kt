@@ -157,7 +157,7 @@ fun CarritoScreen(
                     ItemCarritoCard(
                         item = item,
                         onIncrementar = {
-                            carritoViewModel.incrementar(item.productoId)
+                            carritoViewModel.incrementar(item.productoId )
 
                         },
                         onDecrementar = { carritoViewModel.decrementar(item.productoId) },

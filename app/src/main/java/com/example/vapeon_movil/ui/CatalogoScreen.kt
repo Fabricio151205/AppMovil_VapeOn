@@ -7,15 +7,20 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.vapeon_movil.components.MarcaSection
@@ -37,7 +42,8 @@ fun CatalogoScreen(
     irHistorial: () -> Unit = {},
     irPedidos: () -> Unit = {},
     irSabores: () -> Unit = {},
-    cerrarSesion: () -> Unit = {}
+    cerrarSesion: () -> Unit = {},
+    irTarjetas: () -> Unit = {}
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -47,9 +53,16 @@ fun CatalogoScreen(
     val errorRed       = productoViewModel.error
 
     // Estado local de UI
-    var busqueda              by remember { mutableStateOf("") }
+    var busqueda              by rememberSaveable { mutableStateOf("") }
     var categoriaSeleccionada by remember { mutableStateOf("Todos") }
     var productoAEliminar     by remember { mutableStateOf<Producto?>(null) }
+    var categoriaFiltro by rememberSaveable { mutableStateOf("") }
+    var precioMinimo by rememberSaveable { mutableStateOf("") }
+    var precioMaximo by rememberSaveable { mutableStateOf("") }
+    var soloConStock by rememberSaveable { mutableStateOf(false) }
+    var menuCategoriasAbierto by remember { mutableStateOf(false) }
+    var filtrosAbiertos by rememberSaveable { mutableStateOf(false) }
+    val errorFiltro = productoViewModel.errorFiltros(precioMinimo, precioMaximo)
 
     // Carga inicial de productos
     LaunchedEffect(Unit) {
@@ -68,6 +81,7 @@ fun CatalogoScreen(
         irCatalogo = { /* Ya estamos en el catálogo */ },
         irCarrito = irCarrito,
         irHistorial = irHistorial,
+        irTarjetas = irTarjetas,
         irPedidos = irPedidos,
         irSabores = irSabores,
         cerrarSesion = cerrarSesion,
@@ -128,6 +142,70 @@ fun CatalogoScreen(
                 Spacer(modifier = Modifier.height(18.dp))
 
                 // ==========================================
+                // RF13: categorías reales del inventario, independientes de las marcas.
+                val filtrosActivos = categoriaFiltro.isNotBlank() || precioMinimo.isNotBlank() ||
+                    precioMaximo.isNotBlank() || soloConStock
+                TextButton(onClick = { filtrosAbiertos = !filtrosAbiertos }) {
+                    Text(if (filtrosAbiertos) "Ocultar filtros" else if (filtrosActivos) "Filtros · Activos" else "Filtros",
+                        color = VapeOnGold)
+                }
+                if (!filtrosAbiertos && errorFiltro != null) {
+                    Text(errorFiltro, color = MaterialTheme.colorScheme.error)
+                }
+                if (filtrosAbiertos) {
+                Box(Modifier.fillMaxWidth()) {
+                    OutlinedButton(onClick = { menuCategoriasAbierto = true },
+                        modifier = Modifier.fillMaxWidth()) {
+                        Text(if (categoriaFiltro.isBlank()) "Todas las categorías" else "Categoría: $categoriaFiltro",
+                            color = VapeOnGold)
+                    }
+                    DropdownMenu(expanded = menuCategoriasAbierto,
+                        onDismissRequest = { menuCategoriasAbierto = false }) {
+                        DropdownMenuItem(text = { Text("Todas las categorías") }, onClick = {
+                            categoriaFiltro = ""
+                            menuCategoriasAbierto = false
+                        })
+                        productoViewModel.categoriasDisponibles.forEach { categoria ->
+                            DropdownMenuItem(text = { Text(categoria) }, onClick = {
+                                categoriaFiltro = categoria
+                                menuCategoriasAbierto = false
+                            })
+                        }
+                    }
+                }
+                val coloresFiltros = OutlinedTextFieldDefaults.colors(
+                    focusedTextColor = VapeOnTextPrimary, unfocusedTextColor = VapeOnTextPrimary,
+                    focusedContainerColor = VapeOnInputBackground, unfocusedContainerColor = VapeOnInputBackground,
+                    focusedBorderColor = VapeOnGold, unfocusedBorderColor = VapeOnInputBorder,
+                    focusedLabelColor = VapeOnGold, unfocusedLabelColor = VapeOnTextSecondary)
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    OutlinedTextField(value = precioMinimo, onValueChange = { precioMinimo = it },
+                        label = { Text("Precio mínimo") }, prefix = { Text("S/") }, singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                        colors = coloresFiltros, modifier = Modifier.weight(1f))
+                    OutlinedTextField(value = precioMaximo, onValueChange = { precioMaximo = it },
+                        label = { Text("Precio máximo") }, prefix = { Text("S/") }, singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                        colors = coloresFiltros, modifier = Modifier.weight(1f))
+                }
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Text("Solo con stock", color = VapeOnTextPrimary, modifier = Modifier.weight(1f))
+                    Switch(checked = soloConStock, onCheckedChange = { soloConStock = it },
+                        colors = SwitchDefaults.colors(checkedTrackColor = VapeOnRed,
+                            checkedThumbColor = VapeOnTextPrimary),
+                        modifier = Modifier.semantics { contentDescription = "Solo con stock" })
+                }
+                errorFiltro?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+                TextButton(onClick = {
+                    busqueda = ""
+                    categoriaFiltro = ""
+                    precioMinimo = ""
+                    precioMaximo = ""
+                    soloConStock = false
+                }) { Text("Limpiar filtros", color = VapeOnGold) }
+                Spacer(Modifier.height(12.dp))
+                }
+
                 // 2. CHIPS DE CATEGORÍAS (Todos, Nuevos, Promociones)
                 // ==========================================
                 Row(
@@ -185,16 +263,8 @@ fun CatalogoScreen(
                     Button(onClick = { productoViewModel.cargarProductos() }) { Text("Reintentar") }
                 } else {
                     // Filtrado reactivo de productos
-                    val listaFiltrada = productos.filter { prod ->
-                        val coincideTexto = busqueda.isBlank() ||
-                                prod.nombre.contains(busqueda, ignoreCase = true) ||
-                                prod.marca.contains(busqueda, ignoreCase = true) ||
-                                prod.descripcion.contains(busqueda, ignoreCase = true)
-
-                        val coincideCategoria = true // Nuevos y promociones requieren datos reales; módulos no disponibles.
-
-                        coincideTexto && coincideCategoria
-                    }
+                    val listaFiltrada = productoViewModel.filtrarProductos(
+                        busqueda, categoriaFiltro, precioMinimo, precioMaximo, soloConStock)
 
                     if (listaFiltrada.isEmpty()) {
                         Box(

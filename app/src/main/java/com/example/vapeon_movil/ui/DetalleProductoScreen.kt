@@ -215,6 +215,11 @@ fun DetalleProductoScreen(
             // ==========================================
             // DESCRIPCIÓN DEL PRODUCTO
             // ==========================================
+            if (producto.categoria.isNotBlank()) {
+                Text("Categoría: ${producto.categoria}", color = VapeOnGold,
+                    style = MaterialTheme.typography.bodyMedium)
+                Spacer(Modifier.height(12.dp))
+            }
             Text(
                 text = producto.descripcion.ifBlank { "No disponible" },
                 color = VapeOnTextSecondary,

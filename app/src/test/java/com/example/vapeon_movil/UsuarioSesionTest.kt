@@ -17,12 +17,14 @@ class UsuarioSesionTest {
     private class ServicioUsuariosPrueba : UsuarioService {
         val documentos = mutableListOf<UsuarioDocumento>()
         val creados = mutableListOf<UsuarioContainer>()
+        var consultas = 0
         var falloConsulta = false
         var falloCreacion = false
         var perderRespuestaCreacion = false
         var respuestaPendiente: CompletableDeferred<UsuarioListResponse>? = null
 
         override suspend fun listarUsuarios(pageToken: String?): UsuarioListResponse {
+            consultas++
             if (falloConsulta) error("Sin conexión")
             return respuestaPendiente?.await() ?: UsuarioListResponse(documentos.toList())
         }
@@ -71,8 +73,9 @@ class UsuarioSesionTest {
     }
 
     private fun errorRegistro(telefono: String = "912345678", correo: String = "a@example.com",
-        fecha: String = "01/01/2000", password: String = "x", confirmacion: String = password) =
-        validarRegistro("Ana", "Pérez", correo, telefono, fecha, password, confirmacion)
+        fecha: String = "01/01/2000", password: String = "x", confirmacion: String = password,
+        hoy: LocalDate = LocalDate.of(2026, 10, 30)) =
+        validarRegistro("Ana", "Pérez", correo, telefono, fecha, password, confirmacion, hoy)
 
     @Test fun telefonosValidos() {
         listOf("912345678", "987654321").forEach { assertTrue(telefonoRegistroValido(it)) }
@@ -122,10 +125,58 @@ class UsuarioSesionTest {
         }
     }
 
-    @Test fun fechaValidaSinAgregarMayoriaDeEdad() {
+    @Test fun fechaClaramenteAdultaEsAceptada() {
         assertNull(errorRegistro(fecha = "29/02/2000"))
-        val fechaReciente = LocalDate.now().minusYears(1).format(DateTimeFormatter.ofPattern("dd/MM/uuuu"))
-        assertNull(errorRegistro(fecha = fechaReciente))
+    }
+
+    @Test fun menorDeDieciochoEsRechazado() {
+        listOf("30/10/2025", "30/10/2009").forEach {
+            assertEquals("Debes tener 18 años cumplidos o más para registrarte.", errorRegistro(fecha = it))
+        }
+    }
+
+    @Test fun exactamenteDieciochoCumplidosHoyEsAceptado() {
+        assertNull(errorRegistro(fecha = "30/10/2008"))
+    }
+
+    @Test fun cumpleDieciochoMananaEsRechazado() {
+        assertEquals("Debes tener 18 años cumplidos o más para registrarte.",
+            errorRegistro(fecha = "31/10/2008"))
+    }
+
+    @Test fun cumplioDieciochoAyerEsAceptado() {
+        assertNull(errorRegistro(fecha = "29/10/2008"))
+    }
+
+    @Test fun fechaFuturaEsRechazada() {
+        assertEquals("Ingresa una fecha de nacimiento válida en formato dd/mm/aaaa.",
+            errorRegistro(fecha = "31/10/2026"))
+    }
+
+    @Test fun fechaImposibleEsRechazada() {
+        assertEquals("Ingresa una fecha de nacimiento válida en formato dd/mm/aaaa.",
+            errorRegistro(fecha = "31/02/2000"))
+    }
+
+    @Test fun fechaVaciaEsRechazada() {
+        assertEquals("Ingresa una fecha de nacimiento válida en formato dd/mm/aaaa.", errorRegistro(fecha = ""))
+    }
+
+    @Test fun nacimientoBisiestoCuentaAnosCompletos() {
+        assertNotNull(errorRegistro(fecha = "29/02/2008", hoy = LocalDate.of(2026, 2, 28)))
+        assertNull(errorRegistro(fecha = "29/02/2008", hoy = LocalDate.of(2026, 3, 1)))
+    }
+
+    @Test fun registroDeMenorNoConsultaNiCreaUsuarios() {
+        val servicio = ServicioUsuariosPrueba()
+        val vm = UsuarioViewModel(servicio, Dispatchers.Unconfined)
+        val nacimiento = LocalDate.now().minusYears(1).format(DateTimeFormatter.ofPattern("dd/MM/uuuu"))
+        vm.registrarUsuario("Ana", "Pérez", "ana@example.com", "912345678", nacimiento, "x", "x")
+        assertEquals("Debes tener 18 años cumplidos o más para registrarte.", vm.errorRegistro)
+        assertEquals(0, servicio.consultas)
+        assertTrue(servicio.creados.isEmpty())
+        assertFalse(vm.registroCompletado)
+        assertFalse(vm.cargandoRegistro)
     }
 
     @Test fun contrasenasDiferentesSonRechazadasSinImponerLongitudMinima() {

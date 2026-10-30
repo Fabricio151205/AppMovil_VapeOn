@@ -116,6 +116,9 @@ fun DetallePedidoScreen(
                                 Text("Monto pagado / efectivo previsto: ${moneda(pedido.montoPagado)}", color = VapeOnTextPrimary)
                                 Text("Vuelto: ${moneda(pedido.vuelto)}", color = VapeOnTextPrimary)
                                 Text("Método de pago: ${pedido.metodoPago}", color = VapeOnTextPrimary)
+                                pedido.estadoPago?.let { Text("Estado del pago: $it", color = VapeOnGold) }
+                                pedido.numeroOperacion?.let { Text("Operación: $it", color = VapeOnTextSecondary) }
+                                pedido.modalidadPago?.let { Text("Modalidad: $it", color = VapeOnTextSecondary) }
                             }
                         }
                         if (pedido.direccionEntrega.isNotBlank()) {

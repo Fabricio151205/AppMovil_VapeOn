@@ -33,6 +33,7 @@ fun MenuScreen(
     irPedidos: () -> Unit = {},
     irSabores: () -> Unit = {},
     cerrarSesion: () -> Unit = {},
+    irTarjetas: () -> Unit = {},
     content: @Composable (PaddingValues) -> Unit
 ) {
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
@@ -52,6 +53,7 @@ fun MenuScreen(
         "Catálogo",
         "Carrito",
         "Historial de compras",
+        "Mis tarjetas",
         "Cerrar sesión"
     )
 
@@ -86,7 +88,7 @@ fun MenuScreen(
                     NavigationDrawerItem(
                         label = {
                             Text(
-                                text = if (opcion in listOf("Catálogo", "Carrito", "Pedidos", "Sabores", "Historial de compras", "Cerrar sesión")) opcion else "$opcion (No disponible)",
+                                text = if (opcion in listOf("Catálogo", "Carrito", "Pedidos", "Sabores", "Historial de compras", "Mis tarjetas", "Cerrar sesión")) opcion else "$opcion (No disponible)",
                                 color = VapeOnTextPrimary,
                                 fontWeight = FontWeight.Medium
                             )
@@ -98,6 +100,7 @@ fun MenuScreen(
                                 "Catálogo" -> irCatalogo()
                                 "Carrito"  -> irCarrito()
                                 "Historial de compras" -> if (!esAdmin) irHistorial()
+                                "Mis tarjetas" -> if (!esAdmin) irTarjetas()
                                 "Pedidos" -> if (esAdmin) irPedidos()
                                 "Sabores" -> if (esAdmin) irSabores()
                                 "Cerrar sesión" -> cerrarSesion()

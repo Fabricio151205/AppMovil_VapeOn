@@ -11,7 +11,7 @@ import androidx.compose.ui.unit.sp
 import com.example.vapeon_movil.entities.Pedido
 import com.example.vapeon_movil.ui.theme.*
 
-/** Presentación de la compra confirmada; CheckoutScreen conserva el control del flujo. */
+/** Vista independiente: presenta únicamente los datos del pedido real confirmado. */
 @Composable
 fun ConfirmacionPedidoScreen(
     pedido: Pedido,
@@ -21,6 +21,7 @@ fun ConfirmacionPedidoScreen(
     reintentarLimpieza: () -> Unit,
     volverAlCatalogo: () -> Unit
 ) {
+    PasoCheckout("Confirmación del pedido", volverAlCatalogo, bloqueado = requiereComprobacion || cargando) {
     // Título de la pantalla
     Text(
         text = "¡Pedido Registrado\nCorrectamente!",
@@ -46,7 +47,7 @@ fun ConfirmacionPedidoScreen(
                 .padding(20.dp)
         ) {
             Text(
-                text = "Pedido N° 1",
+                text = "Pedido: ${pedido.id}",
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold,
                 color = VapeOnTextPrimary
@@ -79,7 +80,7 @@ fun ConfirmacionPedidoScreen(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(
-                    text = "Estado:",
+                    text = "Estado del envío:",
                     color = VapeOnTextSecondary,
                     fontSize = 14.sp
                 )
@@ -124,24 +125,26 @@ fun ConfirmacionPedidoScreen(
             Spacer(modifier = Modifier.height(6.dp))
 
             // IGV
-            val igvCalculado = pedido.subtotal.toDouble() * 0.18
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(
-                    text = "IGV",
+                    text = "IGV incluido",
                     color = VapeOnTextSecondary,
                     fontSize = 14.sp
                 )
                 Text(
-                    text = "S/. ${"%.2f".format(igvCalculado)}",
+                    text = "Incluido en los precios",
                     color = VapeOnTextPrimary,
                     fontSize = 14.sp
                 )
             }
 
             Spacer(modifier = Modifier.height(12.dp))
+
+            Text("Subtotal: S/ ${com.example.vapeon_movil.utils.importe(pedido.subtotal)}", color = VapeOnTextPrimary)
+            Text("Delivery: S/ ${com.example.vapeon_movil.utils.importe(pedido.delivery)}", color = VapeOnTextPrimary)
 
             // Total
             Row(
@@ -170,7 +173,7 @@ fun ConfirmacionPedidoScreen(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(
-                    text = "Pagaras:",
+                    text = if (pedido.pagoId == null) "Pagaras:" else "Pagado (SIMULADO):",
                     color = VapeOnTextPrimary,
                     fontSize = 14.sp
                 )
@@ -203,6 +206,10 @@ fun ConfirmacionPedidoScreen(
     }
 
     Spacer(modifier = Modifier.height(20.dp))
+    Text("Método de pago: ${pedido.metodoPago}", color = VapeOnTextPrimary)
+    pedido.estadoPago?.let { Text("Estado del pago: $it", color = VapeOnGold) }
+    pedido.numeroOperacion?.let { Text("Operación: $it", color = VapeOnTextSecondary) }
+    if (pedido.modalidadPago == "SIMULADO") Text("No se realizó ningún cobro real.", color = VapeOnTextSecondary)
 
     if (requiereComprobacion) {
         error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
@@ -230,5 +237,6 @@ fun ConfirmacionPedidoScreen(
             fontSize = 15.sp,
             letterSpacing = 0.5.sp
         )
+    }
     }
 }

@@ -41,6 +41,7 @@ fun AgregarProductoScreen(
     val anterior = productoViewModel.datosCreacionPendiente
     var nombre by rememberSaveable { mutableStateOf(anterior?.nombre?.asString().orEmpty()) }
     var marca by rememberSaveable { mutableStateOf(anterior?.marca?.asString().orEmpty()) }
+    var categoria by rememberSaveable { mutableStateOf(anterior?.categoria?.stringValue.orEmpty()) }
     var precio by rememberSaveable { mutableStateOf(anterior?.precio?.asString().orEmpty()) }
     var stock by rememberSaveable { mutableStateOf(anterior?.stock?.asString().orEmpty()) }
     var descripcion by rememberSaveable { mutableStateOf(anterior?.descripcion?.asString().orEmpty()) }
@@ -235,6 +236,24 @@ fun AgregarProductoScreen(
             }
 
             Spacer(modifier = Modifier.height(14.dp))
+
+            Text(
+                text = "Categoría del producto",
+                color = VapeOnTextPrimary,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.SemiBold
+            )
+            OutlinedTextField(
+                value = categoria, onValueChange = { categoria = it },
+                label = { Text("Categoría obligatoria") }, singleLine = true,
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedTextColor = VapeOnTextPrimary, unfocusedTextColor = VapeOnTextPrimary,
+                    focusedContainerColor = VapeOnInputBackground, unfocusedContainerColor = VapeOnInputBackground,
+                    focusedBorderColor = VapeOnGold, unfocusedBorderColor = VapeOnInputBorder,
+                    focusedLabelColor = VapeOnGold, unfocusedLabelColor = VapeOnTextSecondary),
+                modifier = Modifier.fillMaxWidth()
+            )
+            Spacer(Modifier.height(14.dp))
 
             Text(
                 text = "Descripción del Producto",
@@ -565,6 +584,11 @@ fun AgregarProductoScreen(
                         return@Button
                     }
 
+                    if (categoria.isBlank()) {
+                        mensajeError = "Ingresa la categoría del producto."
+                        return@Button
+                    }
+
                     val stockMap = if (tieneSabor) {
                         saboresSeleccionados.associateWith { s ->
                             (stockPorSaborState[s] ?: "1").toIntOrNull() ?: 1
@@ -606,7 +630,8 @@ fun AgregarProductoScreen(
                         stock = stockFinal,
                         descripcion = descripcion,
                         sabor = saborFinal,
-                        stockPorSabor = stockMap
+                        stockPorSabor = stockMap,
+                        categoria = categoria
                     )
                 },
                 enabled = !cargando,

@@ -27,7 +27,11 @@ data class Pedido(
     val vuelto: BigDecimal,
     val direccionEntrega: String,
     val metodoPago: String = "EFECTIVO",
-    val estado: String = "REGISTRADO"
+    val estado: String = "REGISTRADO",
+    val pagoId: String? = null,
+    val estadoPago: String? = null,
+    val numeroOperacion: String? = null,
+    val modalidadPago: String? = null
 ) {
     companion object {
         /** Acepta coma o punto decimal, sin exponentes ni más de dos decimales. */

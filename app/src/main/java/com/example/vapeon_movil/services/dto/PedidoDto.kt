@@ -36,7 +36,10 @@ fun Pedido.aDocumento(ruta: String): PedidoDocumento {
         "montoPagado" to dinero(montoPagado), "vuelto" to dinero(vuelto),
         "metodoPago" to texto(metodoPago), "estado" to texto(estado),
         "direccionEntrega" to texto(direccionEntrega)
-    ))
+    ) + listOfNotNull(
+        pagoId?.let { "pagoId" to texto(it) }, estadoPago?.let { "estadoPago" to texto(it) },
+        numeroOperacion?.let { "numeroOperacion" to texto(it) }, modalidadPago?.let { "modalidadPago" to texto(it) }
+    ).toMap())
 }
 
 // RF26: consulta solo los documentos del cliente; no cambia la escritura de RF22.
@@ -103,7 +106,9 @@ internal fun PedidoDocumento.aPedido(): Pedido {
         subtotal = fields.dinero("subtotal"), delivery = fields.dinero("delivery"),
         total = fields.dinero("total"), montoPagado = fields.dinero("montoPagado"),
         vuelto = fields.dinero("vuelto"), direccionEntrega = fields["direccionEntrega"]?.stringValue.orEmpty(),
-        metodoPago = fields.texto("metodoPago"), estado = fields.texto("estado")
+        metodoPago = fields.texto("metodoPago"), estado = fields.texto("estado"),
+        pagoId = fields["pagoId"]?.stringValue, estadoPago = fields["estadoPago"]?.stringValue,
+        numeroOperacion = fields["numeroOperacion"]?.stringValue, modalidadPago = fields["modalidadPago"]?.stringValue
     )
 }
 

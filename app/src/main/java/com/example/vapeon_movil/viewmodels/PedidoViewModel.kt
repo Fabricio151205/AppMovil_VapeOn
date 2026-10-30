@@ -10,12 +10,16 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.vapeon_movil.entities.*
 import com.example.vapeon_movil.services.PedidoService
+import com.example.vapeon_movil.services.PagoService
+import com.example.vapeon_movil.services.TarjetaService
 import com.example.vapeon_movil.services.dto.*
 import com.example.vapeon_movil.utils.RetrofitClient
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.currentCoroutineContext
+import kotlin.coroutines.coroutineContext
 import retrofit2.HttpException
 import java.math.BigDecimal
 import java.time.Instant
@@ -36,6 +40,22 @@ class PedidoViewModel(application: Application) : AndroidViewModel(application) 
     )
     private var operacionCheckout: Job? = null
     private val service = RetrofitClient.retrofit.create(PedidoService::class.java)
+    private val pagoService = RetrofitClient.retrofit.create(PagoService::class.java)
+    private val tarjetaService = RetrofitClient.retrofit.create(TarjetaService::class.java)
+    private val prefsPago = application.getSharedPreferences("vapeon_pagos_simulados", Context.MODE_PRIVATE)
+    private val recuperacionPago = RecuperacionPago(
+        { prefsPago.getString(it, null) },
+        { clave, json -> prefsPago.edit().putString(clave, json).commit() },
+        { prefsPago.edit().remove(it).commit() }
+    )
+    private var operacionPago: Job? = null
+    private var intentoDigital by mutableStateOf<IntentoPagoDigital?>(null)
+    val pagoActual: Pago? get() = intentoDigital?.pago
+    val tieneIntentoDigital: Boolean get() = intentoDigital != null
+    var cargandoPago by mutableStateOf(false)
+        private set
+    var errorPago by mutableStateOf<String?>(null)
+        private set
     private var pedidoPendiente: Pedido? = null
     private var commitPendiente: PedidoCommit? = null
     var cargando by mutableStateOf(false)
@@ -299,6 +319,13 @@ class PedidoViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     fun actualizarUsuarioCheckout(usuario: Usuario?) {
+        val propietarioDigital = usuario?.takeIf { it.id.isNotBlank() && it.rol.equals("CLIENTE", true) }?.id
+        if (recuperacionPago.actualizarUsuario(propietarioDigital)) {
+            operacionPago?.cancel()
+            cargandoPago = false
+            errorPago = null
+            intentoDigital = recuperacionPago.intento
+        }
         val id = usuario?.takeIf { it.id.isNotBlank() && it.rol.equals("CLIENTE", true) }?.id
         if (!recuperacion.actualizarUsuario(id)) return
         // Cancelar no borra el intento: la petición podría haber llegado a Firestore.
@@ -324,6 +351,10 @@ class PedidoViewModel(application: Application) : AndroidViewModel(application) 
         direccion: String, montoTexto: String
     ) {
         actualizarUsuarioCheckout(usuario)
+        if (tieneIntentoDigital || cargandoPago) {
+            error = "Resuelve el pago digital pendiente antes de iniciar otra compra."
+            return
+        }
         if (cargando || (pedidoConfirmado != null && !requiereComprobacion)) return
         cargando = true // Antes de launch para impedir dobles pulsaciones.
         error = null
@@ -453,6 +484,174 @@ class PedidoViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
+    private fun ejecutarPago(usuario: Usuario?, accion: suspend (Long) -> Unit) {
+        actualizarUsuarioCheckout(usuario)
+        if (usuario == null || !usuario.rol.equals("CLIENTE", true) || usuario.id.isBlank()) {
+            errorPago = "Inicia sesión como cliente para operar un pago."
+            return
+        }
+        if (requiereComprobacion || cargando) {
+            errorPago = "Primero comprueba la compra en efectivo pendiente."
+            return
+        }
+        val token = recuperacionPago.iniciarOperacion() ?: return
+        cargandoPago = true
+        errorPago = null
+        operacionPago = viewModelScope.launch {
+            try {
+                accion(token)
+            } catch (e: CancellationException) { throw e }
+            catch (e: Exception) {
+                if (recuperacionPago.vigente(token)) errorPago =
+                    (if (e is IllegalArgumentException || e is IllegalStateException) e.message else null)
+                        ?: "No se pudo comprobar la respuesta. Conservamos el mismo intento; pulsa Comprobar pago."
+            } finally {
+                if (recuperacionPago.vigente(token)) cargandoPago = false
+                recuperacionPago.finalizarOperacion(token)
+            }
+        }
+    }
+
+    private fun conservarDigital(intento: IntentoPagoDigital, token: Long) {
+        check(recuperacionPago.vigente(token)) { "La sesión cambió." }
+        check(recuperacionPago.guardar(intento)) { "No se pudo conservar el intento digital en el dispositivo." }
+        intentoDigital = intento
+    }
+
+    fun iniciarPagoDigital(usuario: Usuario?, carrito: CarritoViewModel, productos: ProductoViewModel,
+        direccion: String, metodo: String, tarjetaId: String? = null) {
+        ejecutarPago(usuario) { token ->
+            // Si la respuesta anterior se perdió, se comprueba el mismo ID, nunca otra operación.
+            intentoDigital?.let {
+                val doc = obtenerOCrearPago(pagoService, it)
+                coroutineContext.ensureActive()
+                conservarDigital(it.copy(pago = doc.aPagoDelUsuario(it.pago.usuarioId)), token)
+                return@ejecutarPago
+            }
+            require(metodo in listOf("YAPE", "TARJETA")) { "Método digital inválido." }
+            val cliente = requireNotNull(usuario)
+            require(cliente.nombre.isNotBlank() && cliente.telefono.isNotBlank() && direccion.isNotBlank()) {
+                "Completa los datos y la dirección de entrega."
+            }
+            if (metodo == "TARJETA") {
+                require(!tarjetaId.isNullOrBlank() && '/' !in tarjetaId) { "Selecciona una tarjeta propia." }
+                val documentoTarjeta = tarjetaService.mostrarTarjeta(tarjetaId)
+                coroutineContext.ensureActive()
+                validarTarjetaParaPago(documentoTarjeta, cliente.id, tarjetaId)
+            } else require(tarjetaId == null) { "Yape no utiliza tarjeta." }
+            val items = carrito.items.toList()
+            val subtotal = Pedido.subtotal(items)
+            val delivery = BigDecimal.valueOf(carrito.resumen.delivery).setScale(2)
+            val lineas = items.map { item ->
+                val doc = productos.consultarProducto(item.productoId)
+                coroutineContext.ensureActive()
+                prepararDescuentoStockParaCompra(doc, item.cantidad)
+                val precio = leerPrecioProductoParaCompra(doc)
+                require(precio != null && precio.signum() > 0 && precio.compareTo(BigDecimal.valueOf(item.precioUnit)) == 0) {
+                    "El precio cambió o es inválido. Revisa el carrito antes de pagar."
+                }
+                require(doc.name.substringAfterLast('/') == item.productoId && !doc.updateTime.isNullOrBlank()) {
+                    "No se pudo verificar el producto."
+                }
+                val nombre = doc.fields.nombre?.asString().orEmpty()
+                val marca = doc.fields.marca?.asString().orEmpty()
+                require(nombre.isNotBlank() && marca.isNotBlank()) { "Producto incompleto." }
+                ProductoPedido(item.productoId, nombre, marca, item.cantidad, precio, precio * BigDecimal(item.cantidad)) to
+                    doc.name.substringBeforeLast("/productos/")
+            }
+            val ruta = lineas.first().second
+            require(lineas.all { it.second == ruta }) { "Inventario inconsistente." }
+            val pagoId = UUID.randomUUID().toString()
+            val pedidoId = UUID.randomUUID().toString()
+            val fecha = Instant.now().toString()
+            val pago = Pago(pagoId, pedidoId, cliente.id, metodo, "SIM-$metodo-$pagoId", subtotal + delivery,
+                fecha, tarjetaId = tarjetaId)
+            val borrador = Pedido(pedidoId, cliente.id, "${cliente.nombre} ${cliente.apellido}".trim(),
+                cliente.telefono.trim(), fecha, lineas.map { it.first }, subtotal, delivery, pago.monto, pago.monto,
+                BigDecimal.ZERO.setScale(2), direccion.trim(), metodo, pagoId = pagoId, estadoPago = "PENDIENTE",
+                numeroOperacion = pago.numeroOperacion, modalidadPago = "SIMULADO")
+            val intento = IntentoPagoDigital(pago, borrador, ruta)
+            conservarDigital(intento, token) // Antes de cualquier escritura remota.
+            val doc = obtenerOCrearPago(pagoService, intento)
+            coroutineContext.ensureActive()
+            conservarDigital(intento.copy(pago = doc.aPagoDelUsuario(cliente.id)), token)
+        }
+    }
+
+    fun comprobarPagoDigital(usuario: Usuario?) {
+        ejecutarPago(usuario) { token ->
+            val intento = requireNotNull(intentoDigital) { "No hay un pago pendiente." }
+            val doc = obtenerOCrearPago(pagoService, intento)
+            coroutineContext.ensureActive()
+            conservarDigital(intento.copy(pago = doc.aPagoDelUsuario(intento.pago.usuarioId)), token)
+        }
+    }
+
+    fun simularResultadoPago(usuario: Usuario?, resultado: String) {
+        ejecutarPago(usuario) { token ->
+            val intento = requireNotNull(intentoDigital) { "No hay un pago pendiente." }
+            val documento = resolverResultadoPago(pagoService, intento, resultado)
+            coroutineContext.ensureActive()
+            conservarDigital(intento.copy(pago = documento.aPagoDelUsuario(intento.pago.usuarioId)), token)
+        }
+    }
+
+    fun descartarPagoRechazado(usuario: Usuario?) {
+        ejecutarPago(usuario) { token ->
+            val intento = requireNotNull(intentoDigital)
+            val documento = pagoService.mostrarPago(intento.pago.id)
+            validarDocumentoDelIntento(documento, intento)
+            require(documento.aPagoDelUsuario(intento.pago.usuarioId).estadoPago == "RECHAZADO") {
+                "Solo se puede dejar atrás un pago rechazado de forma definitiva."
+            }
+            coroutineContext.ensureActive()
+            check(recuperacionPago.vigente(token) && recuperacionPago.descartar()) { "No se pudo retirar el intento local." }
+            intentoDigital = null
+        }
+    }
+
+    fun registrarPedidoDigital(usuario: Usuario?, carrito: CarritoViewModel, productos: ProductoViewModel) {
+        ejecutarPago(usuario) { token ->
+            var intento = requireNotNull(intentoDigital) { "No hay un pago digital." }
+            val docPago = pagoService.mostrarPago(intento.pago.id)
+            validarDocumentoDelIntento(docPago, intento)
+            val pago = docPago.aPagoDelUsuario(intento.pago.usuarioId)
+            // RNO02 se aplica incluso si el callback se invoca sin pasar por la interfaz.
+            require(pago.estadoPago == "CONFIRMADO") { "El pago debe estar CONFIRMADO para registrar el pedido." }
+            intento = intento.copy(pago = pago)
+            conservarDigital(intento, token)
+            val pedido = intento.pedido.copy(estadoPago = "CONFIRMADO")
+            if (pago.estadoRegistroPedido == "REGISTRADO") {
+                val real = recuperarPedidoDigitalRegistrado(service, intento)
+                finalizarDigital(intento, real, carrito, productos, token)
+                return@ejecutarPago
+            }
+            // Un commit anterior puede haber llegado tarde; no se genera otro pago ni otro pedido.
+            validarPagoParaPedido(docPago, pedido)
+            val docs = pedido.productos.map {
+                productos.consultarProducto(it.productoId).also { coroutineContext.ensureActive() }
+            }
+            val commit = prepararCommitDigital(docPago, pedido, docs, intento.ruta)
+            conservarDigital(intento.copy(commit = commit), token)
+            coroutineContext.ensureActive()
+            service.confirmarPedido(commit)
+            coroutineContext.ensureActive()
+            finalizarDigital(intento, pedido, carrito, productos, token)
+        }
+    }
+
+    private fun finalizarDigital(intento: IntentoPagoDigital, pedido: Pedido, carrito: CarritoViewModel,
+        productos: ProductoViewModel, token: Long) {
+        check(recuperacionPago.vigente(token)) { "La sesión cambió." }
+        pedidoConfirmado = pedido
+        conservarDigital(intento.copy(pago = intento.pago.copy(estadoRegistroPedido = "REGISTRADO"),
+            pedidoRegistrado = true), token)
+        check(carrito.limpiarCarrito()) { "Pedido registrado. Reintenta únicamente la limpieza local." }
+        check(recuperacionPago.descartar()) { "Pedido registrado y carrito vacío. Falta retirar el intento local." }
+        intentoDigital = null
+        productos.cargarProductos()
+    }
+
     private fun terminarCompra(pedido: Pedido, carrito: CarritoViewModel, productos: ProductoViewModel) {
         pedidoConfirmado = pedido
         requiereComprobacion = true
@@ -580,4 +779,162 @@ internal fun mensajeCargaPedido(error: Exception, contenido: String): String = w
     error is HttpException && error.code() == 404 -> "El pedido ya no está disponible."
     error is IllegalArgumentException || error is java.time.DateTimeException -> "El pedido contiene datos inválidos y no se puede mostrar."
     else -> "No se pudo cargar $contenido. Comprueba la conexión y reintenta."
+}
+
+/** Borrador inmutable de una única compra; jamás contiene PAN, CVV ni PIN. */
+internal data class IntentoPagoDigital(
+    val pago: Pago, val pedido: Pedido, val ruta: String,
+    val commit: PedidoCommit? = null, val pedidoRegistrado: Boolean = false
+)
+
+internal fun validarIntentoDigital(intento: IntentoPagoDigital) {
+    val pago = intento.pago
+    val pedido = intento.pedido
+    pago.validar()
+    pedido.aDocumento("local").aPedido()
+    require(Regex("projects/[^/]+/databases/[^/]+/documents").matches(intento.ruta)) { "Ruta de compra inválida." }
+    require(pedido.id == pago.pedidoId && pedido.usuarioId == pago.usuarioId && pedido.pagoId == pago.id &&
+        pedido.total == pago.monto && pedido.montoPagado == pago.monto && pedido.vuelto.signum() == 0 &&
+        pedido.metodoPago == pago.metodoPago && pedido.numeroOperacion == pago.numeroOperacion &&
+        pedido.modalidadPago == "SIMULADO") { "El intento digital no corresponde al pago." }
+    require(pedido.productos.map { it.productoId }.distinct().size == pedido.productos.size &&
+        pedido.productos.all { it.precioUnitario.signum() > 0 && it.subtotal == it.precioUnitario * BigDecimal(it.cantidad) } &&
+        pedido.productos.fold(BigDecimal.ZERO.setScale(2)) { suma, item -> suma + item.subtotal } == pedido.subtotal &&
+        pedido.total == pedido.subtotal + pedido.delivery) { "Importes de compra inconsistentes." }
+    if (intento.pedidoRegistrado) require(pago.estadoRegistroPedido == "REGISTRADO" && pago.estadoPago == "CONFIRMADO")
+}
+
+/** Misma estrategia de preferencias de RF22, con claves separadas y bloqueo del intento digital. */
+internal class RecuperacionPago(private val leer: (String) -> String?,
+    private val guardar: (String, String) -> Boolean, private val eliminar: (String) -> Boolean) {
+    private val gson = Gson()
+    private var usuarioId: String? = null
+    private var generacion = 0L
+    private var ocupada = false
+    var intento: IntentoPagoDigital? = null
+        private set
+
+    fun actualizarUsuario(id: String?): Boolean {
+        val nuevo = id?.takeIf { it.isNotBlank() }
+        if (usuarioId == nuevo) return false
+        generacion++
+        ocupada = false
+        usuarioId = nuevo
+        intento = null
+        if (nuevo != null) {
+            val json = leer("digital_$nuevo") ?: return true
+            try {
+                val propietario = JsonParser().parse(json).asJsonObject.getAsJsonObject("pago").get("usuarioId").asString
+                if (propietario != nuevo) return true // Nunca interpretar ni eliminar el intento de otro usuario.
+                val recuperado = requireNotNull(gson.fromJson(json, IntentoPagoDigital::class.java))
+                validarIntentoDigital(recuperado)
+                intento = recuperado
+            } catch (_: Exception) { eliminar("digital_$nuevo") }
+        }
+        return true
+    }
+
+    fun iniciarOperacion(): Long? {
+        if (usuarioId == null || ocupada) return null
+        ocupada = true
+        return generacion
+    }
+    fun vigente(token: Long): Boolean = usuarioId != null && generacion == token
+    fun finalizarOperacion(token: Long) { if (vigente(token)) ocupada = false }
+    fun guardar(valor: IntentoPagoDigital): Boolean {
+        val id = usuarioId ?: return false
+        if (valor.pago.usuarioId != id || valor.pedido.usuarioId != id) return false
+        validarIntentoDigital(valor)
+        if (!guardar("digital_$id", gson.toJson(valor))) return false
+        intento = valor
+        return true
+    }
+    fun descartar(): Boolean {
+        val id = usuarioId ?: return false
+        if (!eliminar("digital_$id")) return false
+        intento = null
+        return true
+    }
+}
+
+internal fun validarDocumentoDelIntento(documento: PagoDocumento, intento: IntentoPagoDigital): Pago {
+    val pago = documento.aPagoDelUsuario(intento.pago.usuarioId)
+    require(documento.name == "${intento.ruta}/pagos/${intento.pago.id}" && pago.mismoIntento(intento.pago)) {
+        "La respuesta no corresponde al mismo intento de pago."
+    }
+    if (intento.pago.estadoPago != "PENDIENTE") require(pago.estadoPago == intento.pago.estadoPago) {
+        "El resultado financiero cambió de forma inesperada."
+    }
+    if (intento.pago.estadoRegistroPedido == "REGISTRADO") require(pago.estadoRegistroPedido == "REGISTRADO") {
+        "El registro del pedido cambió de forma inesperada."
+    }
+    return pago
+}
+
+internal fun validarTarjetaParaPago(documento: TarjetaDocumento, usuarioId: String, tarjetaId: String,
+    hoy: java.time.YearMonth = java.time.YearMonth.now()): Tarjeta {
+    val tarjeta = documento.aTarjetaDelUsuario(usuarioId)
+    require(tarjeta.id == tarjetaId && !tarjeta.estaVencida(hoy)) { "La tarjeta está vencida o no corresponde." }
+    return tarjeta
+}
+
+internal suspend fun recuperarPedidoDigitalRegistrado(service: PedidoService, intento: IntentoPagoDigital): Pedido {
+    require(intento.pago.estadoPago == "CONFIRMADO" && intento.pago.estadoRegistroPedido == "REGISTRADO") {
+        "El pago no acredita un pedido registrado."
+    }
+    val pedido = intento.pedido.copy(estadoPago = "CONFIRMADO")
+    val real = service.mostrarPedido(pedido.id).aPedidoDelUsuario(pedido.usuarioId)
+    currentCoroutineContext().ensureActive()
+    require(real.copy(estado = pedido.estado) == pedido) { "El pedido guardado no coincide con el intento." }
+    return real
+}
+
+internal suspend fun obtenerOCrearPago(service: PagoService, intento: IntentoPagoDigital): PagoDocumento {
+    val documento = try { service.mostrarPago(intento.pago.id) }
+    catch (e: HttpException) {
+        if (e.code() != 404) throw e
+        require(intento.pago.estadoPago == "PENDIENTE") { "No se encontró el pago ya resuelto; no se creará otro." }
+        currentCoroutineContext().ensureActive()
+        try { service.crearPago(intento.pago.aFirestore(), intento.pago.id) }
+        catch (conflicto: HttpException) {
+            if (conflicto.code() != 409) throw conflicto
+            service.mostrarPago(intento.pago.id)
+        }
+    }
+    currentCoroutineContext().ensureActive()
+    validarDocumentoDelIntento(documento, intento)
+    return documento
+}
+
+internal suspend fun resolverResultadoPago(service: PagoService, intento: IntentoPagoDigital, resultado: String): PagoDocumento {
+    require(resultado in listOf("CONFIRMADO", "RECHAZADO")) { "Resultado simulado inválido." }
+    val documento = obtenerOCrearPago(service, intento)
+    val actual = documento.aPagoDelUsuario(intento.pago.usuarioId)
+    if (actual.estadoPago != "PENDIENTE") return documento // Los resultados terminales no se vuelven a ejecutar.
+    val version = requireNotNull(documento.updateTime?.takeIf { it.isNotBlank() }) { "Falta la versión del pago." }
+    val cuerpo = PagoContainer(mapOf("estadoPago" to FirestoreValor(stringValue = resultado),
+        "fechaResultado" to FirestoreValor(timestampValue = Instant.now().toString())))
+    currentCoroutineContext().ensureActive()
+    val respuesta = service.actualizarResultado(actual.id, cuerpo, version)
+    currentCoroutineContext().ensureActive()
+    val confirmado = validarDocumentoDelIntento(respuesta, intento)
+    require(confirmado.estadoPago == resultado) { "La respuesta no confirma el resultado solicitado." }
+    return respuesta
+}
+
+/** Mismo commit que RF22 más el consumo condicionado del pago. No ejecuta escrituras por separado. */
+internal fun prepararCommitDigital(pago: PagoDocumento, pedido: Pedido, productos: List<ProductoDocumento>, ruta: String): PedidoCommit {
+    validarPagoParaPedido(pago, pedido)
+    require(pago.name == "$ruta/pagos/${pedido.pagoId}") { "Ruta del pago inválida." }
+    require(productos.size == pedido.productos.size) { "Inventario incompleto." }
+    val stock = pedido.productos.zip(productos).map { (linea, doc) ->
+        require(doc.name == "$ruta/productos/${linea.productoId}" && !doc.updateTime.isNullOrBlank()) { "Producto o versión inválidos." }
+        val precio = leerPrecioProductoParaCompra(doc)
+        require(precio != null && precio.compareTo(linea.precioUnitario) == 0) {
+            "El precio cambió después del pago. Conservamos el pago confirmado sin registrar otro pedido."
+        }
+        prepararDescuentoStockParaCompra(doc, linea.cantidad)
+    }
+    return PedidoCommit(listOf(PedidoEscritura(pedido.aDocumento(ruta), PedidoPrecondicion(exists = false))) +
+        stock + escrituraRegistroPago(pago, pedido))
 }

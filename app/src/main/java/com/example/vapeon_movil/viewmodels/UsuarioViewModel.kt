@@ -17,6 +17,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 import java.time.LocalDate
+import java.time.Period
 import java.time.format.DateTimeFormatter
 import java.time.format.ResolverStyle
 import java.util.Locale
@@ -236,7 +237,8 @@ internal fun correoRegistroValido(correo: String): Boolean =
 
 internal fun validarRegistro(
     nombre: String, apellidos: String, correo: String, telefono: String,
-    fechaNacimiento: String, password: String, passwordConfirm: String
+    fechaNacimiento: String, password: String, passwordConfirm: String,
+    hoy: LocalDate = LocalDate.now()
 ): String? {
     if (nombre.isBlank() || apellidos.isBlank() || correo.isBlank() || password.isBlank())
         return "Por favor completa todos los campos requeridos."
@@ -249,8 +251,10 @@ internal fun validarRegistro(
         LocalDate.parse(texto, DateTimeFormatter.ofPattern("dd/MM/uuuu", Locale.ROOT)
             .withResolverStyle(ResolverStyle.STRICT))
     }.getOrNull()
-    if (fecha == null || fecha.year <= 0 || fecha.isAfter(LocalDate.now()))
+    if (fecha == null || fecha.year <= 0 || fecha.isAfter(hoy))
         return "Ingresa una fecha de nacimiento válida en formato dd/mm/aaaa."
+    if (Period.between(fecha, hoy).years < 18)
+        return "Debes tener 18 años cumplidos o más para registrarte."
     if (password != passwordConfirm) return "Las contraseñas no coinciden."
     return null
 }

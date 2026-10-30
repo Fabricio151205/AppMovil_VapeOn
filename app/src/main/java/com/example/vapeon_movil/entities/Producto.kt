@@ -8,7 +8,8 @@ data class Producto(
     val stock: Int = 0,
     val descripcion: String,
     val sabor: String = "",
-    val stockPorSabor: Map<String, Int> = emptyMap()
+    val stockPorSabor: Map<String, Int> = emptyMap(),
+    val categoria: String = ""
 ) {
     /**
      * Convierte el mapa interno en una lista de SaborItem vinculados a la marca del producto.
