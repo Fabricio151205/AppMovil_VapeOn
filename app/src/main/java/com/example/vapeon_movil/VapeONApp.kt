@@ -7,6 +7,10 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.example.vapeon_movil.entities.calcularCaja
+import com.example.vapeon_movil.entities.marcasDeCaja
+import com.example.vapeon_movil.ui.CajaTotalScreen
+import com.example.vapeon_movil.utils.moneda
 import com.example.vapeon_movil.entities.Usuario
 import com.example.vapeon_movil.ui.theme.*
 import androidx.compose.ui.platform.LocalContext
@@ -92,7 +96,15 @@ fun VapeONApp() {
     var pasoCvvCompletado by rememberSaveable(claveSesion) { mutableStateOf(false) }
     var esperandoRegistroTarjeta by rememberSaveable(claveSesion) { mutableStateOf(false) }
 
+    var marcaCaja by rememberSaveable(claveSesion) { mutableStateOf("") }
+    var detalleDesdeCaja by rememberSaveable(claveSesion) { mutableStateOf(false) }
+    val caja = remember(pedidoViewModel.pedidosCaja) { calcularCaja(pedidoViewModel.pedidosCaja) }
+    val marcasCaja = remember(productoViewModel.productos) {
+        marcasDeCaja(productoViewModel.productos.map { it.marca })
+    }
+
     fun limpiarBorradores() {
+        marcaCaja = ""; detalleDesdeCaja = false
         entregaRevisada = false; direccionEntrega = ""; direccionConfirmada = false; montoEfectivo = ""
         registroDesdeCheckout = false
         tarjetaMarca = ""; tarjetaUltimos4 = ""; tarjetaMes = ""; tarjetaAnio = ""; tarjetaTitular = ""
@@ -241,7 +253,9 @@ fun VapeONApp() {
             "detallePedido" -> pantallaActual = "historialCompras"
             "saboresAdmin", "pedidosAdmin" -> pantallaActual = "admin"
             "agregarSabor", "editarSabor" -> pantallaActual = "saboresAdmin"
-            "detallePedidoAdmin" -> pantallaActual = "pedidosAdmin"
+            "cajaTotal" -> pantallaActual = "admin"
+            "ventasMarca" -> pantallaActual = "cajaTotal"
+            "detallePedidoAdmin" -> pantallaActual = rutaRetornoDetalleCaja(detalleDesdeCaja)
             "agregarProducto" -> pantallaActual = "catalogo"
             "editarProducto" -> pantallaActual = if (esAdminUser) "admin" else "catalogo"
             "detalle" -> pantallaActual = if (esAdminUser) "catalogo" else "home"
@@ -297,7 +311,15 @@ fun VapeONApp() {
 
         // ── PANEL ADMIN ───────────────────────────────────────────────────────
         "admin" -> {
+            LaunchedEffect(claveSesion) { pedidoViewModel.cargarCaja(usuarioActual) }
             AdminHomeScreen(
+                onCajaTotalClick = { marcaCaja = ""; pantallaActual = "cajaTotal" },
+                textoCaja = when {
+                    pedidoViewModel.cargandoCaja -> "Cargando…"
+                    pedidoViewModel.errorCaja != null -> "Error al cargar"
+                    !pedidoViewModel.cajaCargada -> "Sin datos"
+                    else -> moneda(calcularCaja(pedidoViewModel.pedidosCaja).productos)
+                },
                 productoViewModel = productoViewModel,
                 cerrarSesion = ::cerrarSesion,
                 irPedidos = { pantallaActual = "pedidosAdmin" },
@@ -379,6 +401,19 @@ fun VapeONApp() {
             }
         }
 
+        "cajaTotal", "ventasMarca" -> {
+            LaunchedEffect(claveSesion) {
+                pedidoViewModel.cargarCaja(usuarioActual)
+                productoViewModel.cargarProductos()
+            }
+            CajaTotalScreen(caja, marcasCaja, marcaCaja,
+                pedidoViewModel.cargandoCaja || (!pedidoViewModel.cajaCargada && pedidoViewModel.errorCaja == null),
+                pedidoViewModel.errorCaja, pedidoViewModel.invalidosCaja + caja.invalidos,
+                productoViewModel.cargando, productoViewModel.error,
+                { marca -> marcaCaja = marca; pantallaActual = "ventasMarca" },
+                { id -> pedidoSeleccionadoId = id; detalleDesdeCaja = true; pantallaActual = "detallePedidoAdmin" },
+                { pantallaActual = "admin" })
+        }
         "pedidosAdmin" -> {
             PedidosAdminScreen(
                 usuario = usuarioViewModel.usuarioActual,
@@ -386,6 +421,7 @@ fun VapeONApp() {
                 volver = { pantallaActual = "admin" },
                 irDetallePedido = { id ->
                     pedidoSeleccionadoId = id
+                    detalleDesdeCaja = false
                     pantallaActual = "detallePedidoAdmin"
                 }
             )
@@ -413,7 +449,7 @@ fun VapeONApp() {
                 usuario = usuarioViewModel.usuarioActual,
                 pedidoId = pedidoSeleccionadoId,
                 pedidoViewModel = pedidoViewModel,
-                volver = { pantallaActual = "pedidosAdmin" }
+                volver = { pantallaActual = rutaRetornoDetalleCaja(detalleDesdeCaja) }
             )
         }
 
@@ -616,7 +652,7 @@ internal fun rutaRegistroTarjetaSegura(ruta: String, ultimos4: String, marca: St
     if (ruta == "tarjetaTitular" && !cvvCompletado) return "tarjetaCvv"
     return ruta
 }
-private val RUTAS_ADMIN = setOf("admin", "agregarProducto", "editarProducto", "pedidosAdmin", "detallePedidoAdmin", "saboresAdmin", "agregarSabor", "editarSabor")
+private val RUTAS_ADMIN = setOf("cajaTotal", "ventasMarca", "admin", "agregarProducto", "editarProducto", "pedidosAdmin", "detallePedidoAdmin", "saboresAdmin", "agregarSabor", "editarSabor")
 private val RUTAS_COMPARTIDAS = setOf("catalogo", "detalle")
 
 internal fun claveSesionNavegacion(usuario: Usuario?): String? {
@@ -682,3 +718,6 @@ private fun SituacionProducto(mensaje: String, volver: () -> Unit) {
         }
     }
 }
+
+/** El filtro se conserva en el host; ambas formas de volver utilizan el mismo origen. */
+internal fun rutaRetornoDetalleCaja(desdeCaja: Boolean): String = if (desdeCaja) "ventasMarca" else "pedidosAdmin"

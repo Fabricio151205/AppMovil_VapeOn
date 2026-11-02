@@ -190,9 +190,57 @@ class PedidoViewModel(application: Application) : AndroidViewModel(application) 
     private var guardadoEstado: Job? = null
     private var detalleAdminSolicitado: String? = null
 
+    // HU-07: consulta independiente de checkout, historial y actualización de envío.
+    var pedidosCaja by mutableStateOf<List<Pedido>>(emptyList())
+        private set
+    var cargandoCaja by mutableStateOf(false)
+        private set
+    var errorCaja by mutableStateOf<String?>(null)
+        private set
+    var invalidosCaja by mutableIntStateOf(0)
+        private set
+    var cajaCargada by mutableStateOf(false)
+        private set
+    private var cargaCaja: Job? = null
+
+    fun cargarCaja(usuario: Usuario?) {
+        actualizarUsuarioAdmin(usuario)
+        val adminId = usuarioAdminId ?: return
+        cargaCaja?.cancel()
+        pedidosCaja = emptyList()
+        cajaCargada = false
+        cargandoCaja = true
+        errorCaja = null
+        invalidosCaja = 0
+        cargaCaja = viewModelScope.launch {
+            try {
+                val respuesta = service.consultarPedidos(PedidoConsulta(
+                    PedidoConsultaEstructurada(listOf(PedidoColeccion("pedidos")))))
+                coroutineContext.ensureActive()
+                val (pedidos, invalidos) = respuesta.mapNotNull { it.document }.leerPedidosValidos()
+                if (usuarioAdminId == adminId) {
+                    pedidosCaja = pedidos
+                    invalidosCaja = invalidos
+                    cajaCargada = true
+                }
+            } catch (e: CancellationException) { throw e }
+            catch (_: Exception) {
+                if (usuarioAdminId == adminId) errorCaja = "No se pudo consultar Caja. Reintenta."
+            } finally {
+                if (usuarioAdminId == adminId && coroutineContext[Job]?.isCancelled != true) cargandoCaja = false
+            }
+        }
+    }
+
     fun actualizarUsuarioAdmin(usuario: Usuario?) {
         val id = usuario?.takeIf { it.rol.equals("ADMIN", true) && it.id.isNotBlank() }?.id
         if (usuarioAdminId == id) return
+        cargaCaja?.cancel()
+        pedidosCaja = emptyList()
+        cargandoCaja = false
+        errorCaja = null
+        invalidosCaja = 0
+        cajaCargada = false
         cargaPedidosAdmin?.cancel()
         cargaDetalleAdmin?.cancel()
         guardadoEstado?.cancel()
