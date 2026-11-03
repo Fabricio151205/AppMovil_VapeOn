@@ -11,12 +11,15 @@ import retrofit2.http.GET
 import retrofit2.http.POST
 import retrofit2.http.Path
 import retrofit2.http.PATCH
+import retrofit2.http.Query
 
 interface PedidoService {
-    @PATCH("pedidos/{id}?updateMask.fieldPaths=estado&currentDocument.exists=true")
+    @PATCH("pedidos/{id}")
     suspend fun actualizarEstadoPedido(
         @Path("id") id: String,
-        @Body body: PedidoEstadoActualizacion
+        @Body body: PedidoEstadoActualizacion,
+        @Query("currentDocument.updateTime") updateTime: String,
+        @Query("updateMask.fieldPaths") campo: String = "estado"
     ): PedidoDocumento
 
     @POST("../documents:runQuery")

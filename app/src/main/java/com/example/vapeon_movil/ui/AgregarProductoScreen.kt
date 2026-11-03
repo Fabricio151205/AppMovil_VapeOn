@@ -27,6 +27,7 @@ import androidx.compose.ui.unit.sp
 import com.example.vapeon_movil.ui.theme.*
 import com.example.vapeon_movil.utils.LISTA_MARCAS_DISPONIBLES
 import com.example.vapeon_movil.utils.obtenerSaboresPorMarca
+import com.example.vapeon_movil.utils.mismaMarca
 import com.example.vapeon_movil.viewmodels.ProductoViewModel
 import com.example.vapeon_movil.viewmodels.SaboresViewModel
 
@@ -598,25 +599,17 @@ fun AgregarProductoScreen(
                     val saborFinal = if (tieneSabor) sabor else ""
                     val stockFinal = if (tieneSabor && stockMap.isNotEmpty()) stockMap.values.sum() else (stockInt ?: 0)
 
-                    // Registrar o actualizar automáticamente en la colección máster /sabores
+                    // El catálogo maestro conserva nombre+marca; el inventario vive en /productos.
                     if (tieneSabor) {
-                        stockMap.forEach { (nombreSabor, stockSabor) ->
+                        stockMap.keys.forEach { nombreSabor ->
                             val existente = saboresViewModel.listaSabores.find {
                                 it.nombre.equals(nombreSabor.trim(), ignoreCase = true) &&
-                                        it.marca.equals(marca.trim(), ignoreCase = true)
+                                        mismaMarca(it.marca, marca)
                             }
-                            if (existente != null) {
-                                saboresViewModel.editarSabor(
-                                    saborAntiguo = existente,
-                                    nuevoNombre = existente.nombre,
-                                    nuevaMarca = existente.marca,
-                                    nuevoStock = stockSabor
-                                )
-                            } else {
+                            if (existente == null) {
                                 saboresViewModel.agregarSabor(
                                     nombre = nombreSabor.trim(),
-                                    marca = marca.trim(),
-                                    stock = stockSabor
+                                    marca = marca.trim()
                                 )
                             }
                         }
@@ -625,7 +618,7 @@ fun AgregarProductoScreen(
                     mensajeError = ""
                     productoViewModel.crearProducto(
                         nombre = nombre,
-                        marca = marca,
+                        marca = marca.trim(),
                         precio = precioDouble,
                         stock = stockFinal,
                         descripcion = descripcion,

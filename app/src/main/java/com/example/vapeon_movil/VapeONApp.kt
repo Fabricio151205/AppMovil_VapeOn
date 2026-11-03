@@ -370,8 +370,8 @@ fun VapeONApp() {
                     irEditarProducto = { seleccionarProducto(it, editar = true) },
                     // Solo CLIENTE puede agregar al carrito (ADMIN no tiene acceso).
                     onAgregarAlCarrito = if (!esAdminUser) {
-                        {
-                            carritoViewModel.agregarProducto(producto)
+                        { sabor ->
+                            carritoViewModel.agregarProducto(producto, sabor)
                             pantallaActual = "carrito"
                         }
                     } else null

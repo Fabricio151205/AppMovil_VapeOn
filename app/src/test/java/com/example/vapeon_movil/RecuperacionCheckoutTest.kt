@@ -175,4 +175,21 @@ class RecuperacionCheckoutTest {
         assertNull(recuperacion.intento)
         assertEquals(json, registros["intento"])
     }
+
+    @Test fun recuperacionConservaCategoriaYSaborSinConsultarCatalogo() {
+        val base = intento()
+        val pedido = base.pedido.copy(productos = base.pedido.productos.map {
+            it.copy(categoria = "Desechable", sabor = "Fresa")
+        })
+        val ruta = "projects/db/databases/(default)/documents"
+        val conSabor = PedidoViewModel.Intento(pedido, base.commit.copy(writes =
+            listOf(base.commit.writes.first().copy(update = pedido.aDocumento(ruta))) + base.commit.writes.drop(1)))
+        val recuperacion = recuperacion()
+        recuperacion.actualizarUsuario("A")
+        assertTrue(recuperacion.guardar(conSabor))
+        val recreada = recuperacion()
+        recreada.actualizarUsuario("A")
+        assertEquals("Fresa", recreada.intento?.pedido?.productos?.single()?.sabor)
+        assertEquals("Desechable", recreada.intento?.pedido?.productos?.single()?.categoria)
+    }
 }

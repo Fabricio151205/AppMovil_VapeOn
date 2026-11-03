@@ -5,6 +5,8 @@ import com.example.vapeon_movil.services.PedidoService
 import com.example.vapeon_movil.services.dto.*
 import com.example.vapeon_movil.viewmodels.leerPrecioProductoParaCompra
 import com.example.vapeon_movil.viewmodels.prepararDescuentoStockParaCompra
+import com.example.vapeon_movil.viewmodels.prepararDescuentoStockPorLineas
+import com.example.vapeon_movil.viewmodels.SolicitudStockCompra
 import com.google.gson.Gson
 import org.junit.Assert.*
 import org.junit.Test
@@ -129,5 +131,85 @@ class PedidoTest {
         assertThrows(IllegalArgumentException::class.java) { prepararDescuentoStockParaCompra(doc, 0) }
         val invalido = doc.copy(fields = ProductoCampos(stock = FirestoreValue(doubleValue = 3.5)))
         assertThrows(IllegalArgumentException::class.java) { prepararDescuentoStockParaCompra(invalido, 1) }
+    }
+
+    @Test fun snapshotNuevoConservaCategoriaYSabor() {
+        val precio = BigDecimal("50.00")
+        val linea = ProductoPedido("p1", "LifePod", "LifePod", 2, precio,
+            BigDecimal("100.00"), categoria = "Batería", sabor = "Strawberry")
+        val pedido = Pedido("orden-sabor", "cliente", "Cliente", "987654321", "2026-11-02T12:00:00Z",
+            listOf(linea), BigDecimal("100.00"), BigDecimal("5.00"), BigDecimal("105.00"),
+            BigDecimal("105.00"), BigDecimal("0.00"), "Dirección")
+        val documento = pedido.aDocumento("projects/db/databases/(default)/documents")
+        val camposLinea = documento.fields.getValue("productos").arrayValue!!.values.single().mapValue!!.fields
+        assertEquals("Batería", camposLinea["categoria"]?.stringValue)
+        assertEquals("Strawberry", camposLinea["sabor"]?.stringValue)
+        assertEquals(pedido, documento.aPedido())
+        assertEquals(BigDecimal("100.00"), documento.aPedido().productos.single().subtotal)
+    }
+
+    @Test fun pedidoHistoricoSinCategoriaNiSaborSigueCargando() {
+        val precio = BigDecimal("10.00")
+        val pedido = Pedido("historico", "cliente", "Cliente", "987654321", "2026-10-14T12:00:00Z",
+            listOf(ProductoPedido("p1", "Nombre histórico", "Marca histórica", 1, precio, precio)),
+            precio, BigDecimal("5.00"), BigDecimal("15.00"), BigDecimal("20.00"),
+            BigDecimal("5.00"), "Dirección")
+        val leido = pedido.aDocumento("projects/db/databases/(default)/documents").aPedido()
+        assertNull(leido.productos.single().categoria)
+        assertNull(leido.productos.single().sabor)
+        assertEquals("Nombre histórico", leido.productos.single().nombre)
+    }
+
+    @Test fun descuentoPorSaborActualizaGeneralYMapaEnUnaSolaEscritura() {
+        val doc = ProductoDocumento("projects/db/databases/(default)/documents/productos/p1", ProductoCampos(
+            stock = FirestoreValue(integerValue = "5"),
+            sabor = FirestoreValue(stringValue = "Strawberry, Mint"),
+            stockPorSabor = mapOf("Strawberry" to 2, "Mint" to 3).aFirestoreMapa()
+        ), "2026-11-02T12:00:00Z")
+        val resultado = prepararDescuentoStockPorLineas(doc, listOf(
+            SolicitudStockCompra("strawberry", 1), SolicitudStockCompra("Mint", 2)))
+        assertEquals(listOf("Strawberry", "Mint"), resultado.saboresCanonicos)
+        assertEquals(setOf("stock", "stockPorSabor"), resultado.escritura.update.fields.keys)
+        assertEquals("2", resultado.escritura.update.fields["stock"]?.integerValue)
+        assertEquals(mapOf("Strawberry" to 1, "Mint" to 1),
+            resultado.escritura.update.fields["stockPorSabor"].aStockMap())
+        assertEquals(listOf("stock", "stockPorSabor"), resultado.escritura.updateMask?.fieldPaths)
+        assertEquals(doc.updateTime, resultado.escritura.currentDocument.updateTime)
+    }
+
+    @Test fun checkoutConSaborNuncaPreparaEscriturasEnColeccionSabores() {
+        val doc = ProductoDocumento(
+            "projects/db/databases/(default)/documents/productos/p1",
+            ProductoCampos(
+                stock = FirestoreValue(integerValue = "4"),
+                stockPorSabor = mapOf("Fresa" to 2, "Menta" to 2).aFirestoreMapa()
+            ),
+            "2026-11-02T12:00:00Z"
+        )
+
+        val escritura = prepararDescuentoStockPorLineas(doc, listOf(
+            SolicitudStockCompra("Fresa", 1), SolicitudStockCompra("Menta", 1)
+        )).escritura
+
+        assertTrue(escritura.update.name.endsWith("/productos/p1"))
+        assertFalse(escritura.update.name.contains("/sabores/"))
+        assertEquals(setOf("stock", "stockPorSabor"), escritura.update.fields.keys)
+    }
+
+    @Test fun stockInsuficienteGeneralOPorSaborBloqueaAntesDelCommit() {
+        val base = ProductoDocumento("productos/p1", ProductoCampos(
+            stock = FirestoreValue(integerValue = "2"),
+            stockPorSabor = mapOf("Fresa" to 1, "Menta" to 2).aFirestoreMapa()
+        ), "2026-11-02T12:00:00Z")
+        assertThrows(IllegalArgumentException::class.java) {
+            prepararDescuentoStockPorLineas(base, listOf(SolicitudStockCompra("Fresa", 2)))
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            prepararDescuentoStockPorLineas(base, listOf(
+                SolicitudStockCompra("Fresa", 1), SolicitudStockCompra("Menta", 2)))
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            prepararDescuentoStockPorLineas(base, listOf(SolicitudStockCompra("Otro", 1)))
+        }
     }
 }

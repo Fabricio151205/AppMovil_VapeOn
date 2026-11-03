@@ -171,6 +171,7 @@ class PedidoViewModel(application: Application) : AndroidViewModel(application) 
         private set
     var detalleAdmin by mutableStateOf<Pedido?>(null)
         private set
+    private var detalleAdminUpdateTime: String? = null
     var cargandoPedidosAdmin by mutableStateOf(false)
         private set
     var cargandoDetalleAdmin by mutableStateOf(false)
@@ -248,6 +249,7 @@ class PedidoViewModel(application: Application) : AndroidViewModel(application) 
         pedidosAdmin = emptyList()
         invalidosAdmin = 0
         detalleAdmin = null
+        detalleAdminUpdateTime = null
         detalleAdminSolicitado = null
         cargandoPedidosAdmin = false
         cargandoDetalleAdmin = false
@@ -299,6 +301,7 @@ class PedidoViewModel(application: Application) : AndroidViewModel(application) 
         if (guardandoEstado) return
         cargaDetalleAdmin?.cancel()
         detalleAdmin = null
+        detalleAdminUpdateTime = null
         detalleAdminSolicitado = pedidoId
         errorDetalleAdmin = null
         errorEstado = null
@@ -311,9 +314,14 @@ class PedidoViewModel(application: Application) : AndroidViewModel(application) 
         cargandoDetalleAdmin = true
         cargaDetalleAdmin = viewModelScope.launch {
             try {
-                val pedido = service.mostrarPedido(pedidoId).aPedido()
+                val documento = service.mostrarPedido(pedidoId)
+                val pedido = documento.aPedido()
+                require(!documento.updateTime.isNullOrBlank()) { "Falta la versión del pedido." }
                 require(pedido.id == pedidoId) { "ID de pedido inválido." }
-                if (usuarioAdminId == adminId && detalleAdminSolicitado == pedidoId) detalleAdmin = pedido
+                if (usuarioAdminId == adminId && detalleAdminSolicitado == pedidoId) {
+                    detalleAdmin = pedido
+                    detalleAdminUpdateTime = documento.updateTime
+                }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -336,6 +344,7 @@ class PedidoViewModel(application: Application) : AndroidViewModel(application) 
             require(!cargandoDetalleAdmin && detalleAdmin?.id == pedidoId && detalleAdminSolicitado == pedidoId) {
                 "Abre el detalle del pedido antes de cambiar su estado."
             }
+            require(!detalleAdminUpdateTime.isNullOrBlank()) { "Actualiza el pedido antes de cambiar su estado." }
         } catch (e: IllegalArgumentException) {
             errorEstado = e.message
             return
@@ -345,13 +354,16 @@ class PedidoViewModel(application: Application) : AndroidViewModel(application) 
         guardadoEstado = viewModelScope.launch {
             try {
                 val documento = service.actualizarEstadoPedido(pedidoId, PedidoEstadoActualizacion(
-                    mapOf("estado" to FirestoreValor(stringValue = nuevoEstado))))
+                    mapOf("estado" to FirestoreValor(stringValue = nuevoEstado))),
+                    requireNotNull(detalleAdminUpdateTime))
                 val actualizado = documento.aPedido()
-                require(actualizado.id == pedidoId && actualizado.estado == nuevoEstado) {
+                require(actualizado.id == pedidoId && actualizado.estado == nuevoEstado &&
+                    !documento.updateTime.isNullOrBlank()) {
                     "La respuesta no confirma el estado solicitado. Actualiza el pedido."
                 }
                 if (usuarioAdminId == adminId && detalleAdminSolicitado == pedidoId) {
                     detalleAdmin = actualizado
+                    detalleAdminUpdateTime = documento.updateTime
                     pedidosAdmin = pedidosAdmin.map { if (it.id == pedidoId) actualizado else it }
                     mensajeEstado = "Estado guardado correctamente."
                 }
@@ -392,6 +404,47 @@ class PedidoViewModel(application: Application) : AndroidViewModel(application) 
             error = null
             pedidoConfirmado = null
         }
+    }
+
+    private data class PreparacionProductosCompra(
+        val lineas: List<ProductoPedido>,
+        val escriturasStock: List<PedidoEscritura>,
+        val ruta: String
+    )
+
+    /** Lee cada producto una sola vez y prepara una única escritura aunque haya varios sabores. */
+    private suspend fun prepararProductosCompra(
+        items: List<ItemCarrito>, productos: ProductoViewModel
+    ): PreparacionProductosCompra {
+        val lineas = mutableListOf<ProductoPedido>()
+        val escrituras = mutableListOf<PedidoEscritura>()
+        val rutas = mutableSetOf<String>()
+        for ((productoId, itemsProducto) in items.groupBy { it.productoId }) {
+            val doc = productos.consultarProducto(productoId)
+            coroutineContext.ensureActive()
+            require(doc.name.substringAfterLast('/') == productoId && !doc.updateTime.isNullOrBlank()) {
+                "No se pudo verificar el producto."
+            }
+            val descuento = prepararDescuentoStockPorLineas(doc,
+                itemsProducto.map { SolicitudStockCompra(it.saborSeleccionado, it.cantidad) })
+            val precio = leerPrecioProductoParaCompra(doc)
+            require(precio != null && precio.signum() > 0) { "Precio inválido para ${itemsProducto.first().nombre}." }
+            require(itemsProducto.all { precio.compareTo(BigDecimal.valueOf(it.precioUnit)) == 0 }) {
+                "El precio de ${itemsProducto.first().nombre} cambió. Elimínalo del carrito y agrégalo nuevamente desde el catálogo."
+            }
+            val nombre = doc.fields.nombre?.asString().orEmpty()
+            val marca = doc.fields.marca?.asString().orEmpty()
+            require(nombre.isNotBlank() && marca.isNotBlank()) { "Datos incompletos para ${itemsProducto.first().nombre}." }
+            val categoria = doc.fields.categoria?.stringValue?.trim()?.takeIf { it.isNotBlank() }
+            itemsProducto.zip(descuento.saboresCanonicos).forEach { (item, sabor) ->
+                lineas += ProductoPedido(item.productoId, nombre, marca, item.cantidad, precio,
+                    precio.multiply(BigDecimal(item.cantidad)), categoria, sabor)
+            }
+            escrituras += descuento.escritura
+            rutas += doc.name.substringBeforeLast("/productos/")
+        }
+        require(rutas.size == 1) { "Inventario inconsistente." }
+        return PreparacionProductosCompra(lineas, escrituras, rutas.single())
     }
 
     fun confirmar(
@@ -447,34 +500,14 @@ class PedidoViewModel(application: Application) : AndroidViewModel(application) 
                     val monto = Pedido.leerMonto(montoTexto)
                         ?: throw IllegalArgumentException("Ingresa un monto numérico válido con máximo dos decimales.")
                     val vuelto = Pedido.calcularVuelto(monto, total)
-                    val escriturasStock = mutableListOf<PedidoEscritura>()
-                    val lineas = items.map { item ->
-                        val doc = productos.consultarProducto(item.productoId)
-                        coroutineContext.ensureActive()
-                        val escrituraStock = prepararDescuentoStockParaCompra(doc, item.cantidad)
-                        val precio = leerPrecioProductoParaCompra(doc)
-                        require(precio != null && precio.signum() > 0) { "Precio inválido para ${item.nombre}." }
-                        require(precio.compareTo(BigDecimal.valueOf(item.precioUnit)) == 0) {
-                            "El precio de ${item.nombre} cambió. Elimínalo del carrito y agrégalo nuevamente desde el catálogo."
-                        }
-                        val nombre = doc.fields.nombre?.stringValue.orEmpty()
-                        val marca = doc.fields.marca?.stringValue.orEmpty()
-                        require(nombre.isNotBlank() && marca.isNotBlank() && !doc.updateTime.isNullOrBlank()) {
-                            "Datos incompletos para ${item.nombre}."
-                        }
-                        escriturasStock += escrituraStock
-                        ProductoPedido(item.productoId, nombre, marca, item.cantidad, precio,
-                            precio.multiply(BigDecimal(item.cantidad)))
-                    }
+                    val preparacion = prepararProductosCompra(items, productos)
                     val pedido = Pedido(UUID.randomUUID().toString(), usuario.id,
                         "${usuario.nombre} ${usuario.apellido}".trim(), usuario.telefono.trim(),
-                        Instant.now().toString(), lineas, subtotal, delivery, total, monto, vuelto, direccion.trim())
-                    // Se obtiene la ruta desde un documento real, sin duplicar PROJECT_ID.
-                    val ruta = escriturasStock.first().update.name.substringBeforeLast("/productos/")
+                        Instant.now().toString(), preparacion.lineas, subtotal, delivery, total, monto, vuelto, direccion.trim())
                     pedidoPendiente = pedido
                     commitPendiente = PedidoCommit(listOf(PedidoEscritura(
-                        pedido.aDocumento(ruta), PedidoPrecondicion(exists = false)
-                    )) + escriturasStock)
+                        pedido.aDocumento(preparacion.ruta), PedidoPrecondicion(exists = false)
+                    )) + preparacion.escriturasStock)
                 }
 
                 coroutineContext.ensureActive()
@@ -590,35 +623,17 @@ class PedidoViewModel(application: Application) : AndroidViewModel(application) 
             val items = carrito.items.toList()
             val subtotal = Pedido.subtotal(items)
             val delivery = BigDecimal.valueOf(carrito.resumen.delivery).setScale(2)
-            val lineas = items.map { item ->
-                val doc = productos.consultarProducto(item.productoId)
-                coroutineContext.ensureActive()
-                prepararDescuentoStockParaCompra(doc, item.cantidad)
-                val precio = leerPrecioProductoParaCompra(doc)
-                require(precio != null && precio.signum() > 0 && precio.compareTo(BigDecimal.valueOf(item.precioUnit)) == 0) {
-                    "El precio cambió o es inválido. Revisa el carrito antes de pagar."
-                }
-                require(doc.name.substringAfterLast('/') == item.productoId && !doc.updateTime.isNullOrBlank()) {
-                    "No se pudo verificar el producto."
-                }
-                val nombre = doc.fields.nombre?.asString().orEmpty()
-                val marca = doc.fields.marca?.asString().orEmpty()
-                require(nombre.isNotBlank() && marca.isNotBlank()) { "Producto incompleto." }
-                ProductoPedido(item.productoId, nombre, marca, item.cantidad, precio, precio * BigDecimal(item.cantidad)) to
-                    doc.name.substringBeforeLast("/productos/")
-            }
-            val ruta = lineas.first().second
-            require(lineas.all { it.second == ruta }) { "Inventario inconsistente." }
+            val preparacion = prepararProductosCompra(items, productos)
             val pagoId = UUID.randomUUID().toString()
             val pedidoId = UUID.randomUUID().toString()
             val fecha = Instant.now().toString()
             val pago = Pago(pagoId, pedidoId, cliente.id, metodo, "SIM-$metodo-$pagoId", subtotal + delivery,
                 fecha, tarjetaId = tarjetaId)
             val borrador = Pedido(pedidoId, cliente.id, "${cliente.nombre} ${cliente.apellido}".trim(),
-                cliente.telefono.trim(), fecha, lineas.map { it.first }, subtotal, delivery, pago.monto, pago.monto,
+                cliente.telefono.trim(), fecha, preparacion.lineas, subtotal, delivery, pago.monto, pago.monto,
                 BigDecimal.ZERO.setScale(2), direccion.trim(), metodo, pagoId = pagoId, estadoPago = "PENDIENTE",
                 numeroOperacion = pago.numeroOperacion, modalidadPago = "SIMULADO")
-            val intento = IntentoPagoDigital(pago, borrador, ruta)
+            val intento = IntentoPagoDigital(pago, borrador, preparacion.ruta)
             conservarDigital(intento, token) // Antes de cualquier escritura remota.
             val doc = obtenerOCrearPago(pagoService, intento)
             coroutineContext.ensureActive()
@@ -676,7 +691,7 @@ class PedidoViewModel(application: Application) : AndroidViewModel(application) 
             }
             // Un commit anterior puede haber llegado tarde; no se genera otro pago ni otro pedido.
             validarPagoParaPedido(docPago, pedido)
-            val docs = pedido.productos.map {
+            val docs = pedido.productos.distinctBy { it.productoId }.map {
                 productos.consultarProducto(it.productoId).also { coroutineContext.ensureActive() }
             }
             val commit = prepararCommitDigital(docPago, pedido, docs, intento.ruta)
@@ -813,12 +828,62 @@ internal fun validarCambioEstadoPedido(usuario: Usuario?, pedidoId: String, nuev
 internal fun leerPrecioProductoParaCompra(doc: ProductoDocumento): BigDecimal? =
     Pedido.leerMonto(doc.fields.precio?.asString().orEmpty())
 
+internal data class SolicitudStockCompra(val sabor: String?, val cantidad: Int)
+internal data class ResultadoDescuentoStock(
+    val escritura: PedidoEscritura,
+    val saboresCanonicos: List<String?>
+)
+
 /** Prepara una escritura para el mismo commit atómico, sin ejecutar otra petición. */
-internal fun prepararDescuentoStockParaCompra(doc: ProductoDocumento, cantidad: Int): PedidoEscritura {
-    val nuevoStock = Pedido.validarStock(doc.fields.stock?.asString(), cantidad)
-    return PedidoEscritura(
-        PedidoDocumento(doc.name, mapOf("stock" to FirestoreValor(integerValue = nuevoStock.toString()))),
-        PedidoPrecondicion(updateTime = doc.updateTime), PedidoMascara(listOf("stock"))
+internal fun prepararDescuentoStockParaCompra(
+    doc: ProductoDocumento, cantidad: Int, sabor: String? = null
+): PedidoEscritura = prepararDescuentoStockPorLineas(
+    doc, listOf(SolicitudStockCompra(sabor, cantidad))
+).escritura
+
+/**
+ * Descuenta una sola vez el documento del producto aunque el carrito tenga varias líneas de sabor.
+ * `productos.stock` y `productos.stockPorSabor` comparten la misma precondición updateTime.
+ */
+internal fun prepararDescuentoStockPorLineas(
+    doc: ProductoDocumento, solicitudes: List<SolicitudStockCompra>
+): ResultadoDescuentoStock {
+    require(solicitudes.isNotEmpty() && solicitudes.all { it.cantidad > 0 }) { "La cantidad debe ser mayor que cero." }
+    require(!doc.updateTime.isNullOrBlank()) { "Falta la versión del producto." }
+    val cantidadTotal = solicitudes.sumOf { it.cantidad }
+    val nuevoStock = Pedido.validarStock(doc.fields.stock?.asString(), cantidadTotal)
+    val stockPorSabor = doc.fields.stockPorSabor.aStockMap()
+    val saboresLegacy = doc.fields.sabor?.asString().orEmpty().split(',')
+        .map { it.trim() }.filter { it.isNotBlank() }
+    val disponibles = if (stockPorSabor.isNotEmpty()) stockPorSabor.keys.toList() else saboresLegacy
+    val saboresCanonicos = solicitudes.map { solicitud ->
+        if (disponibles.isEmpty()) {
+            require(solicitud.sabor.isNullOrBlank()) { "El producto no utiliza selección de sabor." }
+            null
+        } else {
+            require(!solicitud.sabor.isNullOrBlank()) { "Selecciona un sabor para este producto." }
+            disponibles.firstOrNull { it.trim().equals(solicitud.sabor.trim(), ignoreCase = true) }
+                ?: throw IllegalArgumentException("El sabor seleccionado no pertenece al producto.")
+        }
+    }
+    val campos = linkedMapOf<String, FirestoreValor>(
+        "stock" to FirestoreValor(integerValue = nuevoStock.toString())
+    )
+    val mascara = mutableListOf("stock")
+    if (stockPorSabor.isNotEmpty()) {
+        val cantidadesPorSabor = saboresCanonicos.zip(solicitudes).groupBy({ it.first!! }, { it.second.cantidad })
+            .mapValues { (_, cantidades) -> cantidades.sum() }
+        val actualizado = stockPorSabor.toMutableMap()
+        cantidadesPorSabor.forEach { (sabor, cantidad) ->
+            actualizado[sabor] = Pedido.validarStock(stockPorSabor[sabor]?.toString(), cantidad)
+        }
+        campos["stockPorSabor"] = actualizado.aFirestoreMapa()
+        mascara += "stockPorSabor"
+    }
+    return ResultadoDescuentoStock(
+        PedidoEscritura(PedidoDocumento(doc.name, campos), PedidoPrecondicion(updateTime = doc.updateTime),
+            PedidoMascara(mascara)),
+        saboresCanonicos
     )
 }
 
@@ -845,7 +910,8 @@ internal fun validarIntentoDigital(intento: IntentoPagoDigital) {
         pedido.total == pago.monto && pedido.montoPagado == pago.monto && pedido.vuelto.signum() == 0 &&
         pedido.metodoPago == pago.metodoPago && pedido.numeroOperacion == pago.numeroOperacion &&
         pedido.modalidadPago == "SIMULADO") { "El intento digital no corresponde al pago." }
-    require(pedido.productos.map { it.productoId }.distinct().size == pedido.productos.size &&
+    require(pedido.productos.map { it.productoId to it.sabor?.trim()?.lowercase(java.util.Locale.ROOT) }
+        .distinct().size == pedido.productos.size &&
         pedido.productos.all { it.precioUnitario.signum() > 0 && it.subtotal == it.precioUnitario * BigDecimal(it.cantidad) } &&
         pedido.productos.fold(BigDecimal.ZERO.setScale(2)) { suma, item -> suma + item.subtotal } == pedido.subtotal &&
         pedido.total == pedido.subtotal + pedido.delivery) { "Importes de compra inconsistentes." }
@@ -974,14 +1040,18 @@ internal suspend fun resolverResultadoPago(service: PagoService, intento: Intent
 internal fun prepararCommitDigital(pago: PagoDocumento, pedido: Pedido, productos: List<ProductoDocumento>, ruta: String): PedidoCommit {
     validarPagoParaPedido(pago, pedido)
     require(pago.name == "$ruta/pagos/${pedido.pagoId}") { "Ruta del pago inválida." }
-    require(productos.size == pedido.productos.size) { "Inventario incompleto." }
-    val stock = pedido.productos.zip(productos).map { (linea, doc) ->
-        require(doc.name == "$ruta/productos/${linea.productoId}" && !doc.updateTime.isNullOrBlank()) { "Producto o versión inválidos." }
+    val documentos = productos.associateBy { it.name.substringAfterLast('/') }
+    require(documentos.size == productos.size && documentos.keys == pedido.productos.map { it.productoId }.toSet()) {
+        "Inventario incompleto."
+    }
+    val stock = pedido.productos.groupBy { it.productoId }.map { (productoId, lineas) ->
+        val doc = requireNotNull(documentos[productoId]) { "Inventario incompleto." }
+        require(doc.name == "$ruta/productos/$productoId" && !doc.updateTime.isNullOrBlank()) { "Producto o versión inválidos." }
         val precio = leerPrecioProductoParaCompra(doc)
-        require(precio != null && precio.compareTo(linea.precioUnitario) == 0) {
+        require(precio != null && lineas.all { precio.compareTo(it.precioUnitario) == 0 }) {
             "El precio cambió después del pago. Conservamos el pago confirmado sin registrar otro pedido."
         }
-        prepararDescuentoStockParaCompra(doc, linea.cantidad)
+        prepararDescuentoStockPorLineas(doc, lineas.map { SolicitudStockCompra(it.sabor, it.cantidad) }).escritura
     }
     return PedidoCommit(listOf(PedidoEscritura(pedido.aDocumento(ruta), PedidoPrecondicion(exists = false))) +
         stock + escrituraRegistroPago(pago, pedido))

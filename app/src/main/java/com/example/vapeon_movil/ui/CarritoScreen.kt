@@ -153,15 +153,15 @@ fun CarritoScreen(
                 contentPadding = PaddingValues(vertical = 16.dp)
             ) {
                 carritoViewModel.aviso?.let { aviso -> item { Text(aviso, color = VapeOnGold) } }
-                items(items, key = { it.productoId }) { item ->
+                items(items, key = { "${it.productoId}:${it.saborSeleccionado.orEmpty().trim().lowercase()}" }) { item ->
                     ItemCarritoCard(
                         item = item,
                         onIncrementar = {
-                            carritoViewModel.incrementar(item.productoId )
+                            carritoViewModel.incrementar(item.productoId, item.saborSeleccionado)
 
                         },
-                        onDecrementar = { carritoViewModel.decrementar(item.productoId) },
-                        onEliminar   = { carritoViewModel.eliminarItem(item.productoId) }
+                        onDecrementar = { carritoViewModel.decrementar(item.productoId, item.saborSeleccionado) },
+                        onEliminar   = { carritoViewModel.eliminarItem(item.productoId, item.saborSeleccionado) }
                     )
                 }
             }

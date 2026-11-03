@@ -120,6 +120,11 @@ fun ConfirmacionPedidoScreen(
                         fontSize = 14.sp
                     )
                 }
+                val detalles = listOfNotNull(
+                    prod.categoria?.takeIf { it.isNotBlank() }?.let { "Categoría: $it" },
+                    prod.sabor?.takeIf { it.isNotBlank() }?.let { "Sabor: $it" }
+                ).joinToString(" · ")
+                if (detalles.isNotBlank()) Text(detalles, color = VapeOnTextSecondary, fontSize = 12.sp)
             }
 
             Spacer(modifier = Modifier.height(6.dp))

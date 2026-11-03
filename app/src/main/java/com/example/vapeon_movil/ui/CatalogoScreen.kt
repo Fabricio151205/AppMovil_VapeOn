@@ -27,6 +27,9 @@ import com.example.vapeon_movil.components.MarcaSection
 import com.example.vapeon_movil.entities.Producto
 import com.example.vapeon_movil.ui.theme.*
 import com.example.vapeon_movil.viewmodels.ProductoViewModel
+import com.example.vapeon_movil.utils.claveMarca
+import com.example.vapeon_movil.utils.marcasUnicas
+import com.example.vapeon_movil.utils.mismaMarca
 import kotlinx.coroutines.launch
 
 @Composable
@@ -54,6 +57,7 @@ fun CatalogoScreen(
 
     // Estado local de UI
     var busqueda              by rememberSaveable { mutableStateOf("") }
+    var marcaVerTodos         by rememberSaveable { mutableStateOf("") }
     var categoriaSeleccionada by remember { mutableStateOf("Todos") }
     var productoAEliminar     by remember { mutableStateOf<Producto?>(null) }
     var categoriaFiltro by rememberSaveable { mutableStateOf("") }
@@ -108,7 +112,7 @@ fun CatalogoScreen(
                 // ==========================================
                 OutlinedTextField(
                     value = busqueda,
-                    onValueChange = { busqueda = it },
+                    onValueChange = { busqueda = it; marcaVerTodos = "" },
                     placeholder = {
                         Text(
                             text = "Buscar Productos",
@@ -198,6 +202,7 @@ fun CatalogoScreen(
                 errorFiltro?.let { Text(it, color = MaterialTheme.colorScheme.error) }
                 TextButton(onClick = {
                     busqueda = ""
+                    marcaVerTodos = ""
                     categoriaFiltro = ""
                     precioMinimo = ""
                     precioMaximo = ""
@@ -263,8 +268,10 @@ fun CatalogoScreen(
                     Button(onClick = { productoViewModel.cargarProductos() }) { Text("Reintentar") }
                 } else {
                     // Filtrado reactivo de productos
-                    val listaFiltrada = productoViewModel.filtrarProductos(
+                    val listaConFiltros = productoViewModel.filtrarProductos(
                         busqueda, categoriaFiltro, precioMinimo, precioMaximo, soloConStock)
+                    val listaFiltrada = if (marcaVerTodos.isBlank()) listaConFiltros else
+                        listaConFiltros.filter { mismaMarca(it.marca, marcaVerTodos) }
 
                     if (listaFiltrada.isEmpty()) {
                         Box(
@@ -282,8 +289,7 @@ fun CatalogoScreen(
                     } else {
                         // ── SECCIÓN: LIFEPOD ──────────────────────────────
                         val productosLifePod = listaFiltrada.filter {
-                            it.marca.equals("LifePod", ignoreCase = true) ||
-                            it.marca.equals("LifePood", ignoreCase = true)
+                            mismaMarca(it.marca, "LifePod")
                         }
                         if (productosLifePod.isNotEmpty()) {
                             MarcaSection(
@@ -291,7 +297,7 @@ fun CatalogoScreen(
                                 productos = productosLifePod,
                                 irDetalleProducto = irDetalleProducto,
                                 esAdmin = esAdmin,
-                                onVerTodos = { busqueda = "LifePod" },
+                                onVerTodos = { busqueda = ""; marcaVerTodos = "LifePod" },
                                 eliminarProducto = { productoAEliminar = it },
                                 editarProducto = { irEditarProducto(it) }
                             )
@@ -299,7 +305,7 @@ fun CatalogoScreen(
 
                         // ── SECCIÓN: OXBAR ────────────────────────────────
                         val productosOxbar = listaFiltrada.filter {
-                            it.marca.equals("Oxbar", ignoreCase = true)
+                            mismaMarca(it.marca, "Oxbar")
                         }
                         if (productosOxbar.isNotEmpty()) {
                             MarcaSection(
@@ -307,7 +313,7 @@ fun CatalogoScreen(
                                 productos = productosOxbar,
                                 irDetalleProducto = irDetalleProducto,
                                 esAdmin = esAdmin,
-                                onVerTodos = { busqueda = "Oxbar" },
+                                onVerTodos = { busqueda = ""; marcaVerTodos = "Oxbar" },
                                 eliminarProducto = { productoAEliminar = it },
                                 editarProducto = { irEditarProducto(it) }
                             )
@@ -315,7 +321,7 @@ fun CatalogoScreen(
 
                         // ── SECCIÓN: NEXA ─────────────────────────────────
                         val productosNexa = listaFiltrada.filter {
-                            it.marca.equals("Nexa", ignoreCase = true)
+                            mismaMarca(it.marca, "Nexa")
                         }
                         if (productosNexa.isNotEmpty()) {
                             MarcaSection(
@@ -323,26 +329,20 @@ fun CatalogoScreen(
                                 productos = productosNexa,
                                 irDetalleProducto = irDetalleProducto,
                                 esAdmin = esAdmin,
-                                onVerTodos = { busqueda = "Nexa" },
+                                onVerTodos = { busqueda = ""; marcaVerTodos = "Nexa" },
                                 eliminarProducto = { productoAEliminar = it },
                                 editarProducto = { irEditarProducto(it) }
                             )
                         }
 
                         // ── SECCIONES DINÁMICAS (otras marcas) ────────────
-                        val otrasMarcas = listaFiltrada
-                            .map { it.marca.trim() }
-                            .distinct()
-                            .filter {
-                                !it.equals("LifePod",  ignoreCase = true) &&
-                                !it.equals("LifePood", ignoreCase = true) &&
-                                !it.equals("Oxbar",    ignoreCase = true) &&
-                                !it.equals("Nexa",     ignoreCase = true)
-                            }
+                        val especiales = setOf(claveMarca("LifePod"), claveMarca("Oxbar"), claveMarca("Nexa"))
+                        val otrasMarcas = marcasUnicas(listaFiltrada.map { it.marca })
+                            .filter { claveMarca(it) !in especiales }
 
                         otrasMarcas.forEach { marca ->
                             val productosMarca = listaFiltrada.filter {
-                                it.marca.trim().equals(marca, ignoreCase = true)
+                                mismaMarca(it.marca, marca)
                             }
                             if (productosMarca.isNotEmpty()) {
                                 MarcaSection(
@@ -350,7 +350,7 @@ fun CatalogoScreen(
                                     productos = productosMarca,
                                     irDetalleProducto = irDetalleProducto,
                                     esAdmin = esAdmin,
-                                    onVerTodos = { busqueda = marca },
+                                    onVerTodos = { busqueda = ""; marcaVerTodos = marca },
                                     eliminarProducto = { productoAEliminar = it },
                                     editarProducto = { irEditarProducto(it) }
                                 )

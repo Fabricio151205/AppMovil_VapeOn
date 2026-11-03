@@ -120,7 +120,8 @@ class ProductoViewModel(
         categoria: String = "",
         onExito: (() -> Unit)? = null) {
         if (cargandoCreacion) return
-        if (nombre.isBlank() || marca.isBlank() || !precioValido(precio) || stock < 0) {
+        val marcaLimpia = marca.trim()
+        if (nombre.isBlank() || marcaLimpia.isBlank() || !precioValido(precio) || stock < 0) {
             errorCreacion = "Completa nombre y marca; utiliza un precio válido y stock entero no negativo."
             return
         }
@@ -130,7 +131,7 @@ class ProductoViewModel(
         }
         val cuerpo = ProductoContainer(ProductoCampos(
             nombre = FirestoreValue(stringValue = nombre),
-            marca = FirestoreValue(stringValue = marca),
+            marca = FirestoreValue(stringValue = marcaLimpia),
             precio = FirestoreValue(doubleValue = precio),
             stock = FirestoreValue(integerValue = stock.toString()),
             descripcion = FirestoreValue(stringValue = descripcion),
@@ -361,7 +362,8 @@ class ProductoViewModel(
         onExito: (() -> Unit)? = null
     ) {
         if (guardandoEdicion || cargandoEdicion || requiereRecargarEdicion) return
-        if (nombre.isBlank() || marca.isBlank() || !precioValido(precio) || stock < 0) {
+        val marcaLimpia = marca.trim()
+        if (nombre.isBlank() || marcaLimpia.isBlank() || !precioValido(precio) || stock < 0) {
             errorEdicion = "Completa nombre y marca; utiliza un precio válido y stock entero no negativo."
             return
         }
@@ -380,7 +382,7 @@ class ProductoViewModel(
         }
         val cuerpo = ProductoContainer(ProductoCampos(
             nombre = if (nombre != anteriores.nombre?.asString()) FirestoreValue(stringValue = nombre) else null,
-            marca = if (marca != anteriores.marca?.asString()) FirestoreValue(stringValue = marca) else null,
+            marca = if (marcaLimpia != anteriores.marca?.asString()) FirestoreValue(stringValue = marcaLimpia) else null,
             precio = if (precio != anteriores.precio?.asDouble()) FirestoreValue(doubleValue = precio) else null,
             stock = if (stock != anteriores.stock?.asInt()) FirestoreValue(integerValue = stock.toString()) else null,
             descripcion = if (descripcion != anteriores.descripcion?.asString()) FirestoreValue(stringValue = descripcion) else null,

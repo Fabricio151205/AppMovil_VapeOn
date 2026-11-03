@@ -4,6 +4,7 @@ import com.example.vapeon_movil.entities.Producto
 import com.example.vapeon_movil.services.ProductoService
 import com.example.vapeon_movil.services.dto.*
 import com.example.vapeon_movil.viewmodels.ProductoViewModel
+import com.example.vapeon_movil.utils.marcasUnicas
 import com.google.gson.Gson
 import kotlinx.coroutines.Dispatchers
 import org.junit.Assert.*
@@ -32,9 +33,9 @@ class FiltrosProductoTest {
         override suspend fun eliminarProducto(id: String): Any = Unit
     }
 
-    private fun documento(id: String, nombre: String, precio: Double, stock: Int, categoria: String?) =
+    private fun documento(id: String, nombre: String, precio: Double, stock: Int, categoria: String?, marca: String = "Marca") =
         ProductoDocumento("productos/$id", ProductoCampos(
-            nombre = FirestoreValue(stringValue = nombre), marca = FirestoreValue(stringValue = "Marca"),
+            nombre = FirestoreValue(stringValue = nombre), marca = FirestoreValue(stringValue = marca),
             precio = FirestoreValue(doubleValue = precio), stock = FirestoreValue(integerValue = stock.toString()),
             descripcion = FirestoreValue(stringValue = "Descripción"),
             categoria = categoria?.let { FirestoreValue(stringValue = it) }
@@ -156,6 +157,37 @@ class FiltrosProductoTest {
         assertEquals("Accesorios", fields.getAsJsonObject("categoria").get("stringValue").asString)
         assertEquals(10.25, fields.getAsJsonObject("precio").get("doubleValue").asDouble, 0.0)
         assertEquals("2", fields.getAsJsonObject("stock").get("integerValue").asString)
+    }
+
+    @Test fun marcaSeGuardaSinEspaciosYConservaCapitalizacion() {
+        val servicio = Servicio()
+        ProductoViewModel(servicio, Dispatchers.Unconfined)
+            .crearProducto("Nombre", " OxBar ", 10.25, 2, "", categoria = "Accesorios")
+        assertEquals("OxBar", servicio.alta!!.fields.marca!!.stringValue)
+    }
+
+    @Test fun marcaVaciaDespuesDeRecortarEsRechazada() {
+        val servicio = Servicio()
+        val vm = ProductoViewModel(servicio, Dispatchers.Unconfined)
+        vm.crearProducto("Nombre", "   ", 10.25, 2, "", categoria = "Accesorios")
+        assertNotNull(vm.errorCreacion)
+        assertNull(servicio.alta)
+    }
+
+    @Test fun marcasDelCatalogoSeDeduplicanPorIdentidadSinBloquearMarcasNuevas() {
+        assertEquals(listOf("Oxbar", "Czar", "MarcaNueva", "LifePood"),
+            marcasUnicas(listOf("Oxbar", "OXBAR", " oxbar ", "Czar", "czar", "MarcaNueva", "LifePood", "LifePod")))
+    }
+
+    @Test fun marcaEditadaSeGuardaSinEspaciosYConservaCapitalizacion() {
+        val servicio = Servicio().apply {
+            documentos["1"] = documento("1", "Nombre", 10.0, 2, "Accesorios", marca = "Anterior")
+        }
+        val vm = ProductoViewModel(servicio, Dispatchers.Unconfined)
+        vm.iniciarEdicion("1")
+        vm.guardarProductoEdicion("Nombre", " NuevaMarca ", 10.0, 2, "Descripción", categoria = "Accesorios")
+        assertEquals("NuevaMarca", servicio.edicion!!.fields.marca!!.stringValue)
+        assertEquals(listOf("marca"), servicio.mascara)
     }
 
     private fun editar(categoriaOriginal: String?, categoriaNueva: String?): Pair<Servicio, ProductoViewModel> {

@@ -85,4 +85,55 @@ class CarritoStockTest {
         vm.restaurarItems(Gson().toJson(listOf(item, item, item.copy(productoId = "", precioUnit = -1.0))))
         assertEquals(1, vm.items.size)
     }
+
+    @Test fun productoSinSaboresSeAgregaConSaborVacio() {
+        val vm = CarritoViewModel()
+        vm.agregarProducto(producto)
+        assertEquals(1, vm.items.size)
+        assertTrue(vm.items.single().saborSeleccionado.isNullOrBlank())
+    }
+
+    @Test fun productoConSaboresExigeUnaSeleccionPropia() {
+        val conSabores = producto.copy(stock = 4, sabor = "Fresa, Menta",
+            stockPorSabor = mapOf("Fresa" to 2, "Menta" to 2))
+        val vm = CarritoViewModel()
+        vm.agregarProducto(conSabores)
+        assertTrue(vm.items.isEmpty())
+        vm.agregarProducto(conSabores, "Otro")
+        assertTrue(vm.items.isEmpty())
+        vm.agregarProducto(conSabores, "fresa")
+        assertEquals("Fresa", vm.items.single().saborSeleccionado)
+    }
+
+    @Test fun dosSaboresDelMismoProductoSonLineasDiferentes() {
+        val conSabores = producto.copy(stock = 5, sabor = "Fresa, Menta",
+            stockPorSabor = mapOf("Fresa" to 2, "Menta" to 3))
+        val vm = CarritoViewModel()
+        vm.agregarProducto(conSabores, "Fresa")
+        vm.agregarProducto(conSabores, "Menta")
+        assertEquals(setOf("Fresa", "Menta"), vm.items.mapNotNull { it.saborSeleccionado }.toSet())
+        assertEquals(2, vm.items.size)
+    }
+
+    @Test fun incrementarMantieneLaCantidadEnElSaborCorrecto() {
+        val conSabores = producto.copy(stock = 5, sabor = "Fresa, Menta",
+            stockPorSabor = mapOf("Fresa" to 2, "Menta" to 3))
+        val vm = CarritoViewModel()
+        vm.agregarProducto(conSabores, "Fresa")
+        vm.agregarProducto(conSabores, "Menta")
+        vm.incrementar("p1", "Menta")
+        assertEquals(1, vm.items.single { it.saborSeleccionado == "Fresa" }.cantidad)
+        assertEquals(2, vm.items.single { it.saborSeleccionado == "Menta" }.cantidad)
+    }
+
+    @Test fun stockGeneralTambienLimitaLaSumaDeSabores() {
+        val conSabores = producto.copy(stock = 2, sabor = "Fresa, Menta",
+            stockPorSabor = mapOf("Fresa" to 2, "Menta" to 2))
+        val vm = CarritoViewModel()
+        vm.agregarProducto(conSabores, "Fresa")
+        vm.agregarProducto(conSabores, "Menta")
+        vm.incrementar("p1", "Menta")
+        assertEquals(2, vm.items.sumOf { it.cantidad })
+        assertTrue(vm.puedeComprar)
+    }
 }

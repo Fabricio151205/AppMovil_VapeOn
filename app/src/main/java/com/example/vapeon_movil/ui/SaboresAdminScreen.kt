@@ -9,7 +9,6 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -24,13 +23,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.vapeon_movil.entities.SaborItem
 import com.example.vapeon_movil.entities.Usuario
 import com.example.vapeon_movil.ui.theme.*
 import com.example.vapeon_movil.utils.LISTA_MARCAS_DISPONIBLES
+import com.example.vapeon_movil.utils.mismaMarca
 import com.example.vapeon_movil.viewmodels.SaboresViewModel
 import kotlinx.coroutines.launch
 
@@ -183,7 +182,7 @@ fun SaboresAdminScreen(
 
                 val queryLimpia = saboresViewModel.busquedaQuery.trim().lowercase()
                 val listaFiltrada = saboresViewModel.listaSabores.filter { item ->
-                    val coincideMarca = filtroActual == "Todas" || item.marca.equals(filtroActual, ignoreCase = true)
+                    val coincideMarca = filtroActual == "Todas" || mismaMarca(item.marca, filtroActual)
                     val coincideNombre = queryLimpia.isEmpty() || item.nombre.lowercase().contains(queryLimpia)
                     coincideMarca && coincideNombre
                 }
@@ -263,9 +262,8 @@ fun SaboresAdminScreen(
             titulo = "Agregar Nuevo Sabor",
             nombreInicial = "",
             marcaInicial = LISTA_MARCAS_DISPONIBLES.first(),
-            stockInicial = 0,
-            onGuardar = { nombre, marca, stock ->
-                saboresViewModel.agregarSabor(nombre, marca, stock)
+            onGuardar = { nombre, marca ->
+                saboresViewModel.agregarSabor(nombre, marca)
                 mostrarDialogoAgregar = false
             },
             onDescartar = { mostrarDialogoAgregar = false }
@@ -278,9 +276,8 @@ fun SaboresAdminScreen(
             titulo = "Editar Sabor",
             nombreInicial = saborAntiguo.nombre,
             marcaInicial = saborAntiguo.marca,
-            stockInicial = saborAntiguo.stock,
-            onGuardar = { nombre, marca, stock ->
-                saboresViewModel.editarSabor(saborAntiguo, nombre, marca, stock)
+            onGuardar = { nombre, marca ->
+                saboresViewModel.editarSabor(saborAntiguo, nombre, marca)
                 saborEditar = null
             },
             onDescartar = { saborEditar = null }
@@ -311,7 +308,6 @@ fun SaboresAdminScreen(
                         Column(modifier = Modifier.padding(12.dp)) {
                             Text(saborItem.nombre, color = VapeOnTextPrimary, fontWeight = FontWeight.Bold)
                             Text("Marca: ${saborItem.marca}", color = VapeOnGold, fontSize = 13.sp)
-                            Text("Stock: ${saborItem.stock}", color = VapeOnTextSecondary, fontSize = 12.sp)
                         }
                     }
                 }
@@ -337,7 +333,7 @@ fun SaboresAdminScreen(
     }
 }
 
-// ---- Tarjeta de SaborItem con badge de stock coloreado ----
+// ---- Tarjeta del catálogo maestro de sabores ----
 @Composable
 private fun SaborItemCard(
     saborItem: SaborItem,
@@ -360,25 +356,6 @@ private fun SaborItemCard(
                 Text(saborItem.nombre, color = VapeOnTextPrimary, fontWeight = FontWeight.Bold, fontSize = 15.sp)
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(saborItem.marca, color = VapeOnGold, fontSize = 13.sp, fontWeight = FontWeight.Medium)
-                Spacer(modifier = Modifier.height(6.dp))
-                val stockColor = when {
-                    saborItem.stock == 0 -> MaterialTheme.colorScheme.error
-                    saborItem.stock <= 3 -> VapeOnGold
-                    else -> VapeOnTextSecondary
-                }
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(50))
-                        .background(stockColor.copy(alpha = 0.15f))
-                        .padding(horizontal = 8.dp, vertical = 3.dp)
-                ) {
-                    Text(
-                        text = if (saborItem.stock == 0) "Sin stock" else "Stock: ${saborItem.stock}",
-                        color = stockColor,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                }
             }
             Row(verticalAlignment = Alignment.CenterVertically) {
                 IconButton(onClick = onEditar) {
@@ -392,20 +369,18 @@ private fun SaborItemCard(
     }
 }
 
-// ---- Diálogo formulario: Agregar / Editar sabor con nombre, marca y stock ----
+// ---- Diálogo formulario: Agregar / Editar sabor del catálogo maestro ----
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun DialogoFormularioSabor(
     titulo: String,
     nombreInicial: String,
     marcaInicial: String,
-    stockInicial: Int = 0,
-    onGuardar: (nombre: String, marca: String, stock: Int) -> Unit,
+    onGuardar: (nombre: String, marca: String) -> Unit,
     onDescartar: () -> Unit
 ) {
     var nombreInput by remember { mutableStateOf(nombreInicial) }
     var marcaInput by remember { mutableStateOf(marcaInicial) }
-    var stockInput by remember { mutableStateOf(stockInicial.toString()) }
     var menuMarcaExpandido by remember { mutableStateOf(false) }
     var mensajeError by remember { mutableStateOf("") }
 
@@ -469,22 +444,6 @@ private fun DialogoFormularioSabor(
                         }
                     }
                 }
-                OutlinedTextField(
-                    value = stockInput,
-                    onValueChange = { nuevo -> stockInput = nuevo.filter { it.isDigit() } },
-                    label = { Text("Stock disponible", color = VapeOnTextSecondary) },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    singleLine = true,
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedContainerColor = VapeOnInputBackground,
-                        unfocusedContainerColor = VapeOnInputBackground,
-                        focusedBorderColor = VapeOnGold,
-                        unfocusedBorderColor = VapeOnInputBorder,
-                        focusedTextColor = VapeOnTextPrimary,
-                        unfocusedTextColor = VapeOnTextPrimary
-                    ),
-                    modifier = Modifier.fillMaxWidth()
-                )
                 if (mensajeError.isNotEmpty()) {
                     Text(text = mensajeError, color = MaterialTheme.colorScheme.error, fontSize = 13.sp)
                 }
@@ -493,13 +452,10 @@ private fun DialogoFormularioSabor(
         confirmButton = {
             Button(
                 onClick = {
-                    val stockInt = stockInput.toIntOrNull()
                     when {
                         nombreInput.isBlank() || marcaInput.isBlank() ->
                             mensajeError = "Completa nombre y marca"
-                        stockInt == null || stockInt < 0 ->
-                            mensajeError = "Ingresa un stock válido (>= 0)"
-                        else -> onGuardar(nombreInput.trim(), marcaInput.trim(), stockInt)
+                        else -> onGuardar(nombreInput.trim(), marcaInput.trim())
                     }
                 },
                 colors = ButtonDefaults.buttonColors(containerColor = VapeOnRed)

@@ -187,7 +187,8 @@ class PagoDigitalTest {
         val pedidos = object : PedidoService {
             override suspend fun consultarPedidos(body: PedidoConsulta) = emptyList<PedidoConsultaRespuesta>()
             override suspend fun mostrarPedido(id: String) = pedidoGuardado ?: throw falloHttp(404)
-            override suspend fun actualizarEstadoPedido(id: String, body: PedidoEstadoActualizacion): PedidoDocumento = error("No se utiliza")
+            override suspend fun actualizarEstadoPedido(id: String, body: PedidoEstadoActualizacion,
+                updateTime: String, campo: String): PedidoDocumento = error("No se utiliza")
             override suspend fun confirmarPedido(body: PedidoCommit): PedidoCommitRespuesta {
                 commits++
                 // Comprobar TODAS las precondiciones antes de aplicar cualquier escritura.
@@ -224,10 +225,32 @@ class PagoDigitalTest {
         val service = object : PedidoService {
             override suspend fun mostrarPedido(id: String) = pedidoDigitalPrueba().copy(usuarioId = "B").aDocumento("ruta")
             override suspend fun consultarPedidos(body: PedidoConsulta) = emptyList<PedidoConsultaRespuesta>()
-            override suspend fun actualizarEstadoPedido(id: String, body: PedidoEstadoActualizacion): PedidoDocumento = error("No se utiliza")
+            override suspend fun actualizarEstadoPedido(id: String, body: PedidoEstadoActualizacion,
+                updateTime: String, campo: String): PedidoDocumento = error("No se utiliza")
             override suspend fun confirmarPedido(body: PedidoCommit): PedidoCommitRespuesta = error("No debe registrar")
         }
         try { recuperarPedidoDigitalRegistrado(service, intentoDigitalPrueba().copy(pago = registrado)); fail() }
         catch (_: IllegalArgumentException) { }
+    }
+
+    @Test fun pedidoDigitalConDosSaboresDescuentaUnaSolaVezElDocumento() {
+        val precio = java.math.BigDecimal("10.00")
+        val lineas = listOf(
+            ProductoPedido("p1", "Producto", "Marca", 1, precio, precio, "Categoría", "Fresa"),
+            ProductoPedido("p1", "Producto", "Marca", 1, precio, precio, "Categoría", "Menta")
+        )
+        val pedido = pedidoDigitalPrueba().copy(productos = lineas, subtotal = java.math.BigDecimal("20.00"),
+            total = java.math.BigDecimal("25.00"), montoPagado = java.math.BigDecimal("25.00"))
+        val pago = pagoPrueba("CONFIRMADO").copy(monto = java.math.BigDecimal("25.00"))
+        val producto = productoCompra(stock = 2).copy(fields = ProductoCampos(
+            precio = FirestoreValue(doubleValue = 10.0), stock = FirestoreValue(integerValue = "2"),
+            sabor = FirestoreValue(stringValue = "Fresa, Menta"),
+            stockPorSabor = mapOf("Fresa" to 1, "Menta" to 1).aFirestoreMapa()))
+        val commit = prepararCommitDigital(documentoPago(pago), pedido, listOf(producto), intentoDigitalPrueba().ruta)
+        assertEquals(3, commit.writes.size)
+        val stock = commit.writes[1]
+        assertEquals("0", stock.update.fields["stock"]?.integerValue)
+        assertEquals(mapOf("Fresa" to 0, "Menta" to 0), stock.update.fields["stockPorSabor"].aStockMap())
+        assertEquals(listOf("stock", "stockPorSabor"), stock.updateMask?.fieldPaths)
     }
 }

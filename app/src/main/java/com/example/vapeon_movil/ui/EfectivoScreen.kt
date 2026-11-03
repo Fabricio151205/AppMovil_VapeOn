@@ -40,7 +40,8 @@ fun EfectivoScreen(usuario: Usuario?, carritoViewModel: CarritoViewModel, produc
         errorMonto?.let { Text(it, color = MaterialTheme.colorScheme.error) }
         Text("Vuelto: S/ ${vuelto?.let { importe(it) } ?: "—"}", color = VapeOnGold)
         carritoViewModel.items.forEach { item ->
-            Text("${item.nombre} · Cantidad: ${item.cantidad} · S/ ${importe(item.precioUnit)}",
+            val sabor = item.saborSeleccionado?.takeIf { it.isNotBlank() }?.let { " · Sabor: $it" }.orEmpty()
+            Text("${item.nombre}$sabor · Cantidad: ${item.cantidad} · S/ ${importe(item.precioUnit)}",
                 color = VapeOnTextPrimary)
         }
         pedidoViewModel.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }

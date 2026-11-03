@@ -12,6 +12,7 @@ package com.example.vapeon_movil.entities
  * @param precioUnit  Precio unitario como Double para cálculos de resumen.
  * @param cantidad    Cantidad de unidades seleccionadas por el usuario (mínimo 1).
  * @param imagenRes   Resource ID del drawable de imagen del producto (opcional).
+ * @param saborSeleccionado Sabor elegido para esta línea; null para productos sin sabores.
  */
 data class ItemCarrito(
     val productoId: String,
@@ -20,5 +21,6 @@ data class ItemCarrito(
     val precioUnit: Double,
     val cantidad: Int = 1,
     val imagenRes: Int? = null,
-    val stockDisponible: Int? = null
+    val stockDisponible: Int? = null,
+    val saborSeleccionado: String? = null
 )

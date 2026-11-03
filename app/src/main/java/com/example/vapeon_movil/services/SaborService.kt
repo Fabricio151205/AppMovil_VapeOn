@@ -15,6 +15,8 @@ import retrofit2.http.Query
 // Contrato HTTP — Colección "sabores" en Firestore
 // DTOs de transporte en: services/dto/SaborDto.kt
 // ─────────────────────────────────────────────
+internal val CAMPOS_CATALOGO_SABOR = listOf("nombre", "marca")
+
 interface SaborService {
 
     @GET("sabores")
@@ -33,7 +35,7 @@ interface SaborService {
     suspend fun actualizarSabor(
         @Path("id") id: String,
         @Body body: SaborContainer,
-        @Query("updateMask.fieldPaths") campos: List<String> = listOf("nombre", "marca", "stock")
+        @Query("updateMask.fieldPaths") campos: List<String> = CAMPOS_CATALOGO_SABOR
     ): SaborDocumento
 
     @DELETE("sabores/{id}")

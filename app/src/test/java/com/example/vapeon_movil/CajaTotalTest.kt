@@ -16,6 +16,14 @@ class CajaTotalTest {
     }
     private fun dinero(esperado: String, actual: BigDecimal) = assertEquals(0, BigDecimal(esperado).compareTo(actual))
 
+    @Test fun categoriaYSaborHistoricosNoAlteranElCalculoDeCaja() {
+        val linea = linea("LifePood", "50.00", 2).copy(categoria = "Batería", sabor = "Fresa")
+        val caja = calcularCaja(listOf(pedido(lineas = listOf(linea))))
+        dinero("100.00", caja.productos)
+        assertEquals("Fresa", caja.ventas("LifePod").single().productos.single().sabor)
+        assertEquals("Batería", caja.ventas("LifePod").single().productos.single().categoria)
+    }
+
     @Test fun lifePoodHistoricoSeEncuentraAlSeleccionarLifePod() {
         val historico = pedido(lineas = listOf(linea("LifePood", "50.00", 2)))
         val venta = calcularCaja(listOf(historico)).ventas("LifePod").single()

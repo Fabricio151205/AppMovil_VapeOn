@@ -5,7 +5,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -17,7 +16,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.activity.compose.BackHandler
@@ -27,7 +25,7 @@ import com.example.vapeon_movil.viewmodels.SaboresViewModel
 
 /**
  * Pantalla de alta (CREATE) de SaborItem.
- * Formulario completo con nombre, marca y stock.
+ * Formulario del catálogo maestro: nombre y marca. El inventario vive en Producto.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -38,7 +36,6 @@ fun AgregarSaborScreen(
     BackHandler(onBack = volver)
     var nombre by rememberSaveable { mutableStateOf("") }
     var marca by rememberSaveable { mutableStateOf(LISTA_MARCAS_DISPONIBLES.first()) }
-    var stock by rememberSaveable { mutableStateOf("0") }
     var mensajeError by rememberSaveable { mutableStateOf("") }
     var menuMarcaExpandido by remember { mutableStateOf(false) }
 
@@ -205,17 +202,6 @@ fun AgregarSaborScreen(
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(text = nombre, color = VapeOnTextPrimary, fontSize = 18.sp, fontWeight = FontWeight.Bold)
                         Text(text = marca, color = VapeOnGold, fontSize = 13.sp)
-                        Spacer(modifier = Modifier.height(6.dp))
-                        val stockInt = stock.toIntOrNull() ?: 0
-                        val stockColor = when {
-                            stockInt == 0 -> MaterialTheme.colorScheme.error
-                            stockInt <= 3 -> VapeOnGold
-                            else -> VapeOnTextSecondary
-                        }
-                        Text(
-                            text = if (stockInt == 0) "Sin stock" else "Stock: $stockInt",
-                            color = stockColor, fontSize = 12.sp, fontWeight = FontWeight.Medium
-                        )
                     }
                 }
             }
@@ -232,15 +218,12 @@ fun AgregarSaborScreen(
             // Boton Guardar
             Button(
                 onClick = {
-                    val stockInt = stock.toIntOrNull()
                     when {
                         nombre.isBlank() ->
                             mensajeError = "El nombre del sabor es obligatorio"
-                        stockInt == null || stockInt < 0 ->
-                            mensajeError = "Ingresa un stock valido (>= 0)"
                         else -> {
                             mensajeError = ""
-                            saboresViewModel.agregarSabor(nombre.trim(), marca, stockInt)
+                            saboresViewModel.agregarSabor(nombre.trim(), marca)
                         }
                     }
                 },
