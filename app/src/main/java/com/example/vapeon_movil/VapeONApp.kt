@@ -183,6 +183,7 @@ fun VapeONApp() {
         // ── RECUPERAR CONTRASEÑA ──────────────────────────────────────────────
         "recuperar" -> {
             ForgotPasswordScreen(
+                usuarioViewModel = usuarioViewModel,
                 volverLogin = { pantallaActual = "login" }
             )
         }

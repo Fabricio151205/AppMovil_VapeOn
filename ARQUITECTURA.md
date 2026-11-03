@@ -7,8 +7,8 @@ Documento de especificación y diseño de arquitectura para la aplicación móvi
 ## 1. Resumen Ejecutivo y Propósito
 
 **VapeON Móvil** es una aplicación nativa para Android orientada al comercio electrónico y gestión de catálogo de productos de vapeo. Proporciona una experiencia de usuario fluida con soporte para dos perfiles de usuario principales:
-- **Cliente**: Exploración de catálogo por marcas (LifePod, Oxbar, Nexa), búsqueda, detalle de producto, carrito de compras y flujo de pago (v2.0).
-- **Administrador**: Gestión completa del inventario (CRUD de productos: crear, listar, editar y eliminar) y acceso al panel administrativo. **Sin acceso al carrito.**
+- **Cliente**: Exploración de catálogo por marcas y filtros flotantes (RF12 / RF13), visualización exclusiva de productos con stock disponible (RNE01), ficha técnica, sabores propios, carrito de compras persistente localmente y proceso de checkout/pedidos.
+- **Administrador**: Gestión completa del inventario (CRUD de productos: crear, listar, editar con conmutador de sabores `tieneSabor` y eliminar), supervisión de pedidos, gestión de la colección máster de sabores y acceso al panel administrativo. **Sin acceso al carrito.**
 
 ---
 
@@ -24,6 +24,7 @@ Documento de especificación y diseño de arquitectura para la aplicación móvi
 | **Concurrencia** | Kotlin Coroutines (`viewModelScope`, `suspend`) | Operaciones de red no bloqueantes en hilos de fondo. |
 | **Capa de Red HTTP** | Square Retrofit 2 (v2.9.0) + Gson Converter | Cliente REST tipado para consumir la API de Firestore. |
 | **Base de Datos / Backend** | Google Cloud Firestore (**REST API v1 — sin SDK nativo**) | Almacenamiento NoSQL en la nube vía HTTP REST puro. |
+| **Persistencia Local** | `SharedPreferences` + `Gson` | Almacenamiento del carrito de compras local. |
 | **Gestor de Compilación** | Gradle con Kotlin DSL (`build.gradle.kts`) | Gestión modular de dependencias con version catalog. |
 
 > **Nota importante sobre Firebase**: El proyecto utiliza **exclusivamente la REST API de Firestore** (`https://firestore.googleapis.com/v1/projects/dbvapeon/...`) vía **Retrofit**. El SDK nativo `firebase-firestore-ktx` **no está instalado** para evitar confusión. Solo se mantiene `firebase-analytics` para métricas.
@@ -45,25 +46,30 @@ graph TD
             UVM[UsuarioViewModel]
             PVM[ProductoViewModel]
             CVM[CarritoViewModel]
+            PED_VM[PedidoViewModel]
+            SAB_VM[SaboresViewModel]
         end
 
         subgraph Screens ["Pantallas Composables"]
             LS[LoginScreen]
             RS[RegisterScreen]
-            FPS[ForgotPasswordScreen]
+            FPS[ForgotPasswordScreen - 3 Pasos]
             HS[HomeScreen]
             AHS[AdminHomeScreen]
-            CS[CatalogoScreen]
+            CS[CatalogoScreen - Filtros Flotantes]
             DPS[DetalleProductoScreen]
             CAR[CarritoScreen ★ solo CLIENTE]
+            CHK[CheckoutScreen]
             APS[AgregarProductoScreen]
             EPS[EditarProductoScreen]
+            SAB_ADM[SaboresAdminScreen]
+            PED_ADM[PedidosAdminScreen]
         end
 
         subgraph Components ["Componentes Reutilizables"]
             PC[ProductCard]
             MS[MarcaSection]
-            ICC[ItemCarritoCard ★]
+            ICC[ItemCarritoCard]
         end
 
         VA --> ViewModels
@@ -71,7 +77,6 @@ graph TD
         UVM --> LS
         PVM --> CS
         CVM --> CAR
-        CVM --> DPS
         CS --> MS --> PC
         CAR --> ICC
     end
@@ -79,23 +84,23 @@ graph TD
     subgraph Domain_Layer ["Capa de Dominio / Entidades"]
         ENT_PROD[Producto]
         ENT_USER[Usuario]
-        ENT_ITEM[ItemCarrito ★]
-        ENT_RES[ResumenPago ★]
+        ENT_ITEM[ItemCarrito]
+        ENT_RES[ResumenPago]
+        ENT_PED[Pedido]
+        ENT_SAB[SaborItem]
     end
 
     subgraph Data_Layer ["Capa de Red y Datos"]
         RC[RetrofitClient - Singleton]
         PS[ProductoService]
         US[UsuarioService]
-
-        subgraph DTOs ["services/dto/"]
-            FSV[FirestoreStringValue]
-            PDTO[ProductoDto: Container, Campos, ListResponse, Documento]
-            UDTO[UsuarioDto: Container, Campos, ListResponse, Documento]
-        end
+        PED_S[PedidoService]
+        SAB_S[SaborService]
 
         RC --> PS
         RC --> US
+        RC --> PED_S
+        RC --> SAB_S
     end
 
     subgraph Backend ["Backend Cloud"]
@@ -108,192 +113,31 @@ graph TD
     US -->|GET POST PATCH DELETE| FS
 ```
 
-> ★ = Nuevo en esta versión
-
 ---
 
-## 4. Desglose Detallado de Capas
-
-### 4.1 Capa de Presentación — UI Layer
-
-#### ViewModels (`viewmodels/`)
-Instanciados en `VapeONApp.kt` con `viewModel()` (scope de Activity). Se pasan como parámetros a las pantallas que los consumen.
-
-| ViewModel | Pantallas consumidoras | Estado principal | Acciones |
-| :--- | :--- | :--- | :--- |
-| `UsuarioViewModel` | `LoginScreen` | `usuarioActual`, `esAdmin`, `cargandoLogin`, `errorLogin` | `iniciarSesion()`, `cerrarSesion()` |
-| `ProductoViewModel` | `CatalogoScreen`, `AdminHomeScreen` | `productos`, `cargando`, `error` | `cargarProductos()`, `eliminarProducto()` |
-| `CarritoViewModel` | `CarritoScreen`, `DetalleProductoScreen` | `items`, `resumen`, `cantidadTotal` | `agregarProducto()`, `incrementar()`, `decrementar()`, `eliminarItem()`, `limpiarCarrito()` |
-
-#### Pantallas (`ui/`)
-
-- **Autenticación**: `LoginScreen`, `RegisterScreen`, `ForgotPasswordScreen`
-- **Cliente**: `HomeScreen`, `CatalogoScreen`, `DetalleProductoScreen`, `CarritoScreen` (★ nueva)
-- **Admin**: `AdminHomeScreen`, `AgregarProductoScreen`, `EditarProductoScreen`
-
-#### Componentes (`components/`)
-- `ProductCard.kt` — Tarjeta de producto con acciones admin opcionales
-- `MarcaSection.kt` — Sección por marca con `LazyRow`
-- `ItemCarritoCard.kt` (★) — Tarjeta de ítem del carrito con controles de cantidad
-
----
-
-### 4.2 Capa de Dominio — Entidades (`entities/`)
-
-```kotlin
-// Producto — entidad del catálogo
-data class Producto(val id: String, val nombre: String, val marca: String,
-                    val precio: String, val stock: String, val descripcion: String)
-
-// Usuario — perfil de cuenta
-data class Usuario(val id: String, val nombre: String, val apellido: String,
-                   val telefono: String, val fechaNacimiento: String,
-                   val correo: String, val password: String, val rol: String)
-
-// ItemCarrito ★ — ítem en el carrito del CLIENTE (local, en memoria)
-data class ItemCarrito(val productoId: String, val nombre: String, val marca: String,
-                       val precioUnit: Double, val cantidad: Int, val imagenRes: Int?)
-
-// ResumenPago ★ — cálculo financiero del carrito (SubTotal + Delivery + IGV = Total)
-data class ResumenPago(val subTotal: Double, val delivery: Double,
-                       val igv: Double, val total: Double)
-```
-
----
-
-### 4.3 Capa de Red — Servicios y DTOs
-
-#### Conexión con Firestore
-```
-URL base: https://firestore.googleapis.com/v1/projects/dbvapeon/databases/(default)/documents/
-Cliente:  RetrofitClient (object singleton) + GsonConverterFactory
-```
-
-#### Servicios (`services/`)
-Interfaces puras de Retrofit — **sin lógica de negocio**.
-
-| Servicio | Endpoints |
-| :--- | :--- |
-| `ProductoService` | `GET productos` · `POST productos` · `PATCH productos/{id}` · `DELETE productos/{id}` |
-| `UsuarioService` | `GET usuarios` · `GET usuarios/{id}` · `POST usuarios` · `PATCH usuarios/{id}` · `DELETE usuarios/{id}` |
-
-#### DTOs de Transporte (`services/dto/`)
-Modelan el formato JSON de Firestore REST (`fields: { campo: { stringValue: "..." } }`):
-
-| Archivo | Clases |
-| :--- | :--- |
-| `FirestoreDto.kt` | `FirestoreStringValue` (primitivo compartido) |
-| `ProductoDto.kt` | `ProductoContainer`, `ProductoCampos`, `ProductoListResponse`, `ProductoDocumento` |
-| `UsuarioDto.kt` | `UsuarioContainer`, `UsuarioCampos`, `UsuarioListResponse`, `UsuarioDocumento` |
-
----
-
-## 5. Control de Acceso por Roles (RBAC)
+## 4. Control de Acceso por Roles (RBAC)
 
 | Pantalla / Funcionalidad | CLIENTE | ADMIN |
 | :--- | :---: | :---: |
-| Catálogo (solo lectura) | ✅ | ✅ |
+| Catálogo (solo lectura de stock disponible RNE01) | ✅ | ✅ |
 | Detalle de Producto | ✅ | ✅ |
 | Carrito de Compras | ✅ | ❌ |
-| Agregar al Carrito | ✅ | ❌ |
+| Checkout y Pedidos | ✅ | ❌ |
+| Historial de Compras | ✅ | ❌ |
 | Agregar Producto (CRUD) | ❌ | ✅ |
-| Editar Producto (CRUD) | ❌ | ✅ |
+| Editar Producto (CRUD + `tieneSabor`) | ❌ | ✅ |
 | Eliminar Producto (CRUD) | ❌ | ✅ |
+| Gestión de Sabores Máster | ❌ | ✅ |
+| Administración de Pedidos | ❌ | ✅ |
 | Panel Administrativo | ❌ | ✅ |
 
 ---
 
-## 6. Estructura de Directorios del Código Fuente
+## 5. Historial de Versiones del Sistema
 
-```text
-app/src/main/java/com/example/vapeon_movil/
-├── MainActivity.kt                      # Host único de la aplicación
-├── VapeONApp.kt                         # Enrutador central + instancia de ViewModels
-│
-├── viewmodels/                          # Capa ViewModel (MVVM)
-│   ├── UsuarioViewModel.kt              # Sesión: login, rol, logout
-│   ├── ProductoViewModel.kt             # Catálogo: listar, eliminar
-│   └── CarritoViewModel.kt             ★ Carrito: agregar, cantidad, resumen
-│
-├── entities/                            # Modelos de dominio (data classes limpias)
-│   ├── Producto.kt
-│   ├── Usuario.kt
-│   ├── ItemCarrito.kt                  ★ Ítem del carrito (local)
-│   └── ResumenPago.kt                  ★ Cálculo financiero del carrito
-│
-├── services/                            # Capa de red — contratos Retrofit puros
-│   ├── ProductoService.kt
-│   ├── UsuarioService.kt
-│   └── dto/                             # DTOs de transporte Firestore REST
-│       ├── FirestoreDto.kt              # FirestoreStringValue (compartido)
-│       ├── ProductoDto.kt               # DTOs de producto
-│       └── UsuarioDto.kt               # DTOs de usuario
-│
-├── ui/                                  # Pantallas Composable
-│   ├── LoginScreen.kt
-│   ├── RegisterScreen.kt
-│   ├── ForgotPasswordScreen.kt
-│   ├── HomeScreen.kt
-│   ├── AdminHomeScreen.kt
-│   ├── CatalogoScreen.kt
-│   ├── DetalleProductoScreen.kt
-│   ├── CarritoScreen.kt                ★ Nueva — solo CLIENTE
-│   ├── AgregarProductoScreen.kt
-│   ├── EditarProductoScreen.kt
-│   ├── MenuScreen.kt
-│   └── theme/
-│       ├── Color.kt
-│       ├── Theme.kt
-│       └── Type.kt
-│
-├── components/                          # Componentes UI reutilizables
-│   ├── ProductCard.kt
-│   ├── MarcaSection.kt
-│   └── ItemCarritoCard.kt              ★ Nueva — tarjeta del carrito
-│
-└── utils/
-    └── RetrofitClient.kt               # Singleton Retrofit → Firestore REST
-```
-
----
-
-## 7. Flujos de Datos Clave
-
-### 7.1 Autenticación
-```
-LoginScreen → UsuarioViewModel.iniciarSesion()
-           → UsuarioService.listarUsuarios() [Retrofit → Firestore]
-           → Busca coincidencia correo+password en memoria
-           → Si ADMIN → pantallaActual = "admin"
-           → Si CLIENTE → pantallaActual = "home"
-```
-
-### 7.2 Carga del Catálogo
-```
-CatalogoScreen → LaunchedEffect → ProductoViewModel.cargarProductos()
-              → ProductoService.listarProductos() [Retrofit → Firestore]
-              → Mapea ProductoDocumento → Producto
-              → productos (estado) → recomposición de MarcaSection + ProductCard
-```
-
-### 7.3 Carrito de Compras (CLIENTE únicamente)
-```
-DetalleProductoScreen → "AGREGAR AL CARRITO"
-                     → CarritoViewModel.agregarProducto(producto)
-                     → Navega a CarritoScreen
-
-CarritoScreen → Observa carritoViewModel.items
-             → ItemCarritoCard: incrementar / decrementar / eliminar
-             → ResumenPagoPanel: subtotal + delivery + IGV + total (calculado en tiempo real)
-             → "PAGAR" → pendiente v2.0
-```
-
----
-
-## 8. Roadmap — Próximas Fases
-
-| Fase | Funcionalidad | Estado |
+| Versión | Fecha | Descripción de Cambios |
 | :--- | :--- | :--- |
-| **v1.0** | Auth, Catálogo CRUD (Admin), Detalle, Carrito (Cliente) | ✅ En desarrollo |
-| **v2.0** | Flujo de Pago, Persistencia del Carrito en Firestore, Pedidos | 🔜 Planificado |
-| **v3.0** | Repositorio Pattern, Jetpack Navigation, Hilt DI | 🔜 Planificado |
+| **v1.0.0** | `2026-09-26` | Versión inicial de la arquitectura MVVM, Single Activity y servicios Retrofit para Firestore. |
+| **v1.1.0** | `2026-10-02` | Integración de `DetalleProductoScreen`, `ForgotPasswordScreen`, `AgregarProductoScreen`, `EditarProductoScreen` y `CircularProgressIndicator`. |
+| **v1.2.0** | `2026-10-11` | Persistencia local del carrito (`SharedPreferences` + `Gson`), validaciones de formularios y control RBAC. |
+| **v1.3.0** | `2026-10-30` | Flujo de recuperación de contraseña de 3 pasos con notificación flotante, filtros flotantes por marca/precio (RF12/RF13), regla de stock por rol (RNE01), conmutador `tieneSabor` e indicadores de carga estandarizados. |

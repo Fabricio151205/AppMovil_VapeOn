@@ -220,15 +220,20 @@ fun AdminHomeScreen(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
                 ){
-                    Text(productoViewModel.error.orEmpty(), color = VapeOnTextSecondary)
-                    Button(onClick = { productoViewModel.cargarProductos() },
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = VapeOnGold,
-                            contentColor = VapeOnTextPrimary),
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(productoViewModel.error.orEmpty(), color = VapeOnTextSecondary, )
+                        Button(
+                            onClick = { productoViewModel.cargarProductos() },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = VapeOnGold,
+                                contentColor = VapeOnTextPrimary),
                         )
-                    { Text("Reintentar") }
-                }
+                        { Text("Reintentar") }
+                    }
 
+                }
             } else if (productosFirebase.isEmpty()) {
                 Box(
                     modifier = Modifier
