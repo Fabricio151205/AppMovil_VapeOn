@@ -82,6 +82,14 @@ fun ItemCarritoCard(
                     maxLines = 2
                 )
 
+                item.saborSeleccionado?.takeIf { it.isNotBlank() }?.let { sabor ->
+                    Text(
+                        text = "Sabor: $sabor",
+                        color = VapeOnTextSecondary,
+                        fontSize = 13.sp
+                    )
+                }
+
                 Spacer(modifier = Modifier.height(6.dp))
 
                 // Precio unitario
@@ -155,7 +163,7 @@ fun ItemCarritoCard(
             ) {
                 Icon(
                     imageVector = Icons.Default.Close,
-                    contentDescription = "Eliminar ${item.nombre} del carrito",
+                    contentDescription = "Eliminar ${item.nombre}${item.saborSeleccionado?.takeIf { it.isNotBlank() }?.let { " sabor $it" }.orEmpty()} del carrito",
                     tint = VapeOnTextSecondary,
                     modifier = Modifier.size(20.dp)
                 )

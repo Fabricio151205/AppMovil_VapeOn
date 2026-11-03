@@ -9,7 +9,10 @@ data class ProductoPedido(
     val marca: String,
     val cantidad: Int,
     val precioUnitario: BigDecimal,
-    val subtotal: BigDecimal
+    val subtotal: BigDecimal,
+    /** Campos opcionales para conservar compatibilidad con pedidos históricos. */
+    val categoria: String? = null,
+    val sabor: String? = null
 )
 
 /** Copia de la compra: no depende de cambios posteriores en el catálogo. */
@@ -27,7 +30,11 @@ data class Pedido(
     val vuelto: BigDecimal,
     val direccionEntrega: String,
     val metodoPago: String = "EFECTIVO",
-    val estado: String = "REGISTRADO"
+    val estado: String = "REGISTRADO",
+    val pagoId: String? = null,
+    val estadoPago: String? = null,
+    val numeroOperacion: String? = null,
+    val modalidadPago: String? = null
 ) {
     companion object {
         /** Acepta coma o punto decimal, sin exponentes ni más de dos decimales. */
@@ -40,8 +47,8 @@ data class Pedido(
 
         fun subtotal(items: List<ItemCarrito>): BigDecimal {
             require(items.isNotEmpty()) { "Tu carrito está vacío." }
-            require(items.map { it.productoId }.distinct().size == items.size) {
-                "El carrito contiene productos duplicados."
+            require(items.map { it.productoId to it.saborSeleccionado.normalizado() }.distinct().size == items.size) {
+                "El carrito contiene líneas duplicadas del mismo producto y sabor."
             }
             return items.fold(BigDecimal.ZERO.setScale(2)) { suma, item ->
                 require(item.productoId.isNotBlank() && item.nombre.isNotBlank() &&
@@ -66,3 +73,5 @@ data class Pedido(
         }
     }
 }
+
+private fun String?.normalizado(): String = this?.trim()?.lowercase(java.util.Locale.ROOT).orEmpty()

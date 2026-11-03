@@ -16,6 +16,7 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -38,7 +39,7 @@ fun DetalleProductoScreen(
     saboresViewModel: SaboresViewModel = androidx.lifecycle.viewmodel.compose.viewModel(),
     volver: () -> Unit,
     irEditarProducto: ((Producto) -> Unit)? = null,
-    onAgregarAlCarrito: (() -> Unit)? = null   // null para ADMIN (no aplica)
+    onAgregarAlCarrito: ((String?) -> Unit)? = null   // null para ADMIN (no aplica)
 ) {
     LaunchedEffect(Unit) { saboresViewModel.cargarSabores() }
     var esFavorito by remember { mutableStateOf(false) }
@@ -53,7 +54,9 @@ fun DetalleProductoScreen(
             emptyList()
         }
     }
-    var saborSeleccionado by remember(saboresLista) { mutableStateOf(saboresLista.firstOrNull().orEmpty()) }
+    var saborSeleccionado by rememberSaveable(producto.id, saboresLista) {
+        mutableStateOf(saboresLista.firstOrNull().orEmpty())
+    }
 
     val stockSaborSeleccionado = remember(saborSeleccionado, producto.stockPorSabor, producto.stockTotal) {
         if (saboresLista.isNotEmpty() && producto.stockPorSabor.isNotEmpty()) {
@@ -215,6 +218,11 @@ fun DetalleProductoScreen(
             // ==========================================
             // DESCRIPCIÓN DEL PRODUCTO
             // ==========================================
+            if (producto.categoria.isNotBlank()) {
+                Text("Categoría: ${producto.categoria}", color = VapeOnGold,
+                    style = MaterialTheme.typography.bodyMedium)
+                Spacer(Modifier.height(12.dp))
+            }
             Text(
                 text = producto.descripcion.ifBlank { "No disponible" },
                 color = VapeOnTextSecondary,
@@ -276,8 +284,12 @@ fun DetalleProductoScreen(
                         }
                     } else {
                         Button(
-                            onClick = { onAgregarAlCarrito?.invoke() },
-                            enabled = stockSaborSeleccionado > 0 && producto.precio.isFinite() && producto.precio > 0 && onAgregarAlCarrito != null,
+                            onClick = {
+                                onAgregarAlCarrito?.invoke(saborSeleccionado.takeIf { saboresLista.isNotEmpty() })
+                            },
+                            enabled = producto.stock > 0 && stockSaborSeleccionado > 0 &&
+                                (saboresLista.isEmpty() || saborSeleccionado.isNotBlank()) &&
+                                producto.precio.isFinite() && producto.precio > 0 && onAgregarAlCarrito != null,
                             shape = RoundedCornerShape(50),
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = VapeOnRed,

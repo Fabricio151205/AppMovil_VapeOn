@@ -11,19 +11,28 @@ import com.google.gson.Gson
 import org.junit.Assert.*
 import org.junit.Test
 import retrofit2.http.PATCH
+import retrofit2.http.Query
 import java.math.BigDecimal
 
 class EstadoPedidoTest {
-    @Test fun patchActualizaSoloEstadoYExigeDocumentoExistente() {
+    @Test fun patchActualizaSoloEstadoYExigeLaVersionLeida() {
         val metodo = PedidoService::class.java.methods.first { it.name == "actualizarEstadoPedido" }
-        assertEquals("pedidos/{id}?updateMask.fieldPaths=estado&currentDocument.exists=true",
-            metodo.getAnnotation(PATCH::class.java)!!.value)
+        assertEquals("pedidos/{id}", metodo.getAnnotation(PATCH::class.java)!!.value)
+        val consultas = metodo.parameterAnnotations.flatMap { it.toList() }.filterIsInstance<Query>()
+            .associateBy { it.value }
+        assertEquals(setOf("currentDocument.updateTime", "updateMask.fieldPaths"), consultas.keys)
         val json = Gson().toJsonTree(PedidoEstadoActualizacion(
             mapOf("estado" to FirestoreValor(stringValue = "EN CAMINO")))).asJsonObject
         assertEquals(setOf("fields"), json.keySet())
         val campos = json.getAsJsonObject("fields")
         assertEquals(setOf("estado"), campos.keySet())
         assertEquals("EN CAMINO", campos.getAsJsonObject("estado")["stringValue"].asString)
+    }
+
+    @Test fun documentoDePedidoConservaUpdateTimeParaDetectarConflictos() {
+        val documento = PedidoDocumento("pedidos/p1", emptyMap(), updateTime = "version-1")
+        assertEquals("version-1", documento.updateTime)
+        assertNotEquals("version-2", documento.updateTime)
     }
 
     @Test fun soloAdminPuedeGuardarEstadosPermitidos() {

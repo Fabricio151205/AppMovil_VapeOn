@@ -120,6 +120,12 @@ fun DetallePedidoScreen(
                                     Text(producto.nombre, style = MaterialTheme.typography.titleMedium,
                                         color = VapeOnTextPrimary, fontWeight = FontWeight.Bold)
                                     Text(producto.marca, color = VapeOnTextPrimary)
+                                    producto.categoria?.takeIf { it.isNotBlank() }?.let {
+                                        Text("Categoría: $it", color = VapeOnTextSecondary)
+                                    }
+                                    producto.sabor?.takeIf { it.isNotBlank() }?.let {
+                                        Text("Sabor: $it", color = VapeOnTextSecondary)
+                                    }
                                     Text("Cantidad: ${producto.cantidad}", color = VapeOnTextPrimary)
                                     Text("Precio unitario: ${moneda(producto.precioUnitario)}", color = VapeOnTextPrimary)
                                     Text("Subtotal: ${moneda(producto.subtotal)}", color = VapeOnGold)
@@ -138,6 +144,9 @@ fun DetallePedidoScreen(
                                 Text("Monto pagado / efectivo previsto: ${moneda(pedido.montoPagado)}", color = VapeOnTextPrimary)
                                 Text("Vuelto: ${moneda(pedido.vuelto)}", color = VapeOnTextPrimary)
                                 Text("Método de pago: ${pedido.metodoPago}", color = VapeOnTextPrimary)
+                                pedido.estadoPago?.let { Text("Estado del pago: $it", color = VapeOnGold) }
+                                pedido.numeroOperacion?.let { Text("Operación: $it", color = VapeOnTextSecondary) }
+                                pedido.modalidadPago?.let { Text("Modalidad: $it", color = VapeOnTextSecondary) }
                             }
                         }
                         if (pedido.direccionEntrega.isNotBlank()) {

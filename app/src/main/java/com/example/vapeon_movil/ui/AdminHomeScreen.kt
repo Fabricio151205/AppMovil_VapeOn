@@ -35,6 +35,7 @@ fun AdminHomeScreen(
     irEditarProducto: (Producto) -> Unit = {},
     onPerfilClick: () -> Unit = {},
     onCajaTotalClick: () -> Unit = {},
+    textoCaja: String = "Sin datos",
     onPrediccionClick: () -> Unit = {},
     onCuponesClick: () -> Unit = {},
     onNuevaVentaClick: () -> Unit = {},
@@ -76,9 +77,6 @@ fun AdminHomeScreen(
             Card(
                 onClick = {
                     onCajaTotalClick()
-                    scope.launch {
-                        snackbarHostState.showSnackbar("Módulo de Caja Total no disponible")
-                    }
                 },
                 shape = RoundedCornerShape(26.dp),
                 colors = CardDefaults.cardColors(containerColor = VapeOnRed),
@@ -101,7 +99,7 @@ fun AdminHomeScreen(
                         letterSpacing = 0.5.sp
                     )
                     Text(
-                        text = "Sin datos",
+                        text = textoCaja,
                         color = VapeOnTextPrimary,
                         fontSize = 22.sp,
                         fontWeight = FontWeight.ExtraBold

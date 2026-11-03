@@ -6,7 +6,11 @@ import java.math.BigDecimal
 import java.math.RoundingMode
 import java.time.Instant
 
-data class PedidoDocumento(val name: String, val fields: Map<String, FirestoreValor>)
+data class PedidoDocumento(
+    val name: String,
+    val fields: Map<String, FirestoreValor>,
+    val updateTime: String? = null
+)
 data class PedidoCommit(val writes: List<PedidoEscritura>)
 data class PedidoEscritura(
     val update: PedidoDocumento,
@@ -30,13 +34,19 @@ fun Pedido.aDocumento(ruta: String): PedidoDocumento {
                 "marca" to texto(item.marca),
                 "cantidad" to FirestoreValor(integerValue = item.cantidad.toString()),
                 "precioUnitario" to dinero(item.precioUnitario), "subtotal" to dinero(item.subtotal)
-            )))
+            ) + listOfNotNull(
+                item.categoria?.takeIf { it.isNotBlank() }?.let { "categoria" to texto(it) },
+                item.sabor?.takeIf { it.isNotBlank() }?.let { "sabor" to texto(it) }
+            ).toMap()))
         })),
         "subtotal" to dinero(subtotal), "delivery" to dinero(delivery), "total" to dinero(total),
         "montoPagado" to dinero(montoPagado), "vuelto" to dinero(vuelto),
         "metodoPago" to texto(metodoPago), "estado" to texto(estado),
         "direccionEntrega" to texto(direccionEntrega)
-    ))
+    ) + listOfNotNull(
+        pagoId?.let { "pagoId" to texto(it) }, estadoPago?.let { "estadoPago" to texto(it) },
+        numeroOperacion?.let { "numeroOperacion" to texto(it) }, modalidadPago?.let { "modalidadPago" to texto(it) }
+    ).toMap())
 }
 
 // RF26: consulta solo los documentos del cliente; no cambia la escritura de RF22.
@@ -98,12 +108,16 @@ internal fun PedidoDocumento.aPedido(): Pedido {
             val cantidad = datos["cantidad"]?.integerValue?.toIntOrNull()
             require(cantidad != null && cantidad > 0) { "Cantidad del pedido inválida." }
             ProductoPedido(datos.texto("productoId"), datos.texto("nombre"), datos.texto("marca"),
-                cantidad, datos.dinero("precioUnitario"), datos.dinero("subtotal"))
+                cantidad, datos.dinero("precioUnitario"), datos.dinero("subtotal"),
+                datos["categoria"]?.stringValue?.takeIf { it.isNotBlank() },
+                datos["sabor"]?.stringValue?.takeIf { it.isNotBlank() })
         },
         subtotal = fields.dinero("subtotal"), delivery = fields.dinero("delivery"),
         total = fields.dinero("total"), montoPagado = fields.dinero("montoPagado"),
         vuelto = fields.dinero("vuelto"), direccionEntrega = fields["direccionEntrega"]?.stringValue.orEmpty(),
-        metodoPago = fields.texto("metodoPago"), estado = fields.texto("estado")
+        metodoPago = fields.texto("metodoPago"), estado = fields.texto("estado"),
+        pagoId = fields["pagoId"]?.stringValue, estadoPago = fields["estadoPago"]?.stringValue,
+        numeroOperacion = fields["numeroOperacion"]?.stringValue, modalidadPago = fields["modalidadPago"]?.stringValue
     )
 }
 

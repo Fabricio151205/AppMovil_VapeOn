@@ -42,7 +42,7 @@ class OperacionesProductoTest {
         val servicio = Servicio().apply { espera = CompletableDeferred() }
         val vm = ProductoViewModel(servicio, Dispatchers.Unconfined)
         var exitos = 0
-        repeat(2) { vm.crearProducto("Producto", "Marca", 70.9, 5, "Descripción") { exitos++ } }
+        repeat(2) { vm.crearProducto("Producto", "Marca", 70.9, 5, "Descripción", categoria = "Accesorios") { exitos++ } }
         assertEquals(1, servicio.altas)
         assertTrue(vm.cargandoCreacion)
         servicio.espera!!.complete(Unit)
@@ -55,10 +55,10 @@ class OperacionesProductoTest {
         val servicio = Servicio().apply { perderRespuesta = true }
         val vm = ProductoViewModel(servicio, Dispatchers.Unconfined)
         var exitos = 0
-        vm.crearProducto("Producto", "Marca", 70.9, 5, "Descripción") { exitos++ }
+        vm.crearProducto("Producto", "Marca", 70.9, 5, "Descripción", categoria = "Accesorios") { exitos++ }
         assertEquals(0, exitos)
         assertNotNull(vm.errorCreacion)
-        vm.crearProducto("Producto", "Marca", 70.9, 5, "Descripción") { exitos++ }
+        vm.crearProducto("Producto", "Marca", 70.9, 5, "Descripción", categoria = "Accesorios") { exitos++ }
         assertEquals(1, servicio.documentos.size)
         assertEquals(1, exitos)
     }
@@ -76,7 +76,7 @@ class OperacionesProductoTest {
         val servicio = Servicio()
         val vm = ProductoViewModel(servicio, Dispatchers.Unconfined)
         listOf(Double.NaN, Double.POSITIVE_INFINITY, 70.905).forEach {
-            vm.crearProducto("Producto", "Marca", it, 5, "") { fail("Precio inválido") }
+            vm.crearProducto("Producto", "Marca", it, 5, "", categoria = "Accesorios") { fail("Precio inválido") }
         }
         assertEquals(0, servicio.altas)
     }

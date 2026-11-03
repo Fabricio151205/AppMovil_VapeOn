@@ -10,6 +10,7 @@ import com.example.vapeon_movil.services.SaborService
 import com.example.vapeon_movil.services.dto.SaborContainer
 import com.example.vapeon_movil.services.listarTodosSabores
 import com.example.vapeon_movil.utils.RetrofitClient
+import com.example.vapeon_movil.utils.mismaMarca
 import kotlinx.coroutines.launch
 
 /**
@@ -73,20 +74,16 @@ class SaboresViewModel(
     }
 
     /** Agrega un nuevo sabor al catálogo en Firestore */
-    fun agregarSabor(nombre: String, marca: String, stock: Int = 0) {
+    fun agregarSabor(nombre: String, marca: String) {
         val nLimpio = nombre.trim()
         val mLimpio = marca.trim()
         if (nLimpio.isBlank() || mLimpio.isBlank()) {
             mensajeError = "Nombre y marca son obligatorios"
             return
         }
-        if (stock < 0) {
-            mensajeError = "El stock debe ser mayor o igual a 0"
-            return
-        }
         val duplicado = listaSabores.any {
             it.nombre.equals(nLimpio, ignoreCase = true) &&
-                    it.marca.equals(mLimpio, ignoreCase = true)
+                    mismaMarca(it.marca, mLimpio)
         }
         if (duplicado) {
             mensajeError = "Ya existe '$nLimpio' para la marca '$mLimpio'"
@@ -96,7 +93,7 @@ class SaboresViewModel(
         viewModelScope.launch {
             cargando = true
             try {
-                val nuevoSabor = SaborItem(nombre = nLimpio, marca = mLimpio, stock = stock)
+                val nuevoSabor = SaborItem(nombre = nLimpio, marca = mLimpio)
                 service.crearSabor(SaborContainer.fromEntity(nuevoSabor))
                 cargarSabores()
                 mensajeError = null
@@ -110,22 +107,25 @@ class SaboresViewModel(
     }
 
     /** Edita un sabor existente en Firestore */
-    fun editarSabor(saborAntiguo: SaborItem, nuevoNombre: String, nuevaMarca: String, nuevoStock: Int = saborAntiguo.stock) {
+    fun editarSabor(saborAntiguo: SaborItem, nuevoNombre: String, nuevaMarca: String) {
         val nLimpio = nuevoNombre.trim()
         val mLimpio = nuevaMarca.trim()
         if (nLimpio.isBlank() || mLimpio.isBlank()) {
             mensajeError = "Nombre y marca son obligatorios"
             return
         }
-        if (nuevoStock < 0) {
-            mensajeError = "El stock debe ser mayor o igual a 0"
+        val duplicado = listaSabores.any {
+            it.id != saborAntiguo.id && it.nombre.equals(nLimpio, ignoreCase = true) &&
+                mismaMarca(it.marca, mLimpio)
+        }
+        if (duplicado) {
+            mensajeError = "Ya existe '$nLimpio' para la marca '$mLimpio'"
             return
         }
-
         viewModelScope.launch {
             cargando = true
             try {
-                val saborEditado = SaborItem(id = saborAntiguo.id, nombre = nLimpio, marca = mLimpio, stock = nuevoStock)
+                val saborEditado = SaborItem(id = saborAntiguo.id, nombre = nLimpio, marca = mLimpio)
                 if (saborAntiguo.id.isNotBlank()) {
                     service.actualizarSabor(id = saborAntiguo.id, body = SaborContainer.fromEntity(saborEditado))
                 }

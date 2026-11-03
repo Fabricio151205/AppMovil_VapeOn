@@ -8,6 +8,7 @@ import com.example.vapeon_movil.entities.SaborItem
 data class SaborCampos(
     val nombre: FirestoreValue? = null,
     val marca: FirestoreValue? = null,
+    /** Compatibilidad de lectura con documentos antiguos; no se escribe en altas o ediciones nuevas. */
     val stock: FirestoreValue? = null
 )
 
@@ -36,8 +37,7 @@ data class SaborContainer(
             return SaborContainer(
                 fields = SaborCampos(
                     nombre = FirestoreValue(stringValue = saborItem.nombre),
-                    marca = FirestoreValue(stringValue = saborItem.marca),
-                    stock = FirestoreValue(integerValue = saborItem.stock.toString())
+                    marca = FirestoreValue(stringValue = saborItem.marca)
                 )
             )
         }

@@ -10,7 +10,7 @@ class RotacionNavegacionTest {
     private val cliente = Usuario(id = "cliente1", rol = "CLIENTE")
     private val admin = Usuario(id = "admin1", rol = "ADMIN")
     private val rutasCliente = listOf("home", "catalogo", "detalle", "carrito", "checkout",
-        "historialCompras", "detallePedido")
+        "historialCompras", "detallePedido", "tarjetas") + RUTAS_COMPRA + RUTAS_REGISTRO_TARJETA
     private val rutasAdmin = listOf("admin", "catalogo", "detalle", "agregarProducto",
         "editarProducto", "pedidosAdmin", "detallePedidoAdmin")
 
@@ -37,7 +37,7 @@ class RotacionNavegacionTest {
         listOf("admin", "agregarProducto", "editarProducto", "pedidosAdmin", "detallePedidoAdmin").forEach {
             assertEquals("home", pantallaRestauradaSegura(it, cliente, claveSesionNavegacion(cliente)))
         }
-        listOf("home", "carrito", "checkout", "historialCompras", "detallePedido").forEach {
+        rutasCliente.filter { it !in setOf("catalogo", "detalle") }.forEach {
             assertEquals("admin", pantallaRestauradaSegura(it, admin, claveSesionNavegacion(admin)))
         }
     }

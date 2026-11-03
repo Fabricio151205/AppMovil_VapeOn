@@ -1,12 +1,17 @@
 package com.example.vapeon_movil
 
 import com.example.vapeon_movil.entities.SaborItem
+import com.example.vapeon_movil.services.CAMPOS_CATALOGO_SABOR
 import com.example.vapeon_movil.services.dto.FirestoreValue
 import com.example.vapeon_movil.services.dto.SaborCampos
 import com.example.vapeon_movil.services.dto.SaborContainer
 import com.example.vapeon_movil.services.dto.SaborDocumento
 import com.example.vapeon_movil.utils.obtenerSaboresPorMarca
+import com.example.vapeon_movil.utils.claveMarca
+import com.example.vapeon_movil.utils.mismaMarca
+import com.example.vapeon_movil.viewmodels.SaboresViewModel
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -32,13 +37,29 @@ class SaboresCrudTest {
     }
 
     @Test
-    fun saborContainerGeneraEstructuraFirestoreCorrecta() {
+    fun nuevaEscrituraDeSaborNoIncluyeStockLegado() {
         val item = SaborItem(id = "99", nombre = "Cool Mint", marca = "Oxbar", stock = 5)
         val container = SaborContainer.fromEntity(item)
 
         assertEquals("Cool Mint", container.fields.nombre?.stringValue)
         assertEquals("Oxbar", container.fields.marca?.stringValue)
-        assertEquals("5", container.fields.stock?.integerValue)
+        assertNull(container.fields.stock)
+    }
+
+    @Test
+    fun patchDeSaborSoloModificaNombreYMarca() {
+        assertEquals(listOf("nombre", "marca"), CAMPOS_CATALOGO_SABOR)
+    }
+
+    @Test
+    fun administracionDeSaboresNoRecibeStockDeVenta() {
+        val operaciones = SaboresViewModel::class.java.methods.filter {
+            it.name == "agregarSabor" || it.name == "editarSabor"
+        }
+        assertTrue(operaciones.isNotEmpty())
+        assertTrue(operaciones.all { metodo ->
+            metodo.parameterTypes.none { it == Int::class.javaPrimitiveType || it == Int::class.javaObjectType }
+        })
     }
 
     @Test
@@ -53,5 +74,37 @@ class SaboresCrudTest {
         assertEquals(2, saboresLifePod.size)
         assertTrue(saboresLifePod.contains("Banana Ice"))
         assertTrue(saboresLifePod.contains("Watermelon Ice"))
+    }
+
+    @Test
+    fun identidadDeMarcaUsaEspaciosMayusculasYAliasExplicito() {
+        assertEquals("oxbar", claveMarca(" Oxbar "))
+        assertTrue(mismaMarca("Oxbar", "OXBAR"))
+        assertTrue(mismaMarca("Czar", "czar"))
+        assertTrue(mismaMarca("LifePod", " LIFEPOOD "))
+    }
+
+    @Test
+    fun identidadDeMarcaNoUsaCoincidenciasAproximadas() {
+        listOf("ABCD" to "ABC", "Ox" to "Oxbar", "Oxbar Plus" to "Oxbar",
+            "LifePod Plus" to "LifePod", "Life Pod" to "LifePod",
+            "LifePooood" to "LifePod").forEach { (primera, segunda) ->
+            assertTrue("$primera no debe equivaler a $segunda", !mismaMarca(primera, segunda))
+        }
+    }
+
+    @Test
+    fun saboresNoMezclanMarcasQueSoloCompartenSubcadena() {
+        val sabores = listOf(
+            SaborItem(nombre = "Correcto", marca = " abc "),
+            SaborItem(nombre = "Incorrecto", marca = "ABCD")
+        )
+        assertEquals(listOf("Correcto"), obtenerSaboresPorMarca("ABC", sabores))
+    }
+
+    @Test
+    fun saboresReconocenAliasHistoricoLifePood() {
+        val sabores = listOf(SaborItem(nombre = "Fresa", marca = "LifePood"))
+        assertEquals(listOf("Fresa"), obtenerSaboresPorMarca("lifepod", sabores))
     }
 }

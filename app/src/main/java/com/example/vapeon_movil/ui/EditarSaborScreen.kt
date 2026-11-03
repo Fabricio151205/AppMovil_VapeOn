@@ -5,7 +5,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -17,7 +16,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.activity.compose.BackHandler
@@ -40,7 +38,6 @@ fun EditarSaborScreen(
     BackHandler(onBack = volver)
     var nombre by rememberSaveable { mutableStateOf(saborOriginal.nombre) }
     var marca by rememberSaveable { mutableStateOf(saborOriginal.marca) }
-    var stock by rememberSaveable { mutableStateOf(saborOriginal.stock.toString()) }
     var mensajeError by rememberSaveable { mutableStateOf("") }
     var menuMarcaExpandido by remember { mutableStateOf(false) }
     var mostrarConfirmacionEliminar by remember { mutableStateOf(false) }
@@ -132,7 +129,7 @@ fun EditarSaborScreen(
                         color = VapeOnTextSecondary, fontSize = 12.sp, fontWeight = FontWeight.SemiBold
                     )
                     Text(
-                        text = "${saborOriginal.nombre} — ${saborOriginal.marca} (Stock: ${saborOriginal.stock})",
+                        text = "${saborOriginal.nombre} — ${saborOriginal.marca}",
                         color = VapeOnGold, fontSize = 13.sp, fontWeight = FontWeight.Medium
                     )
                 }
@@ -202,28 +199,6 @@ fun EditarSaborScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Campo: Stock
-            Text(
-                text = "Stock disponible",
-                color = VapeOnTextSecondary, fontSize = 14.sp, fontWeight = FontWeight.SemiBold,
-                modifier = Modifier.fillMaxWidth().padding(bottom = 6.dp)
-            )
-            OutlinedTextField(
-                value = stock,
-                onValueChange = { nuevo -> stock = nuevo.filter { it.isDigit() } },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                singleLine = true,
-                shape = RoundedCornerShape(12.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedContainerColor = VapeOnInputBackground, unfocusedContainerColor = VapeOnInputBackground,
-                    focusedBorderColor = VapeOnGold, unfocusedBorderColor = VapeOnInputBorder,
-                    focusedTextColor = VapeOnTextPrimary, unfocusedTextColor = VapeOnTextPrimary, cursorColor = VapeOnGold
-                ),
-                modifier = Modifier.fillMaxWidth()
-            )
-
             if (mensajeError.isNotEmpty()) {
                 Spacer(modifier = Modifier.height(12.dp))
                 Text(text = mensajeError, color = MaterialTheme.colorScheme.error, fontSize = 14.sp,
@@ -236,15 +211,12 @@ fun EditarSaborScreen(
             // Boton Guardar Cambios
             Button(
                 onClick = {
-                    val stockInt = stock.toIntOrNull()
                     when {
                         nombre.isBlank() ->
                             mensajeError = "El nombre del sabor es obligatorio"
-                        stockInt == null || stockInt < 0 ->
-                            mensajeError = "Ingresa un stock valido (>= 0)"
                         else -> {
                             mensajeError = ""
-                            saboresViewModel.editarSabor(saborOriginal, nombre.trim(), marca, stockInt)
+                            saboresViewModel.editarSabor(saborOriginal, nombre.trim(), marca)
                         }
                     }
                 },
@@ -298,7 +270,6 @@ fun EditarSaborScreen(
                         Column(modifier = Modifier.padding(12.dp)) {
                             Text(saborOriginal.nombre, color = VapeOnTextPrimary, fontWeight = FontWeight.Bold)
                             Text("Marca: ${saborOriginal.marca}", color = VapeOnGold, fontSize = 13.sp)
-                            Text("Stock: ${saborOriginal.stock}", color = VapeOnTextSecondary, fontSize = 12.sp)
                         }
                     }
                 }

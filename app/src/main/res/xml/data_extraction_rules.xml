@@ -1,19 +1,15 @@
-<?xml version="1.0" encoding="utf-8"?><!--
-   Sample data extraction rules file; uncomment and customize as necessary.
-   See https://developer.android.com/about/versions/12/backup-restore#xml-changes
-   for details.
--->
+<?xml version="1.0" encoding="utf-8"?>
 <data-extraction-rules>
     <cloud-backup>
-        <!-- TODO: Use <include> and <exclude> to control what is backed up.
-        <include .../>
-        <exclude .../>
-        -->
+        <!-- Estado transaccional local: no debe restaurarse desde la nube. -->
+        <exclude domain="sharedpref" path="vapeon_carrito_prefs.xml" />
+        <exclude domain="sharedpref" path="vapeon_checkout.xml" />
+        <exclude domain="sharedpref" path="vapeon_pagos_simulados.xml" />
     </cloud-backup>
-    <!--
     <device-transfer>
-        <include .../>
-        <exclude .../>
+        <!-- Tampoco debe copiarse durante una transferencia entre dispositivos. -->
+        <exclude domain="sharedpref" path="vapeon_carrito_prefs.xml" />
+        <exclude domain="sharedpref" path="vapeon_checkout.xml" />
+        <exclude domain="sharedpref" path="vapeon_pagos_simulados.xml" />
     </device-transfer>
-    -->
 </data-extraction-rules>

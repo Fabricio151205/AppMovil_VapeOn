@@ -29,6 +29,7 @@ import com.example.vapeon_movil.services.dto.*
 import com.example.vapeon_movil.ui.theme.*
 import com.example.vapeon_movil.utils.LISTA_MARCAS_DISPONIBLES
 import com.example.vapeon_movil.utils.obtenerSaboresPorMarca
+import com.example.vapeon_movil.utils.mismaMarca
 import com.example.vapeon_movil.viewmodels.ProductoViewModel
 import com.example.vapeon_movil.viewmodels.SaboresViewModel
 
@@ -181,11 +182,13 @@ private fun FormularioEditarProducto(
         marca = documento.fields.marca?.asString().orEmpty(), precio = documento.fields.precio?.asDouble() ?: 0.0,
         stock = documento.fields.stock?.asInt() ?: 0, descripcion = documento.fields.descripcion?.asString().orEmpty(),
         sabor = documento.fields.sabor?.asString().orEmpty(),
-        stockPorSabor = documento.fields.stockPorSabor.aStockMap() // Bug A: cargar mapa de stock existente
+        stockPorSabor = documento.fields.stockPorSabor.aStockMap(), // Bug A: cargar mapa de stock existente
+        categoria = documento.fields.categoria?.stringValue.orEmpty()
     )
 
     var nombre by rememberSaveable { mutableStateOf(producto.nombre) }
     var marca by rememberSaveable { mutableStateOf(producto.marca) }
+    var categoria by rememberSaveable { mutableStateOf(producto.categoria) }
     var precio by rememberSaveable { mutableStateOf(producto.precio.toString()) }
     var stock by rememberSaveable { mutableStateOf(producto.stock.toString()) }
     var descripcion by rememberSaveable { mutableStateOf(producto.descripcion) }
@@ -379,6 +382,21 @@ private fun FormularioEditarProducto(
             }
 
             Spacer(modifier = Modifier.height(14.dp))
+
+            OutlinedTextField(
+                value = categoria, onValueChange = { categoria = it },
+                label = { Text("Categoría") }, singleLine = true,
+                supportingText = {
+                    if (producto.categoria.isBlank()) Text("Este producto antiguo puede conservar la categoría sin definir.")
+                },
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedTextColor = VapeOnTextPrimary, unfocusedTextColor = VapeOnTextPrimary,
+                    focusedContainerColor = VapeOnInputBackground, unfocusedContainerColor = VapeOnInputBackground,
+                    focusedBorderColor = VapeOnGold, unfocusedBorderColor = VapeOnInputBorder,
+                    focusedLabelColor = VapeOnGold, unfocusedLabelColor = VapeOnTextSecondary),
+                modifier = Modifier.fillMaxWidth()
+            )
+            Spacer(Modifier.height(14.dp))
 
             //Campo: Descripción
             Text(
@@ -715,6 +733,11 @@ private fun FormularioEditarProducto(
                         return@Button
                     }
 
+                    if (producto.categoria.isNotBlank() && categoria.isBlank()) {
+                        mensajeError = "La categoría del producto no puede quedar vacía."
+                        return@Button
+                    }
+
                     val saboresSeleccionadosSet = if (tieneSabor) {
                         sabor.split(",").map { it.trim() }.filter { it.isNotBlank() }.toSet()
                     } else emptySet()
@@ -728,25 +751,17 @@ private fun FormularioEditarProducto(
                     val saborFinal = if (tieneSabor) sabor else ""
                     val stockFinal = if (tieneSabor && stockMap.isNotEmpty()) stockMap.values.sum() else (stockInt ?: 0)
 
-                    // Registrar o actualizar automáticamente en la colección máster /sabores
+                    // El catálogo maestro conserva nombre+marca; el inventario vive en /productos.
                     if (tieneSabor) {
-                        stockMap.forEach { (nombreSabor, stockSabor) ->
+                        stockMap.keys.forEach { nombreSabor ->
                             val existente = saboresViewModel.listaSabores.find {
                                 it.nombre.equals(nombreSabor.trim(), ignoreCase = true) &&
-                                        it.marca.equals(marca.trim(), ignoreCase = true)
+                                        mismaMarca(it.marca, marca)
                             }
-                            if (existente != null) {
-                                saboresViewModel.editarSabor(
-                                    saborAntiguo = existente,
-                                    nuevoNombre = existente.nombre,
-                                    nuevaMarca = existente.marca,
-                                    nuevoStock = stockSabor
-                                )
-                            } else {
+                            if (existente == null) {
                                 saboresViewModel.agregarSabor(
                                     nombre = nombreSabor.trim(),
-                                    marca = marca.trim(),
-                                    stock = stockSabor
+                                    marca = marca.trim()
                                 )
                             }
                         }
@@ -755,12 +770,13 @@ private fun FormularioEditarProducto(
                     mensajeError = ""
                     productoViewModel.guardarProductoEdicion(
                         nombre = nombre,
-                        marca = marca,
+                        marca = marca.trim(),
                         precio = precioDouble,
                         stock = stockFinal,
                         descripcion = descripcion,
                         sabor = saborFinal,
-                        stockPorSabor = stockMap
+                        stockPorSabor = stockMap,
+                        categoria = categoria
                     )
                 },
                 enabled = !cargando && !productoViewModel.requiereRecargarEdicion,
