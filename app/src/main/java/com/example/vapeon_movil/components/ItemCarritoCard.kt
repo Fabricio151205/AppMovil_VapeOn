@@ -9,9 +9,11 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -53,6 +55,9 @@ fun ItemCarritoCard(
             verticalAlignment = Alignment.CenterVertically
         ) {
             // ── Imagen del producto ──────────────────────────────────────────
+            val imagenRes = remember(item.nombre, item.saborSeleccionado) {
+                com.example.vapeon_movil.utils.resolverImagenProducto(item.nombre, item.saborSeleccionado)
+            }
             Box(
                 modifier = Modifier
                     .size(72.dp)
@@ -61,10 +66,11 @@ fun ItemCarritoCard(
                 contentAlignment = Alignment.Center
             ) {
                 Image(
-                    painter = painterResource(id = item.imagenRes ?: R.drawable.logo_vapeon),
+                    painter = painterResource(id = imagenRes),
                     contentDescription = "Imagen de ${item.nombre}",
+                    contentScale = ContentScale.Fit,
                     modifier = Modifier
-                        .size(56.dp)
+                        .fillMaxSize()
                         .padding(4.dp)
                 )
             }
@@ -103,7 +109,9 @@ fun ItemCarritoCard(
                 Spacer(modifier = Modifier.height(10.dp))
 
                 // Controles de cantidad: (−) cantidad (+)
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     // Botón decrementar
                     FilledTonalIconButton(
                         onClick = onDecrementar,
@@ -111,7 +119,9 @@ fun ItemCarritoCard(
                         modifier = Modifier.size(48.dp),
                         colors = IconButtonDefaults.filledTonalIconButtonColors(
                             containerColor = VapeOnRed,
-                            contentColor = VapeOnTextPrimary
+                            contentColor = VapeOnTextPrimary,
+                            disabledContainerColor = VapeOnRedDark,
+                            disabledContentColor = VapeOnTextSecondary
                         ),
                         shape = RoundedCornerShape(8.dp)
                     ) {
@@ -119,7 +129,6 @@ fun ItemCarritoCard(
                             text = "−",
                             fontWeight = FontWeight.Bold,
                             fontSize = 18.sp,
-                            color = VapeOnTextPrimary
                         )
                     }
 
@@ -139,16 +148,16 @@ fun ItemCarritoCard(
                         modifier = Modifier.size(48.dp),
                         colors = IconButtonDefaults.filledTonalIconButtonColors(
                             containerColor = VapeOnRed,
-                            contentColor = VapeOnTextPrimary
+                            contentColor = VapeOnTextPrimary,
+                            disabledContainerColor = VapeOnRedDark,
+                            disabledContentColor = VapeOnTextSecondary
                         ),
                         shape = RoundedCornerShape(8.dp)
-
                     ) {
                         Text(
                             text = "+",
                             fontWeight = FontWeight.Bold,
                             fontSize = 18.sp,
-                            color = VapeOnTextPrimary
                         )
                     }
                 }

@@ -487,7 +487,7 @@ fun VapeONApp() {
                 agregarTarjeta = { iniciarRegistroTarjeta(false) })
         }
 
-        "datosEntrega" -> DatosEntregaScreen(usuarioActual, carritoViewModel, volver = { pantallaActual = "carrito" },
+        "datosEntrega" -> DatosEntregaScreen(usuarioActual, carritoViewModel, pedidoViewModel, volver = { pantallaActual = "carrito" },
             continuar = { entregaRevisada = true; pantallaActual = "seleccionDireccion" })
 
         "seleccionDireccion" -> SeleccionDireccionScreen(direccionEntrega,

@@ -20,6 +20,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -129,6 +130,11 @@ fun DetalleProductoScreen(
             // ==========================================
             // TARJETA DE IMAGEN Y FAVORITO
             // ==========================================
+            val contextoProducto = "${producto.nombre} ${producto.categoria} ${producto.marca}"
+            val imagenRes = remember(contextoProducto, saborSeleccionado) {
+                com.example.vapeon_movil.utils.resolverImagenProducto(contextoProducto, saborSeleccionado)
+            }
+
             Card(
                 shape = RoundedCornerShape(24.dp),
                 colors = CardDefaults.cardColors(
@@ -142,12 +148,13 @@ fun DetalleProductoScreen(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
                 ) {
-                    // Logo de VapeOn como imagen del producto por defecto
+                    // Imagen dinámica del producto / sabor resuelto
                     Image(
-                        painter = painterResource(id = R.drawable.logo_vapeon),
+                        painter = painterResource(id = imagenRes),
                         contentDescription = producto.nombre.ifEmpty { "Producto VapeON" },
+                        contentScale = ContentScale.Fit,
                         modifier = Modifier
-                            .size(180.dp)
+                            .fillMaxSize()
                             .padding(12.dp)
                     )
 

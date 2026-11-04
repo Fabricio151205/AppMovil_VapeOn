@@ -2,7 +2,6 @@ package com.example.vapeon_movil.ui
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -11,6 +10,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -25,26 +25,33 @@ import com.example.vapeon_movil.entities.Usuario
 import com.example.vapeon_movil.ui.theme.*
 import com.example.vapeon_movil.utils.moneda
 import com.example.vapeon_movil.viewmodels.CarritoViewModel
+import com.example.vapeon_movil.viewmodels.PedidoViewModel
 
 @Composable
 fun DatosEntregaScreen(
     usuario: Usuario?,
     carritoViewModel: CarritoViewModel? = null,
+    pedidoViewModel: PedidoViewModel? = null,
     volver: () -> Unit,
     continuar: () -> Unit
 ) {
     val items = carritoViewModel?.items.orEmpty()
     val resumen = carritoViewModel?.resumen
 
-    val clienteNombre = if (usuario != null && usuario.nombre.isNotBlank()) {
-        "${usuario.nombre} ${usuario.apellido}".trim()
-    } else "Fabricio Alvarez"
-
-    val clienteTelefono = usuario?.telefono?.takeIf { it.isNotBlank() } ?: "999 123 456"
+    val clienteNombre = "${usuario?.nombre.orEmpty()} ${usuario?.apellido.orEmpty()}".trim().ifBlank { "Sin nombre registrado" }
+    val clienteTelefono = usuario?.telefono?.takeIf { it.isNotBlank() } ?: "Sin teléfono registrado"
 
     val hoy = remember { java.time.LocalDateTime.now() }
     val fechaTexto = remember(hoy) { hoy.format(java.time.format.DateTimeFormatter.ofPattern("dd-MM-yyyy")) }
     val horaTexto = remember(hoy) { hoy.format(java.time.format.DateTimeFormatter.ofPattern("HH:mm")) }
+
+    // Cargar la caja global para calcular el contador correlativo de boletas en la aplicación
+    LaunchedEffect(usuario) {
+        pedidoViewModel?.cargarCaja(usuario)
+    }
+
+    val numeroBoletaInt = (pedidoViewModel?.pedidosCaja?.size ?: 0) + 1
+    val numeroBoletaTexto = remember(numeroBoletaInt) { String.format(java.util.Locale.ROOT, "BOLETA ELECTRONICA N° %04d", numeroBoletaInt) }
 
     Surface(
         modifier = Modifier
@@ -86,193 +93,156 @@ fun DatosEntregaScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // ESTRUCTURA COMPLETA DE LA BOLETA CON DENTADOS TROQUELADOS
-            Column(
+            // CONTENEDOR DE BOLETA DINÁMICO QUE SE EXPANDE SEGÚN EL CONTENIDO
+            Box(
                 modifier = Modifier.fillMaxWidth()
             ) {
-                // BORDE DECORATIVO SUPERIOR DE BOLETA (ARREGLO BOLETA)
+                // IMAGEN DE FONDO DE BOLETA QUE SE ADAPTA AL TAMAÑO EXACTO DEL PADRE
                 Image(
                     painter = painterResource(id = R.drawable.arreglo_boleta),
-                    contentDescription = "Borde de Boleta Superior",
+                    contentDescription = "Fondo de Boleta Dinámico",
                     contentScale = ContentScale.FillBounds,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(20.dp)
+                    modifier = Modifier.matchParentSize()
                 )
 
-                // CUERPO CENTRAL DE LA BOLETA CON FONDO VAPEON SURFACE
+                // CONTENIDO DE LA BOLETA CON ESPACIADO INTERNO CUIDADO
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(VapeOnSurface)
-                        .padding(horizontal = 20.dp, vertical = 14.dp)
+                        .padding(horizontal = 24.dp, vertical = 28.dp)
                 ) {
-                    // TÍTULO BOLETA
+                    // TÍTULO BOLETA INCREMENTAL
                     Text(
-                        text = "BOLETA ELECTRONICA N° 0001",
-                        color = VapeOnTextPrimary,
+                        text = numeroBoletaTexto,
+                        color = VapeOnGold,
                         fontWeight = FontWeight.Bold,
-                        fontSize = 14.sp,
+                        fontSize = 16.sp,
                         textAlign = TextAlign.Center,
-                        letterSpacing = 0.5.sp,
+                        letterSpacing = 1.sp,
                         modifier = Modifier.fillMaxWidth()
                     )
 
-                    Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(14.dp))
                     HorizontalDivider(color = VapeOnGold, thickness = 1.dp)
-                    Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(14.dp))
 
                     // DATOS DEL DÍA Y HORA
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text(text = "Fecha: $fechaTexto", color = VapeOnTextPrimary, fontSize = 13.sp)
-                        Text(text = "Hora: $horaTexto", color = VapeOnTextPrimary, fontSize = 13.sp)
+                        Text(text = "Fecha: $fechaTexto", color = VapeOnTextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                        Text(text = "Hora: $horaTexto", color = VapeOnTextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Medium)
                     }
 
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Text(text = "Cliente: $clienteNombre", color = VapeOnTextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Medium)
                     Spacer(modifier = Modifier.height(8.dp))
-                    Text(text = "Cliente: $clienteNombre", color = VapeOnTextPrimary, fontSize = 13.sp)
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Text(text = "Telefono: $clienteTelefono", color = VapeOnTextPrimary, fontSize = 13.sp)
+                    Text(text = "Telefono: $clienteTelefono", color = VapeOnTextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Medium)
 
-                    Spacer(modifier = Modifier.height(14.dp))
+                    Spacer(modifier = Modifier.height(16.dp))
                     HorizontalDivider(color = VapeOnGold, thickness = 1.dp)
-                    Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(14.dp))
 
                     // CABECERA SECCIÓN PRODUCTOS
                     Text(
                         text = "PRODUCTOS DE LA COMPRA",
                         color = VapeOnGold,
                         fontWeight = FontWeight.Bold,
-                        fontSize = 13.sp,
+                        fontSize = 15.sp,
                         textAlign = TextAlign.Center,
+                        letterSpacing = 0.5.sp,
                         modifier = Modifier.fillMaxWidth()
                     )
 
-                    Spacer(modifier = Modifier.height(10.dp))
+                    Spacer(modifier = Modifier.height(12.dp))
 
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text(text = "Productos", color = VapeOnTextSecondary, fontSize = 12.sp, modifier = Modifier.weight(2f))
-                        Text(text = "Cant.", color = VapeOnTextSecondary, fontSize = 12.sp, textAlign = TextAlign.Center, modifier = Modifier.weight(0.8f))
-                        Text(text = "Precio", color = VapeOnTextSecondary, fontSize = 12.sp, textAlign = TextAlign.End, modifier = Modifier.weight(1.2f))
+                        Text(text = "Productos", color = VapeOnTextSecondary, fontSize = 13.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(2f))
+                        Text(text = "Cant.", color = VapeOnTextSecondary, fontSize = 13.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center, modifier = Modifier.weight(0.8f))
+                        Text(text = "Precio", color = VapeOnTextSecondary, fontSize = 13.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.End, modifier = Modifier.weight(1.2f))
                     }
 
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(10.dp))
                     HorizontalDivider(color = VapeOnInputBorder, thickness = 1.dp)
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(10.dp))
 
-                    // TABLA DE PRODUCTOS DINÁMICOS DESDE EL CARRITO
-                    if (items.isNotEmpty()) {
-                        items.forEach { item ->
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = 4.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Column(modifier = Modifier.weight(2f)) {
+                    // TABLA DE PRODUCTOS REALES DESDE EL CARRITO
+                    items.forEach { item ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 6.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(2f)) {
+                                Text(
+                                    text = item.nombre,
+                                    color = VapeOnTextPrimary,
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                                if (!item.saborSeleccionado.isNullOrBlank()) {
                                     Text(
-                                        text = item.nombre,
-                                        color = VapeOnTextPrimary,
-                                        fontSize = 12.sp,
-                                        fontWeight = FontWeight.Medium
+                                        text = "Sabor: ${item.saborSeleccionado}",
+                                        color = VapeOnTextSecondary,
+                                        fontSize = 12.sp
                                     )
-                                    if (!item.saborSeleccionado.isNullOrBlank()) {
-                                        Text(
-                                            text = "Sabor: ${item.saborSeleccionado}",
-                                            color = VapeOnTextSecondary,
-                                            fontSize = 11.sp
-                                        )
-                                    }
                                 }
-                                Text(
-                                    text = item.cantidad.toString(),
-                                    color = VapeOnTextPrimary,
-                                    fontSize = 12.sp,
-                                    textAlign = TextAlign.Center,
-                                    modifier = Modifier.weight(0.8f)
-                                )
-                                Text(
-                                    text = moneda(item.precioUnit * item.cantidad),
-                                    color = VapeOnTextPrimary,
-                                    fontSize = 12.sp,
-                                    textAlign = TextAlign.End,
-                                    modifier = Modifier.weight(1.2f)
-                                )
                             }
-                        }
-                    } else {
-                        // Muestra por defecto si el carrito está vacío en simulación
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 4.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(text = "Vasito Snowwolf,\nDesechable", color = VapeOnTextPrimary, fontSize = 12.sp, modifier = Modifier.weight(2f))
-                            Text(text = "1", color = VapeOnTextPrimary, fontSize = 12.sp, textAlign = TextAlign.Center, modifier = Modifier.weight(0.8f))
-                            Text(text = "S/. 20.00", color = VapeOnTextPrimary, fontSize = 12.sp, textAlign = TextAlign.End, modifier = Modifier.weight(1.2f))
-                        }
-                        Spacer(modifier = Modifier.height(6.dp))
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 4.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(text = "Kit Completo,\nBateria + Pod", color = VapeOnTextPrimary, fontSize = 12.sp, modifier = Modifier.weight(2f))
-                            Text(text = "2", color = VapeOnTextPrimary, fontSize = 12.sp, textAlign = TextAlign.Center, modifier = Modifier.weight(0.8f))
-                            Text(text = "S/. 70.00", color = VapeOnTextPrimary, fontSize = 12.sp, textAlign = TextAlign.End, modifier = Modifier.weight(1.2f))
+                            Text(
+                                text = item.cantidad.toString(),
+                                color = VapeOnTextPrimary,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold,
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.weight(0.8f)
+                            )
+                            Text(
+                                text = moneda(item.precioUnit * item.cantidad),
+                                color = VapeOnTextPrimary,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold,
+                                textAlign = TextAlign.End,
+                                modifier = Modifier.weight(1.2f)
+                            )
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(14.dp))
+                    Spacer(modifier = Modifier.height(16.dp))
                     HorizontalDivider(color = VapeOnGold, thickness = 1.dp)
-                    Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(14.dp))
 
-                    // TOTALES DINÁMICOS
-                    val subTotalValor = resumen?.subTotal ?: 90.0
+                    // TOTALES REALES DESDE EL CARRITO
+                    val subTotalValor = resumen?.subTotal ?: 0.0
                     val igvValor = resumen?.igv ?: 0.0
-                    val deliveryValor = resumen?.delivery ?: 5.0
-                    val totalValor = resumen?.total ?: 100.0
+                    val deliveryValor = resumen?.delivery ?: 0.0
+                    val totalValor = resumen?.total ?: 0.0
 
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text(text = "Sub Total:", color = VapeOnTextPrimary, fontSize = 13.sp)
-                        Text(text = moneda(subTotalValor), color = VapeOnTextPrimary, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
-                    }
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text(text = "IGV (18%):", color = VapeOnTextPrimary, fontSize = 13.sp)
-                        Text(text = moneda(igvValor), color = VapeOnTextPrimary, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
-                    }
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text(text = "Delivery:", color = VapeOnTextPrimary, fontSize = 13.sp)
-                        Text(text = moneda(deliveryValor), color = VapeOnTextPrimary, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                        Text(text = "Sub Total:", color = VapeOnTextPrimary, fontSize = 14.sp)
+                        Text(text = moneda(subTotalValor), color = VapeOnTextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Bold)
                     }
                     Spacer(modifier = Modifier.height(8.dp))
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text(text = "Total a pagar:", color = VapeOnTextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                        Text(text = moneda(totalValor), color = VapeOnTextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                        Text(text = "IGV (18%):", color = VapeOnTextPrimary, fontSize = 14.sp)
+                        Text(text = moneda(igvValor), color = VapeOnTextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text(text = "Delivery:", color = VapeOnTextPrimary, fontSize = 14.sp)
+                        Text(text = moneda(deliveryValor), color = VapeOnTextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                    }
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text(text = "Total a pagar:", color = VapeOnGold, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                        Text(text = moneda(totalValor), color = VapeOnGold, fontSize = 16.sp, fontWeight = FontWeight.Bold)
                     }
                 }
-
-                // BORDE DECORATIVO INFERIOR DE BOLETA (ARREGLO PEDIDO)
-                Image(
-                    painter = painterResource(id = R.drawable.arreglo_pedido),
-                    contentDescription = "Borde de Boleta Inferior",
-                    contentScale = ContentScale.FillBounds,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(20.dp)
-                )
             }
 
             Spacer(modifier = Modifier.weight(1f, fill = false))

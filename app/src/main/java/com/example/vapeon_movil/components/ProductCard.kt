@@ -12,9 +12,11 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -54,10 +56,16 @@ fun ProductCard(
                     .background(VapeOnProductImageBg),
                 contentAlignment = Alignment.Center
             ) {
+                val imagenRes = remember(nombre) {
+                    com.example.vapeon_movil.utils.resolverImagenProducto(nombre, null)
+                }
                 Image(
-                    painter = painterResource(id = R.drawable.logo_vapeon),
+                    painter = painterResource(id = imagenRes),
                     contentDescription = nombre,
-                    modifier = Modifier.size(80.dp)
+                    contentScale = ContentScale.Fit,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(8.dp)
                 )
 
                 // Etiqueta "Sin stock" visible para ADMIN
