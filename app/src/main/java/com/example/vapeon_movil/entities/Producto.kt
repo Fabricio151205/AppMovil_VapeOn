@@ -9,11 +9,8 @@ data class Producto(
     val descripcion: String,
     val sabor: String = "",
     val stockPorSabor: Map<String, Int> = emptyMap(),
-<<<<<<< HEAD
-    val fechaCreacion: String = ""
-=======
+    val fechaCreacion: String = "",
     val categoria: String = ""
->>>>>>> acc9221f3bbcdfd859bec4ce91f95c9606023928
 ) {
     /**
      * Determina si el producto fue agregado recientemente (máximo hace 1 semana / 7 días).
@@ -28,6 +25,7 @@ data class Producto(
             true
         }
     }
+
     /**
      * Convierte el mapa interno en una lista de SaborItem vinculados a la marca del producto.
      */

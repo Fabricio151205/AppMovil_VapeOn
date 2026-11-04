@@ -7,34 +7,22 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.vapeon_movil.components.MarcaSection
 import com.example.vapeon_movil.entities.Producto
 import com.example.vapeon_movil.ui.theme.*
 import com.example.vapeon_movil.viewmodels.ProductoViewModel
-<<<<<<< HEAD
-=======
-import com.example.vapeon_movil.utils.claveMarca
-import com.example.vapeon_movil.utils.marcasUnicas
-import com.example.vapeon_movil.utils.mismaMarca
-import kotlinx.coroutines.launch
->>>>>>> acc9221f3bbcdfd859bec4ce91f95c9606023928
 
 @Composable
 fun CatalogoScreen(
@@ -59,26 +47,13 @@ fun CatalogoScreen(
     val cargando       = productoViewModel.cargando
     val errorRed       = productoViewModel.error
 
-    // Estado local de UI
-<<<<<<< HEAD
+    // Estado local de UI (RF12 / RF13)
     var busqueda              by remember { mutableStateOf("") }
     var categoriaSeleccionada by remember { mutableStateOf("Todos") } // Todos, Nuevos, Promociones
     var marcaFiltro           by remember { mutableStateOf("Todas") }  // Filtro flotante por Marca
     var ordenPrecio           by remember { mutableStateOf("Sin orden") } // Sin orden, Menor a Mayor, Mayor a Menor
     var mostrarModalFiltros   by remember { mutableStateOf(false) }
-=======
-    var busqueda              by rememberSaveable { mutableStateOf("") }
-    var marcaVerTodos         by rememberSaveable { mutableStateOf("") }
-    var categoriaSeleccionada by remember { mutableStateOf("Todos") }
->>>>>>> acc9221f3bbcdfd859bec4ce91f95c9606023928
     var productoAEliminar     by remember { mutableStateOf<Producto?>(null) }
-    var categoriaFiltro by rememberSaveable { mutableStateOf("") }
-    var precioMinimo by rememberSaveable { mutableStateOf("") }
-    var precioMaximo by rememberSaveable { mutableStateOf("") }
-    var soloConStock by rememberSaveable { mutableStateOf(false) }
-    var menuCategoriasAbierto by remember { mutableStateOf(false) }
-    var filtrosAbiertos by rememberSaveable { mutableStateOf(false) }
-    val errorFiltro = productoViewModel.errorFiltros(precioMinimo, precioMaximo)
 
     // Regla RNE01: El cliente solo puede ver productos con stock > 0, mientras que el admin ve todos.
     val productosPorRol = remember(productos, esAdmin) {
@@ -133,7 +108,7 @@ fun CatalogoScreen(
                 // ==========================================
                 OutlinedTextField(
                     value = busqueda,
-                    onValueChange = { busqueda = it; marcaVerTodos = "" },
+                    onValueChange = { busqueda = it },
                     placeholder = {
                         Text(
                             text = "Buscar Productos...",
@@ -167,76 +142,7 @@ fun CatalogoScreen(
                 Spacer(modifier = Modifier.height(14.dp))
 
                 // ==========================================
-<<<<<<< HEAD
                 // 2. FILTRO FLOTANTE + BOTONES "TODOS", "NUEVOS", "PROMOCIONES"
-=======
-                // RF13: categorías reales del inventario, independientes de las marcas.
-                val filtrosActivos = categoriaFiltro.isNotBlank() || precioMinimo.isNotBlank() ||
-                    precioMaximo.isNotBlank() || soloConStock
-                TextButton(onClick = { filtrosAbiertos = !filtrosAbiertos }) {
-                    Text(if (filtrosAbiertos) "Ocultar filtros" else if (filtrosActivos) "Filtros · Activos" else "Filtros",
-                        color = VapeOnGold)
-                }
-                if (!filtrosAbiertos && errorFiltro != null) {
-                    Text(errorFiltro, color = MaterialTheme.colorScheme.error)
-                }
-                if (filtrosAbiertos) {
-                Box(Modifier.fillMaxWidth()) {
-                    OutlinedButton(onClick = { menuCategoriasAbierto = true },
-                        modifier = Modifier.fillMaxWidth()) {
-                        Text(if (categoriaFiltro.isBlank()) "Todas las categorías" else "Categoría: $categoriaFiltro",
-                            color = VapeOnGold)
-                    }
-                    DropdownMenu(expanded = menuCategoriasAbierto,
-                        onDismissRequest = { menuCategoriasAbierto = false }) {
-                        DropdownMenuItem(text = { Text("Todas las categorías") }, onClick = {
-                            categoriaFiltro = ""
-                            menuCategoriasAbierto = false
-                        })
-                        productoViewModel.categoriasDisponibles.forEach { categoria ->
-                            DropdownMenuItem(text = { Text(categoria) }, onClick = {
-                                categoriaFiltro = categoria
-                                menuCategoriasAbierto = false
-                            })
-                        }
-                    }
-                }
-                val coloresFiltros = OutlinedTextFieldDefaults.colors(
-                    focusedTextColor = VapeOnTextPrimary, unfocusedTextColor = VapeOnTextPrimary,
-                    focusedContainerColor = VapeOnInputBackground, unfocusedContainerColor = VapeOnInputBackground,
-                    focusedBorderColor = VapeOnGold, unfocusedBorderColor = VapeOnInputBorder,
-                    focusedLabelColor = VapeOnGold, unfocusedLabelColor = VapeOnTextSecondary)
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    OutlinedTextField(value = precioMinimo, onValueChange = { precioMinimo = it },
-                        label = { Text("Precio mínimo") }, prefix = { Text("S/") }, singleLine = true,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                        colors = coloresFiltros, modifier = Modifier.weight(1f))
-                    OutlinedTextField(value = precioMaximo, onValueChange = { precioMaximo = it },
-                        label = { Text("Precio máximo") }, prefix = { Text("S/") }, singleLine = true,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                        colors = coloresFiltros, modifier = Modifier.weight(1f))
-                }
-                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    Text("Solo con stock", color = VapeOnTextPrimary, modifier = Modifier.weight(1f))
-                    Switch(checked = soloConStock, onCheckedChange = { soloConStock = it },
-                        colors = SwitchDefaults.colors(checkedTrackColor = VapeOnRed,
-                            checkedThumbColor = VapeOnTextPrimary),
-                        modifier = Modifier.semantics { contentDescription = "Solo con stock" })
-                }
-                errorFiltro?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-                TextButton(onClick = {
-                    busqueda = ""
-                    marcaVerTodos = ""
-                    categoriaFiltro = ""
-                    precioMinimo = ""
-                    precioMaximo = ""
-                    soloConStock = false
-                }) { Text("Limpiar filtros", color = VapeOnGold) }
-                Spacer(Modifier.height(12.dp))
-                }
-
-                // 2. CHIPS DE CATEGORÍAS (Todos, Nuevos, Promociones)
->>>>>>> acc9221f3bbcdfd859bec4ce91f95c9606023928
                 // ==========================================
                 Row(
                     modifier = Modifier
@@ -304,34 +210,36 @@ fun CatalogoScreen(
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(250.dp),
+                            .height(180.dp),
                         contentAlignment = Alignment.Center
                     ) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             CircularProgressIndicator(
                                 color = VapeOnGold,
-                                modifier = Modifier.size(42.dp)
+                                modifier = Modifier.size(36.dp)
                             )
-                            Spacer(modifier = Modifier.height(14.dp))
+                            Spacer(modifier = Modifier.height(10.dp))
                             Text(
                                 text = "Cargando catálogo...",
                                 color = VapeOnTextSecondary,
-                                fontSize = 14.sp
+                                fontSize = 13.sp
                             )
                         }
                     }
                 } else if (errorRed != null) {
                     Text(errorRed, color = VapeOnTextSecondary)
+                    Spacer(modifier = Modifier.height(10.dp))
                     Button(
                         onClick = { productoViewModel.cargarProductos() },
+                        shape = RoundedCornerShape(50),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = VapeOnGold,
-                            contentColor = VapeOnTextPrimary)
+                            contentColor = VapeOnBackground
+                        )
                     ) {
-                        Text("Reintentar")
+                        Text("Reintentar", fontWeight = FontWeight.Bold)
                     }
                 } else {
-<<<<<<< HEAD
                     // Filtrado reactivo completo
                     val listaFiltrada = remember(productosPorRol, busqueda, categoriaSeleccionada, marcaFiltro, ordenPrecio) {
                         var resultado = productosPorRol.filter { prod ->
@@ -365,13 +273,6 @@ fun CatalogoScreen(
 
                         resultado
                     }
-=======
-                    // Filtrado reactivo de productos
-                    val listaConFiltros = productoViewModel.filtrarProductos(
-                        busqueda, categoriaFiltro, precioMinimo, precioMaximo, soloConStock)
-                    val listaFiltrada = if (marcaVerTodos.isBlank()) listaConFiltros else
-                        listaConFiltros.filter { mismaMarca(it.marca, marcaVerTodos) }
->>>>>>> acc9221f3bbcdfd859bec4ce91f95c9606023928
 
                     if (listaFiltrada.isEmpty()) {
                         Box(
@@ -387,16 +288,10 @@ fun CatalogoScreen(
                             )
                         }
                     } else {
-<<<<<<< HEAD
                         // Agrupación por marca manteniendo el orden filtrado
                         val marcasOrdenadas = listOf("LifePod", "Oxbar", "Nexa")
                         val agrupados = listaFiltrada.groupBy { prod ->
                             marcasOrdenadas.find { it.equals(prod.marca.trim(), ignoreCase = true) } ?: prod.marca.trim()
-=======
-                        // ── SECCIÓN: LIFEPOD ──────────────────────────────
-                        val productosLifePod = listaFiltrada.filter {
-                            mismaMarca(it.marca, "LifePod")
->>>>>>> acc9221f3bbcdfd859bec4ce91f95c9606023928
                         }
 
                         agrupados.forEach { (nombreMarca, prods) ->
@@ -405,72 +300,11 @@ fun CatalogoScreen(
                                 productos = prods,
                                 irDetalleProducto = irDetalleProducto,
                                 esAdmin = esAdmin,
-<<<<<<< HEAD
                                 onVerTodos = { busqueda = nombreMarca },
-=======
-                                onVerTodos = { busqueda = ""; marcaVerTodos = "LifePod" },
->>>>>>> acc9221f3bbcdfd859bec4ce91f95c9606023928
                                 eliminarProducto = { productoAEliminar = it },
                                 editarProducto = { irEditarProducto(it) }
                             )
                         }
-<<<<<<< HEAD
-=======
-
-                        // ── SECCIÓN: OXBAR ────────────────────────────────
-                        val productosOxbar = listaFiltrada.filter {
-                            mismaMarca(it.marca, "Oxbar")
-                        }
-                        if (productosOxbar.isNotEmpty()) {
-                            MarcaSection(
-                                nombreMarca = "Oxbar",
-                                productos = productosOxbar,
-                                irDetalleProducto = irDetalleProducto,
-                                esAdmin = esAdmin,
-                                onVerTodos = { busqueda = ""; marcaVerTodos = "Oxbar" },
-                                eliminarProducto = { productoAEliminar = it },
-                                editarProducto = { irEditarProducto(it) }
-                            )
-                        }
-
-                        // ── SECCIÓN: NEXA ─────────────────────────────────
-                        val productosNexa = listaFiltrada.filter {
-                            mismaMarca(it.marca, "Nexa")
-                        }
-                        if (productosNexa.isNotEmpty()) {
-                            MarcaSection(
-                                nombreMarca = "Nexa",
-                                productos = productosNexa,
-                                irDetalleProducto = irDetalleProducto,
-                                esAdmin = esAdmin,
-                                onVerTodos = { busqueda = ""; marcaVerTodos = "Nexa" },
-                                eliminarProducto = { productoAEliminar = it },
-                                editarProducto = { irEditarProducto(it) }
-                            )
-                        }
-
-                        // ── SECCIONES DINÁMICAS (otras marcas) ────────────
-                        val especiales = setOf(claveMarca("LifePod"), claveMarca("Oxbar"), claveMarca("Nexa"))
-                        val otrasMarcas = marcasUnicas(listaFiltrada.map { it.marca })
-                            .filter { claveMarca(it) !in especiales }
-
-                        otrasMarcas.forEach { marca ->
-                            val productosMarca = listaFiltrada.filter {
-                                mismaMarca(it.marca, marca)
-                            }
-                            if (productosMarca.isNotEmpty()) {
-                                MarcaSection(
-                                    nombreMarca = marca,
-                                    productos = productosMarca,
-                                    irDetalleProducto = irDetalleProducto,
-                                    esAdmin = esAdmin,
-                                    onVerTodos = { busqueda = ""; marcaVerTodos = marca },
-                                    eliminarProducto = { productoAEliminar = it },
-                                    editarProducto = { irEditarProducto(it) }
-                                )
-                            }
-                        }
->>>>>>> acc9221f3bbcdfd859bec4ce91f95c9606023928
                     }
                 }
 

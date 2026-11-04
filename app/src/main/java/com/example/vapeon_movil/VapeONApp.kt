@@ -9,14 +9,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-<<<<<<< HEAD
 import androidx.compose.ui.unit.sp
-=======
 import com.example.vapeon_movil.entities.calcularCaja
 import com.example.vapeon_movil.entities.marcasDeCaja
 import com.example.vapeon_movil.ui.CajaTotalScreen
 import com.example.vapeon_movil.utils.moneda
->>>>>>> acc9221f3bbcdfd859bec4ce91f95c9606023928
 import com.example.vapeon_movil.entities.Usuario
 import com.example.vapeon_movil.ui.theme.*
 import androidx.compose.ui.platform.LocalContext
@@ -490,7 +487,7 @@ fun VapeONApp() {
                 agregarTarjeta = { iniciarRegistroTarjeta(false) })
         }
 
-        "datosEntrega" -> DatosEntregaScreen(usuarioActual, volver = { pantallaActual = "carrito" },
+        "datosEntrega" -> DatosEntregaScreen(usuarioActual, carritoViewModel, volver = { pantallaActual = "carrito" },
             continuar = { entregaRevisada = true; pantallaActual = "seleccionDireccion" })
 
         "seleccionDireccion" -> SeleccionDireccionScreen(direccionEntrega,

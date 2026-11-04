@@ -189,6 +189,7 @@ private fun ResumenPagoPanel(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .navigationBarsPadding()
                 .padding(horizontal = 24.dp, vertical = 20.dp)
         ) {
             // Línea decorativa dorada centrada

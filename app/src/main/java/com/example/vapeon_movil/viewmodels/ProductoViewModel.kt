@@ -260,11 +260,8 @@ class ProductoViewModel(
                         descripcion = doc.fields.descripcion?.asString() ?: "",
                         sabor       = doc.fields.sabor?.asString()       ?: "",
                         stockPorSabor = doc.fields.stockPorSabor.aStockMap(),
-<<<<<<< HEAD
-                        fechaCreacion = doc.createTime ?: doc.updateTime ?: ""
-=======
+                        fechaCreacion = doc.createTime ?: doc.updateTime ?: "",
                         categoria = doc.fields.categoria?.stringValue.orEmpty()
->>>>>>> acc9221f3bbcdfd859bec4ce91f95c9606023928
                     )
                 } ?: emptyList()
                 inventarioCargado = true
