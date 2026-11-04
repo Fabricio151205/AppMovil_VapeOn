@@ -62,7 +62,7 @@ fun ProductCard(
                 Image(
                     painter = painterResource(id = imagenRes),
                     contentDescription = nombre,
-                    contentScale = ContentScale.Fit,
+                    contentScale = ContentScale.Crop,
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(8.dp)
