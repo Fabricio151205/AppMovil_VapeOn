@@ -155,7 +155,6 @@ fun DetalleProductoScreen(
                         contentScale = ContentScale.Fit,
                         modifier = Modifier
                             .fillMaxSize()
-                            .padding(12.dp)
                     )
 
                     // Botón de Corazón (Favoritos) interactivo
