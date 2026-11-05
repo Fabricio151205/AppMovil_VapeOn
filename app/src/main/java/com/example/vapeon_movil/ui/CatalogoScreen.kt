@@ -21,6 +21,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.vapeon_movil.components.MarcaSection
 import com.example.vapeon_movil.entities.Producto
+import com.example.vapeon_movil.entities.SaborItem
 import com.example.vapeon_movil.ui.theme.*
 import com.example.vapeon_movil.viewmodels.ProductoViewModel
 
@@ -29,6 +30,7 @@ fun CatalogoScreen(
     productoViewModel: ProductoViewModel,
     irDetalleProducto: (Producto) -> Unit,
     esAdmin: Boolean = false,
+    sabores: List<SaborItem> = emptyList(),
     irAgregarProducto: () -> Unit = {},
     irEditarProducto: (Producto) -> Unit = {},
     onPerfilClick: () -> Unit = {},
@@ -36,6 +38,7 @@ fun CatalogoScreen(
     irCarrito: () -> Unit = {},
     irHistorial: () -> Unit = {},
     irPedidos: () -> Unit = {},
+    irMarcas: () -> Unit = {},
     irSabores: () -> Unit = {},
     cerrarSesion: () -> Unit = {},
     irTarjetas: () -> Unit = {}
@@ -83,6 +86,7 @@ fun CatalogoScreen(
         irHistorial = irHistorial,
         irTarjetas = irTarjetas,
         irPedidos = irPedidos,
+        irMarcas = irMarcas,
         irSabores = irSabores,
         cerrarSesion = cerrarSesion,
         esAdmin = esAdmin,
@@ -300,6 +304,7 @@ fun CatalogoScreen(
                                 productos = prods,
                                 irDetalleProducto = irDetalleProducto,
                                 esAdmin = esAdmin,
+                                sabores = sabores,
                                 onVerTodos = { busqueda = nombreMarca },
                                 eliminarProducto = { productoAEliminar = it },
                                 editarProducto = { irEditarProducto(it) }

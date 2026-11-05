@@ -25,7 +25,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.vapeon_movil.ui.theme.*
-import com.example.vapeon_movil.utils.marcasUnicas
+import com.example.vapeon_movil.utils.marcasParaFormulario
 import com.example.vapeon_movil.viewmodels.MarcasViewModel
 import com.example.vapeon_movil.utils.obtenerSaboresPorMarca
 import com.example.vapeon_movil.utils.mismaMarca
@@ -50,7 +50,7 @@ fun AgregarProductoScreen(
     var descripcion by rememberSaveable { mutableStateOf(anterior?.descripcion?.asString().orEmpty()) }
     var sabor by rememberSaveable { mutableStateOf(anterior?.sabor?.asString().orEmpty()) }
     var tieneSabor by rememberSaveable { mutableStateOf(sabor.isNotBlank()) }
-    val marcasDisponibles = marcasUnicas(marcasViewModel.listaMarcas.map { it.nombre })
+    val marcasDisponibles = marcasParaFormulario(marcasViewModel.listaMarcas.map { it.nombre })
 
     val cargando = productoViewModel.cargandoCreacion
     var mensajeError by rememberSaveable { mutableStateOf("") }

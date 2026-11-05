@@ -21,7 +21,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.vapeon_movil.components.ItemCarritoCard
+import com.example.vapeon_movil.entities.SaborItem
 import com.example.vapeon_movil.ui.theme.*
+import com.example.vapeon_movil.utils.imagenItemCarrito
 import com.example.vapeon_movil.viewmodels.CarritoViewModel
 
 /**
@@ -33,6 +35,7 @@ import com.example.vapeon_movil.viewmodels.CarritoViewModel
  *  - Botón "PAGAR" para abrir el checkout de efectivo contra entrega.
  *
  * @param carritoViewModel  ViewModel con el estado del carrito.
+ * @param sabores           Catálogo de sabores para resolver las imágenes.
  * @param volver            Callback para regresar a la pantalla anterior.
  */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -40,6 +43,7 @@ import com.example.vapeon_movil.viewmodels.CarritoViewModel
 fun CarritoScreen(
     carritoViewModel: CarritoViewModel,
     volver: () -> Unit,
+    sabores: List<SaborItem> = emptyList(),
     irCheckout: () -> Unit = {}
 ) {
     val items   = carritoViewModel.items
@@ -156,6 +160,7 @@ fun CarritoScreen(
                 items(items, key = { "${it.productoId}:${it.saborSeleccionado.orEmpty().trim().lowercase()}" }) { item ->
                     ItemCarritoCard(
                         item = item,
+                        imagenUri = imagenItemCarrito(item, sabores),
                         onIncrementar = {
                             carritoViewModel.incrementar(item.productoId, item.saborSeleccionado)
 

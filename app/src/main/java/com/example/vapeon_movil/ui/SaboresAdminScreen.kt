@@ -22,12 +22,15 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.vapeon_movil.components.ImagenSaborView
 import com.example.vapeon_movil.entities.SaborItem
 import com.example.vapeon_movil.entities.Usuario
 import com.example.vapeon_movil.ui.theme.*
+import com.example.vapeon_movil.utils.marcasParaFormulario
 import com.example.vapeon_movil.utils.marcasUnicas
 import com.example.vapeon_movil.utils.mismaMarca
 import com.example.vapeon_movil.viewmodels.MarcasViewModel
@@ -56,7 +59,7 @@ fun SaboresAdminScreen(
 
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
-    val marcasDisponibles = marcasUnicas(
+    val marcasDisponibles = marcasParaFormulario(
         marcasViewModel.listaMarcas.map { it.nombre } + saboresViewModel.listaSabores.map { it.marca }
     )
     LaunchedEffect(Unit) { marcasViewModel.cargarMarcas() }
@@ -373,6 +376,18 @@ private fun SaborItemCard(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
+            if (!saborItem.imagenUri.isNullOrBlank()) {
+                ImagenSaborView(
+                    dataUri = saborItem.imagenUri,
+                    contentDescription = "Imagen de ${saborItem.nombre}",
+                    contentScale = ContentScale.Crop,
+                    maxDimensionPx = 256,
+                    modifier = Modifier
+                        .size(54.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                )
+                Spacer(modifier = Modifier.width(12.dp))
+            }
             Column(modifier = Modifier.weight(1f)) {
                 Text(saborItem.nombre, color = VapeOnTextPrimary, fontWeight = FontWeight.Bold, fontSize = 15.sp)
                 Spacer(modifier = Modifier.height(2.dp))

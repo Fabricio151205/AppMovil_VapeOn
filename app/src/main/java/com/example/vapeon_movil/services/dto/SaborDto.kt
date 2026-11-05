@@ -9,7 +9,11 @@ data class SaborCampos(
     val nombre: FirestoreValue? = null,
     val marca: FirestoreValue? = null,
     /** Compatibilidad de lectura con documentos antiguos; no se escribe en altas o ediciones nuevas. */
-    val stock: FirestoreValue? = null
+    val stock: FirestoreValue? = null,
+    /** Imagen del sabor como data URI base64. */
+    val imagenUri: FirestoreValue? = null,
+    /** Campo legado de imagen; solo se usa como respaldo de lectura. */
+    val imagen: FirestoreValue? = null
 )
 
 data class SaborDocumento(
@@ -20,11 +24,14 @@ data class SaborDocumento(
 ) {
     fun toEntity(): SaborItem {
         val docId = name?.substringAfterLast("/") ?: ""
+        val f = fields
+        val img = (f?.imagenUri?.asString().orEmpty()).ifBlank { f?.imagen?.asString().orEmpty() }
         return SaborItem(
             id = docId,
-            nombre = fields?.nombre?.asString() ?: "",
-            marca = fields?.marca?.asString() ?: "",
-            stock = fields?.stock?.asInt() ?: 0
+            nombre = f?.nombre?.asString() ?: "",
+            marca = f?.marca?.asString() ?: "",
+            stock = f?.stock?.asInt() ?: 0,
+            imagenUri = img.takeIf { it.isNotBlank() }
         )
     }
 }
@@ -37,7 +44,12 @@ data class SaborContainer(
             return SaborContainer(
                 fields = SaborCampos(
                     nombre = FirestoreValue(stringValue = saborItem.nombre),
-                    marca = FirestoreValue(stringValue = saborItem.marca)
+                    marca = FirestoreValue(stringValue = saborItem.marca),
+                    // Si la imagen es null, el campo se omite. Junto con updateMask,
+                    // esto permite borrar la imagen existente al editar.
+                    imagenUri = saborItem.imagenUri
+                        ?.takeIf { it.isNotBlank() }
+                        ?.let { FirestoreValue(stringValue = it) }
                 )
             )
         }

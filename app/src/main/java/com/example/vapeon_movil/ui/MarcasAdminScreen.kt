@@ -23,12 +23,20 @@ import com.example.vapeon_movil.ui.theme.*
 import com.example.vapeon_movil.utils.mismaMarca
 import com.example.vapeon_movil.viewmodels.MarcasViewModel
 
+/**
+ * Administración de marcas.
+ *
+ * [relacionesCargando] debe ser true mientras productos o sabores aún se están
+ * leyendo de Firestore. Sin esa guarda se podría eliminar una marca referenciada
+ * antes de que la pantalla conociera sus relaciones.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MarcasAdminScreen(
     marcasViewModel: MarcasViewModel,
     productos: List<Producto>,
     sabores: List<SaborItem>,
+    relacionesCargando: Boolean = false,
     volver: () -> Unit,
     irAgregarMarca: () -> Unit,
     irEditarMarca: (Marca) -> Unit
@@ -55,18 +63,38 @@ fun MarcasAdminScreen(
         when {
             marcasViewModel.cargando && marcasViewModel.listaMarcas.isEmpty() ->
                 Box(
-                    Modifier.fillMaxSize().padding(padding
-                    ), contentAlignment = Alignment.Center
-                )
-                {
+                    Modifier.fillMaxSize().padding(padding),
+                    contentAlignment = Alignment.Center
+                ) {
                     CircularProgressIndicator(color = VapeOnGold)
                 }
-            marcasViewModel.mensajeError != null && marcasViewModel.listaMarcas.isEmpty() -> Column(Modifier.fillMaxSize().padding(padding).padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            marcasViewModel.mensajeError != null && marcasViewModel.listaMarcas.isEmpty() -> Column(
+                Modifier.fillMaxSize().padding(padding).padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
                 Text(marcasViewModel.mensajeError.orEmpty(), color = MaterialTheme.colorScheme.error)
                 Button(onClick = marcasViewModel::cargarMarcas) { Text("Reintentar") }
             }
-            marcasViewModel.listaMarcas.isEmpty() -> Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) { Text("No hay marcas registradas.", color = VapeOnTextSecondary) }
-            else -> LazyColumn(Modifier.fillMaxSize().padding(padding).padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            marcasViewModel.listaMarcas.isEmpty() -> Column(
+                Modifier.fillMaxSize().padding(padding).padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                Text("No hay marcas registradas.", color = VapeOnTextSecondary)
+                Spacer(Modifier.height(16.dp))
+                Button(
+                    onClick = marcasViewModel::sembrarMarcasIniciales,
+                    enabled = !marcasViewModel.cargando,
+                    shape = RoundedCornerShape(50),
+                    colors = ButtonDefaults.buttonColors(containerColor = VapeOnRed, contentColor = VapeOnTextPrimary)
+                ) {
+                    Text("Cargar marcas iniciales", fontWeight = FontWeight.Bold)
+                }
+            }
+            else -> LazyColumn(
+                Modifier.fillMaxSize().padding(padding).padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
                 item { Text("Marca                                  Acciones", color = VapeOnTextSecondary) }
                 items(marcasViewModel.listaMarcas, key = { it.id.ifBlank { it.nombre } }) { marca ->
                     Card(shape = RoundedCornerShape(14.dp), colors = CardDefaults.cardColors(containerColor = VapeOnCardBackground)) {
@@ -82,13 +110,34 @@ fun MarcasAdminScreen(
     }
 
     eliminar?.let { marca ->
-        val relacionada = productos.any { mismaMarca(it.marca, marca.nombre) } || sabores.any { mismaMarca(it.marca, marca.nombre) }
+        val relacionada = productos.any { mismaMarca(it.marca, marca.nombre) } ||
+            sabores.any { mismaMarca(it.marca, marca.nombre) }
         AlertDialog(
             onDismissRequest = { eliminar = null },
             title = { Text("Eliminar marca", color = VapeOnGold) },
-            text = { Text(if (relacionada) "No puede eliminarse '${marca.nombre}' porque tiene productos o sabores asociados." else "¿Eliminar '${marca.nombre}'?", color = VapeOnTextPrimary) },
-            confirmButton = { if (!relacionada) Button(onClick = { marcasViewModel.eliminarMarca(marca, false); eliminar = null }, colors = ButtonDefaults.buttonColors(containerColor = VapeOnRed)) { Text("Eliminar") } },
-            dismissButton = { TextButton(onClick = { eliminar = null }) { Text(if (relacionada) "Entendido" else "Cancelar") } },
+            text = {
+                Text(
+                    when {
+                        relacionesCargando -> "Verificando productos y sabores asociados..."
+                        relacionada -> "No puede eliminarse '${marca.nombre}' porque tiene productos o sabores asociados."
+                        else -> "¿Eliminar '${marca.nombre}'?"
+                    },
+                    color = VapeOnTextPrimary
+                )
+            },
+            confirmButton = {
+                if (!relacionada && !relacionesCargando) {
+                    Button(
+                        onClick = { marcasViewModel.eliminarMarca(marca, false); eliminar = null },
+                        colors = ButtonDefaults.buttonColors(containerColor = VapeOnRed)
+                    ) { Text("Eliminar") }
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { eliminar = null }) {
+                    Text(if (relacionada || relacionesCargando) "Entendido" else "Cancelar")
+                }
+            },
             containerColor = VapeOnSurface
         )
     }

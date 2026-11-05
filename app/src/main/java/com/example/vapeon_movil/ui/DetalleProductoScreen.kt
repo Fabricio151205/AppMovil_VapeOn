@@ -2,7 +2,6 @@ package com.example.vapeon_movil.ui
 
 import com.example.vapeon_movil.utils.moneda
 
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -21,17 +20,20 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.vapeon_movil.R
+import com.example.vapeon_movil.components.ImagenSaborView
 import com.example.vapeon_movil.entities.Producto
 import com.example.vapeon_movil.ui.theme.*
+import com.example.vapeon_movil.utils.imagenDeSaborEstricto
+import com.example.vapeon_movil.utils.resolverImagenProducto
 import com.example.vapeon_movil.viewmodels.SaboresViewModel
+import androidx.compose.foundation.Image
+import androidx.compose.ui.res.painterResource
 
 @Composable
 fun DetalleProductoScreen(
@@ -65,6 +67,22 @@ fun DetalleProductoScreen(
         } else {
             producto.stockTotal
         }
+    }
+
+    // Imagen Base64 en Firestore únicamente si coincide estrictamente con el sabor seleccionado
+    val imagenSaborBase64 = remember(
+        producto.marca,
+        saborSeleccionado,
+        saboresViewModel.listaSabores
+    ) {
+        val nombres = listOf(saborSeleccionado).filter { it.isNotBlank() }
+        imagenDeSaborEstricto(producto.marca, nombres, saboresViewModel.listaSabores)
+    }
+
+    // Imagen drawable nativa (muestra_...) resuelta según el sabor o kit completo
+    val contextoProducto = "${producto.nombre} ${producto.categoria} ${producto.marca}"
+    val drawableRes = remember(contextoProducto, saborSeleccionado) {
+        resolverImagenProducto(contextoProducto, saborSeleccionado)
     }
 
     Surface(
@@ -130,11 +148,6 @@ fun DetalleProductoScreen(
             // ==========================================
             // TARJETA DE IMAGEN Y FAVORITO
             // ==========================================
-            val contextoProducto = "${producto.nombre} ${producto.categoria} ${producto.marca}"
-            val imagenRes = remember(contextoProducto, saborSeleccionado) {
-                com.example.vapeon_movil.utils.resolverImagenProducto(contextoProducto, saborSeleccionado)
-            }
-
             Card(
                 shape = RoundedCornerShape(24.dp),
                 colors = CardDefaults.cardColors(
@@ -146,16 +159,25 @@ fun DetalleProductoScreen(
             ) {
                 Box(
                     modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
+                    contentAlignment = Alignment.TopStart
                 ) {
-                    // Imagen dinámica del producto / sabor resuelto
-                    Image(
-                        painter = painterResource(id = imagenRes),
-                        contentDescription = producto.nombre.ifEmpty { "Producto VapeON" },
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier
-                            .fillMaxSize()
-                    )
+                    // Imagen dinámica del sabor seleccionado (Ocupa el 100% del contenedor sin espacios vacíos)
+                    if (!imagenSaborBase64.isNullOrBlank()) {
+                        ImagenSaborView(
+                            dataUri = imagenSaborBase64,
+                            contentDescription = producto.nombre.ifEmpty { "Producto VapeON" },
+                            contentScale = ContentScale.Crop,
+                            maxDimensionPx = 1024,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    } else {
+                        Image(
+                            painter = painterResource(id = drawableRes),
+                            contentDescription = producto.nombre.ifEmpty { "Producto VapeON" },
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
 
                     // Botón de Corazón (Favoritos) interactivo
                     IconButton(

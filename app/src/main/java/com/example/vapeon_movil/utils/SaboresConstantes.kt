@@ -33,6 +33,22 @@ fun marcasUnicas(marcas: Iterable<String>): List<String> = marcas.map { it.trim(
     .distinctBy(::claveMarca)
 
 /**
+ * Identificador estable para sembrar marcas en Firestore sin duplicarlas.
+ * Ejemplo: "LifePod" -> "lifepod".
+ */
+fun idMarca(nombre: String): String = claveMarca(nombre)
+    .replace(Regex("[^a-z0-9]+"), "_")
+    .trim('_')
+    .ifBlank { "marca" }
+
+/**
+ * Usa la lista base solo cuando Firestore todavía no tiene marcas registradas.
+ * Así los formularios de producto y sabor no quedan bloqueados en una base nueva.
+ */
+fun marcasParaFormulario(marcasFirestore: Iterable<String>): List<String> =
+    marcasUnicas(marcasFirestore).ifEmpty { LISTA_MARCAS_DISPONIBLES }
+
+/**
  * Filtra una lista de SaborItem por el nombre de marca especificado.
  */
 fun obtenerSaboresPorMarca(marca: String, listaSabores: List<SaborItem> = emptyList()): List<String> {

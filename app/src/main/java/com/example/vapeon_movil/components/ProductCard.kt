@@ -2,7 +2,6 @@ package com.example.vapeon_movil.components
 
 import com.example.vapeon_movil.utils.moneda
 
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -12,17 +11,14 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.vapeon_movil.R
 import com.example.vapeon_movil.ui.theme.*
 
 @Composable
@@ -31,6 +27,7 @@ fun ProductCard(
     precio: Double,
     esAdmin: Boolean = false,
     stockTotal: Int = 1,
+    imagenUri: String? = null,
     onClick: () -> Unit,
     onEliminar: () -> Unit = {},
     onEditar: () -> Unit = {}
@@ -56,17 +53,14 @@ fun ProductCard(
                     .background(VapeOnProductImageBg),
                 contentAlignment = Alignment.Center
             ) {
-                val imagenRes = remember(nombre) {
-                    com.example.vapeon_movil.utils.resolverImagenProducto(nombre, null)
+                if (!imagenUri.isNullOrBlank()) {
+                    ImagenSaborView(
+                        dataUri = imagenUri,
+                        contentDescription = nombre,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize()
+                    )
                 }
-                Image(
-                    painter = painterResource(id = imagenRes),
-                    contentDescription = nombre,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(8.dp)
-                )
 
                 // Etiqueta "Sin stock" visible para ADMIN
                 if (esAdmin && stockTotal <= 0) {

@@ -27,7 +27,7 @@ import androidx.compose.ui.unit.sp
 import com.example.vapeon_movil.entities.Producto
 import com.example.vapeon_movil.services.dto.*
 import com.example.vapeon_movil.ui.theme.*
-import com.example.vapeon_movil.utils.marcasUnicas
+import com.example.vapeon_movil.utils.marcasParaFormulario
 import com.example.vapeon_movil.viewmodels.MarcasViewModel
 import com.example.vapeon_movil.utils.obtenerSaboresPorMarca
 import com.example.vapeon_movil.utils.mismaMarca
@@ -43,7 +43,7 @@ fun EditarProductoScreen(
     volver: () -> Unit
 ) {
     LaunchedEffect(Unit) { saboresViewModel.cargarSabores(); marcasViewModel.cargarMarcas() }
-    val marcasDisponibles = marcasUnicas(marcasViewModel.listaMarcas.map { it.nombre } + producto.marca)
+    val marcasDisponibles = marcasParaFormulario(marcasViewModel.listaMarcas.map { it.nombre } + producto.marca)
     val context = androidx.compose.ui.platform.LocalContext.current
     DisposableEffect(producto.id, productoViewModel) {
         productoViewModel.iniciarEdicion(producto.id)

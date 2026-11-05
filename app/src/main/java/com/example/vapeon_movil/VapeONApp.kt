@@ -332,6 +332,7 @@ fun VapeONApp() {
                     else -> moneda(calcularCaja(pedidoViewModel.pedidosCaja).productos)
                 },
                 productoViewModel = productoViewModel,
+                sabores = saboresViewModel.listaSabores,
                 cerrarSesion = ::cerrarSesion,
                 irPedidos = { pantallaActual = "pedidosAdmin" },
                 irMarcas = { pantallaActual = "marcasAdmin" },
@@ -355,12 +356,14 @@ fun VapeONApp() {
                     seleccionarProducto(producto)
                 },
                 esAdmin           = esAdminUser,
+                sabores           = saboresViewModel.listaSabores,
                 irAgregarProducto = { pantallaActual = "agregarProducto" },
                 irEditarProducto  = { producto ->
                     seleccionarProducto(producto, editar = true)
                 },
                 irAdmin   = { pantallaActual = "admin" },
                 irPedidos = { pantallaActual = "pedidosAdmin" },
+                irMarcas  = { pantallaActual = "marcasAdmin" },
                 irSabores = { pantallaActual = "saboresAdmin" },
                 irCarrito = { pantallaActual = "carrito" },
                 irHistorial = { pantallaActual = "historialCompras" },
@@ -398,6 +401,7 @@ fun VapeONApp() {
             } else {
                 CarritoScreen(
                     carritoViewModel = carritoViewModel,
+                    sabores          = saboresViewModel.listaSabores,
                     volver           = { pantallaActual = "home" },
                     irCheckout = {
                         if (pedidoViewModel.requiereComprobacion || pedidoViewModel.cargando) {
@@ -467,6 +471,7 @@ fun VapeONApp() {
                 marcasViewModel = marcasViewModel,
                 productos = productoViewModel.productos,
                 sabores = saboresViewModel.listaSabores,
+                relacionesCargando = productoViewModel.cargando || saboresViewModel.cargando,
                 volver = { pantallaActual = "admin" },
                 irAgregarMarca = { pantallaActual = "agregarMarca" },
                 irEditarMarca = { marca -> marcaEditarId = marca.id; pantallaActual = "editarMarca" }
@@ -483,7 +488,12 @@ fun VapeONApp() {
             if (marca == null) pantallaActual = "marcasAdmin" else {
                 val relacionada = productoViewModel.productos.any { com.example.vapeon_movil.utils.mismaMarca(it.marca, marca.nombre) } ||
                     saboresViewModel.listaSabores.any { com.example.vapeon_movil.utils.mismaMarca(it.marca, marca.nombre) }
-                EditarMarcaScreen(marca, relacionada, marcasViewModel) { pantallaActual = "marcasAdmin" }
+                EditarMarcaScreen(
+                    marca = marca,
+                    tieneRelaciones = relacionada,
+                    marcasViewModel = marcasViewModel,
+                    relacionesCargando = productoViewModel.cargando || saboresViewModel.cargando
+                ) { pantallaActual = "marcasAdmin" }
             }
         }
 

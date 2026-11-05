@@ -57,7 +57,7 @@ class SaboresViewModel(
                     .map { it.toEntity() }
                     .filter { it.nombre.isNotBlank() }
                 mensajeError = null
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 mensajeError = "No se pudieron cargar los sabores desde la base de datos."
             } finally {
                 cargando = false
@@ -73,8 +73,11 @@ class SaboresViewModel(
         busquedaQuery = query
     }
 
-    /** Agrega un nuevo sabor al catálogo en Firestore */
-    fun agregarSabor(nombre: String, marca: String) {
+    /**
+     * Agrega un nuevo sabor al catálogo en Firestore.
+     * [imagenUri] es un data URI base64 opcional que se guarda en el documento.
+     */
+    fun agregarSabor(nombre: String, marca: String, imagenUri: String? = null) {
         val nLimpio = nombre.trim()
         val mLimpio = marca.trim()
         if (nLimpio.isBlank() || mLimpio.isBlank()) {
@@ -93,12 +96,16 @@ class SaboresViewModel(
         viewModelScope.launch {
             cargando = true
             try {
-                val nuevoSabor = SaborItem(nombre = nLimpio, marca = mLimpio)
+                val nuevoSabor = SaborItem(
+                    nombre = nLimpio,
+                    marca = mLimpio,
+                    imagenUri = imagenUri?.takeIf { it.isNotBlank() }
+                )
                 service.crearSabor(SaborContainer.fromEntity(nuevoSabor))
                 cargarSabores()
                 mensajeError = null
                 operacionExitosa = true
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 mensajeError = "Error al guardar el sabor en la base de datos."
             } finally {
                 cargando = false
@@ -106,8 +113,16 @@ class SaboresViewModel(
         }
     }
 
-    /** Edita un sabor existente en Firestore */
-    fun editarSabor(saborAntiguo: SaborItem, nuevoNombre: String, nuevaMarca: String) {
+    /**
+     * Edita un sabor existente en Firestore.
+     * Si [imagenUri] es null, el campo de imagen se elimina del documento.
+     */
+    fun editarSabor(
+        saborAntiguo: SaborItem,
+        nuevoNombre: String,
+        nuevaMarca: String,
+        imagenUri: String? = saborAntiguo.imagenUri
+    ) {
         val nLimpio = nuevoNombre.trim()
         val mLimpio = nuevaMarca.trim()
         if (nLimpio.isBlank() || mLimpio.isBlank()) {
@@ -125,14 +140,19 @@ class SaboresViewModel(
         viewModelScope.launch {
             cargando = true
             try {
-                val saborEditado = SaborItem(id = saborAntiguo.id, nombre = nLimpio, marca = mLimpio)
+                val saborEditado = SaborItem(
+                    id = saborAntiguo.id,
+                    nombre = nLimpio,
+                    marca = mLimpio,
+                    imagenUri = imagenUri?.takeIf { it.isNotBlank() }
+                )
                 if (saborAntiguo.id.isNotBlank()) {
                     service.actualizarSabor(id = saborAntiguo.id, body = SaborContainer.fromEntity(saborEditado))
                 }
                 cargarSabores()
                 mensajeError = null
                 operacionExitosa = true
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 mensajeError = "Error al actualizar el sabor en la base de datos."
             } finally {
                 cargando = false
@@ -150,7 +170,7 @@ class SaboresViewModel(
                 }
                 cargarSabores()
                 operacionExitosa = true
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 mensajeError = "Error al eliminar el sabor de la base de datos."
             } finally {
                 cargando = false

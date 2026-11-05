@@ -7,6 +7,7 @@ import com.example.vapeon_movil.services.dto.MarcaCampos
 import com.example.vapeon_movil.services.dto.MarcaContainer
 import com.example.vapeon_movil.services.dto.MarcaDocumento
 import com.example.vapeon_movil.utils.claveMarca
+import com.example.vapeon_movil.utils.idMarca
 import com.example.vapeon_movil.viewmodels.errorNombreMarca
 import org.junit.Assert.*
 import org.junit.Test
@@ -47,5 +48,12 @@ class MarcasCrudTest {
     @Test fun edicionExcluyeElDocumentoActual() {
         val existentes = listOf(Marca("1", "Oxbar"))
         assertNull(errorNombreMarca(" oxbar ", existentes, excluirId = "1"))
+    }
+
+    @Test fun idMarcaEsEstableYSeguroParaFirestore() {
+        assertEquals("lifepod", idMarca("LifePod"))
+        assertEquals("lifepod", idMarca(" LIFEPOOD "))
+        assertEquals("oxbar_plus", idMarca("Oxbar Plus"))
+        assertEquals("marca", idMarca("   "))
     }
 }

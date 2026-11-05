@@ -1,5 +1,6 @@
 package com.example.vapeon_movil.ui
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -8,6 +9,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -18,16 +20,18 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.activity.compose.BackHandler
+import com.example.vapeon_movil.components.SelectorImagenSabor
 import com.example.vapeon_movil.entities.SaborItem
 import com.example.vapeon_movil.ui.theme.*
-import com.example.vapeon_movil.utils.marcasUnicas
+import com.example.vapeon_movil.utils.marcasParaFormulario
 import com.example.vapeon_movil.viewmodels.MarcasViewModel
 import com.example.vapeon_movil.viewmodels.SaboresViewModel
 
 /**
- * Pantalla de edicion (UPDATE) de SaborItem.
- * Formulario pre-rellenado con los datos actuales del sabor.
+ * Edición de un sabor del catálogo maestro.
+ *
+ * Si el administrador desmarca la imagen y guarda, el campo `imagenUri` se
+ * elimina del documento de Firestore.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -38,12 +42,17 @@ fun EditarSaborScreen(
     volver: () -> Unit
 ) {
     BackHandler(onBack = volver)
-    var nombre by rememberSaveable { mutableStateOf(saborOriginal.nombre) }
-    var marca by rememberSaveable { mutableStateOf(saborOriginal.marca) }
+    var nombre by rememberSaveable(saborOriginal.id) { mutableStateOf(saborOriginal.nombre) }
+    var marca by rememberSaveable(saborOriginal.id) { mutableStateOf(saborOriginal.marca) }
     var mensajeError by rememberSaveable { mutableStateOf("") }
     var menuMarcaExpandido by remember { mutableStateOf(false) }
     var mostrarConfirmacionEliminar by remember { mutableStateOf(false) }
-    val marcasDisponibles = marcasUnicas(marcasViewModel.listaMarcas.map { it.nombre } + saborOriginal.marca)
+    var imagenDataUri by remember(saborOriginal.id) { mutableStateOf(saborOriginal.imagenUri) }
+    var procesandoImagen by rememberSaveable { mutableStateOf(false) }
+
+    val marcasDisponibles = marcasParaFormulario(
+        marcasViewModel.listaMarcas.map { it.nombre } + saborOriginal.marca
+    )
     LaunchedEffect(Unit) { marcasViewModel.cargarMarcas() }
 
     LaunchedEffect(saboresViewModel.operacionExitosa) {
@@ -61,15 +70,11 @@ fun EditarSaborScreen(
 
     Surface(modifier = Modifier.fillMaxSize(), color = VapeOnBackground) {
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .statusBarsPadding()
-                .imePadding()
+            modifier = Modifier.fillMaxSize().statusBarsPadding().imePadding()
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 24.dp, vertical = 16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Barra superior
             Row(
                 modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
@@ -77,74 +82,36 @@ fun EditarSaborScreen(
             ) {
                 IconButton(onClick = volver) {
                     Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        Icons.AutoMirrored.Filled.ArrowBack,
                         contentDescription = "Regresar",
-                        tint = VapeOnTextPrimary, modifier = Modifier.size(28.dp)
+                        tint = VapeOnTextPrimary,
+                        modifier = Modifier.size(28.dp)
                     )
                 }
-                Text(
-                    text = "VAPEON",
-                    fontSize = 22.sp, fontWeight = FontWeight.Bold, color = VapeOnGold, letterSpacing = 1.sp
-                )
+                Text("VAPEON", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = VapeOnGold, letterSpacing = 1.sp)
                 Box(
                     modifier = Modifier.size(36.dp).clip(CircleShape).background(VapeOnRedDark),
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Person,
-                        contentDescription = "Perfil",
-                        tint = VapeOnTextPrimary, modifier = Modifier.size(22.dp)
-                    )
+                    Icon(Icons.Default.Person, contentDescription = "Perfil", tint = VapeOnTextPrimary, modifier = Modifier.size(22.dp))
                 }
             }
 
             Spacer(modifier = Modifier.height(20.dp))
-
-            // Titulo
             Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterStart) {
                 Column {
-                    Text(
-                        text = "EDITAR SABOR",
-                        fontSize = 24.sp, fontWeight = FontWeight.Bold, color = VapeOnTextPrimary, letterSpacing = 0.5.sp
-                    )
+                    Text("EDITAR SABOR", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = VapeOnTextPrimary, letterSpacing = 0.5.sp)
                     Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = "Modifica los datos del sabor",
-                        fontSize = 14.sp, color = VapeOnTextSecondary
-                    )
+                    Text("Modifica los datos del sabor", fontSize = 14.sp, color = VapeOnTextSecondary)
                 }
             }
 
-            Spacer(modifier = Modifier.height(20.dp))
-
-            // Chip con datos originales
-            Card(
-                shape = RoundedCornerShape(10.dp),
-                colors = CardDefaults.cardColors(containerColor = VapeOnSurface),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Text(
-                        text = "Original:",
-                        color = VapeOnTextSecondary, fontSize = 12.sp, fontWeight = FontWeight.SemiBold
-                    )
-                    Text(
-                        text = "${saborOriginal.nombre} — ${saborOriginal.marca}",
-                        color = VapeOnGold, fontSize = 13.sp, fontWeight = FontWeight.Medium
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(20.dp))
-
-            // Campo: Nombre
+            Spacer(modifier = Modifier.height(28.dp))
             Text(
-                text = "Nombre del Sabor",
-                color = VapeOnTextSecondary, fontSize = 14.sp, fontWeight = FontWeight.SemiBold,
+                "Nombre del Sabor",
+                color = VapeOnTextSecondary,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.SemiBold,
                 modifier = Modifier.fillMaxWidth().padding(bottom = 6.dp)
             )
             OutlinedTextField(
@@ -153,19 +120,23 @@ fun EditarSaborScreen(
                 singleLine = true,
                 shape = RoundedCornerShape(12.dp),
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedContainerColor = VapeOnInputBackground, unfocusedContainerColor = VapeOnInputBackground,
-                    focusedBorderColor = VapeOnGold, unfocusedBorderColor = VapeOnInputBorder,
-                    focusedTextColor = VapeOnTextPrimary, unfocusedTextColor = VapeOnTextPrimary, cursorColor = VapeOnGold
+                    focusedContainerColor = VapeOnInputBackground,
+                    unfocusedContainerColor = VapeOnInputBackground,
+                    focusedBorderColor = VapeOnGold,
+                    unfocusedBorderColor = VapeOnInputBorder,
+                    focusedTextColor = VapeOnTextPrimary,
+                    unfocusedTextColor = VapeOnTextPrimary,
+                    cursorColor = VapeOnGold
                 ),
                 modifier = Modifier.fillMaxWidth()
             )
 
             Spacer(modifier = Modifier.height(16.dp))
-
-            // Campo: Marca
             Text(
-                text = "Marca",
-                color = VapeOnTextSecondary, fontSize = 14.sp, fontWeight = FontWeight.SemiBold,
+                "Marca",
+                color = VapeOnTextSecondary,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.SemiBold,
                 modifier = Modifier.fillMaxWidth().padding(bottom = 6.dp)
             )
             ExposedDropdownMenuBox(
@@ -174,13 +145,19 @@ fun EditarSaborScreen(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 OutlinedTextField(
-                    value = marca, onValueChange = {}, readOnly = true,
+                    value = marca,
+                    onValueChange = {},
+                    readOnly = true,
                     trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = menuMarcaExpandido) },
                     shape = RoundedCornerShape(12.dp),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedContainerColor = VapeOnInputBackground, unfocusedContainerColor = VapeOnInputBackground,
-                        focusedBorderColor = VapeOnGold, unfocusedBorderColor = VapeOnInputBorder,
-                        focusedTextColor = VapeOnTextPrimary, unfocusedTextColor = VapeOnTextPrimary, cursorColor = VapeOnGold
+                        focusedContainerColor = VapeOnInputBackground,
+                        unfocusedContainerColor = VapeOnInputBackground,
+                        focusedBorderColor = VapeOnGold,
+                        unfocusedBorderColor = VapeOnInputBorder,
+                        focusedTextColor = VapeOnTextPrimary,
+                        unfocusedTextColor = VapeOnTextPrimary,
+                        cursorColor = VapeOnGold
                     ),
                     modifier = Modifier.fillMaxWidth().menuAnchor()
                 )
@@ -193,7 +170,8 @@ fun EditarSaborScreen(
                         DropdownMenuItem(
                             text = {
                                 Text(
-                                    opcion, color = VapeOnTextPrimary,
+                                    opcion,
+                                    color = VapeOnTextPrimary,
                                     fontWeight = if (marca == opcion) FontWeight.Bold else FontWeight.Normal
                                 )
                             },
@@ -203,96 +181,76 @@ fun EditarSaborScreen(
                 }
             }
 
+            Spacer(modifier = Modifier.height(20.dp))
+            SelectorImagenSabor(
+                imagenDataUri = imagenDataUri,
+                onImagenCambiada = { imagenDataUri = it },
+                procesandoImagen = procesandoImagen,
+                onProcesandoCambia = { procesandoImagen = it },
+                textoCheckbox = "El sabor cuenta con una imagen",
+                textoAyuda = "Si desmarcas y guardas, se eliminará la imagen actual."
+            )
+
             if (mensajeError.isNotEmpty()) {
                 Spacer(modifier = Modifier.height(12.dp))
-                Text(text = mensajeError, color = MaterialTheme.colorScheme.error, fontSize = 14.sp,
-                    modifier = Modifier.fillMaxWidth())
+                Text(
+                    text = mensajeError,
+                    color = MaterialTheme.colorScheme.error,
+                    fontSize = 14.sp,
+                    modifier = Modifier.fillMaxWidth()
+                )
             }
 
-            Spacer(modifier = Modifier.weight(1f, fill = false))
-            Spacer(modifier = Modifier.height(36.dp))
-
-            // Boton Guardar Cambios
+            Spacer(modifier = Modifier.height(24.dp))
             Button(
                 onClick = {
                     when {
-                        nombre.isBlank() ->
-                            mensajeError = "El nombre del sabor es obligatorio"
+                        nombre.isBlank() -> mensajeError = "El nombre del sabor es obligatorio"
+                        marca.isBlank() -> mensajeError = "Selecciona una marca"
+                        procesandoImagen -> mensajeError = "Espera a que termine de procesarse la imagen"
                         else -> {
                             mensajeError = ""
-                            saboresViewModel.editarSabor(saborOriginal, nombre.trim(), marca)
+                            saboresViewModel.editarSabor(saborOriginal, nombre.trim(), marca, imagenDataUri)
                         }
                     }
                 },
+                enabled = !saboresViewModel.cargando && !procesandoImagen,
                 shape = RoundedCornerShape(50),
                 colors = ButtonDefaults.buttonColors(containerColor = VapeOnRed, contentColor = VapeOnTextPrimary),
                 modifier = Modifier.fillMaxWidth().height(52.dp)
             ) {
-                Text(
-                    text = "GUARDAR CAMBIOS",
-                    fontWeight = FontWeight.Bold, fontSize = 15.sp, letterSpacing = 0.5.sp
-                )
+                Text(text = "GUARDAR CAMBIOS", fontWeight = FontWeight.Bold, fontSize = 15.sp)
             }
 
             Spacer(modifier = Modifier.height(12.dp))
-
-            // Boton Eliminar
             OutlinedButton(
                 onClick = { mostrarConfirmacionEliminar = true },
                 shape = RoundedCornerShape(50),
-                colors = ButtonDefaults.outlinedButtonColors(contentColor = VapeOnRed),
-                border = androidx.compose.foundation.BorderStroke(1.dp, VapeOnRed),
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
                 modifier = Modifier.fillMaxWidth().height(52.dp)
             ) {
-                Text(
-                    text = "ELIMINAR SABOR",
-                    fontWeight = FontWeight.Bold, fontSize = 15.sp, letterSpacing = 0.5.sp
-                )
+                Icon(Icons.Default.Delete, contentDescription = null)
+                Spacer(Modifier.width(8.dp))
+                Text(text = "ELIMINAR SABOR", fontWeight = FontWeight.Bold)
             }
 
             Spacer(modifier = Modifier.height(16.dp))
         }
     }
 
-    // Dialogo confirmar eliminacion
     if (mostrarConfirmacionEliminar) {
         AlertDialog(
             onDismissRequest = { mostrarConfirmacionEliminar = false },
-            title = {
-                Text("Eliminar Sabor", fontWeight = FontWeight.Bold, color = VapeOnGold)
-            },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(
-                        text = "Esta accion no se puede deshacer.",
-                        color = VapeOnTextSecondary, fontSize = 14.sp
-                    )
-                    Card(
-                        shape = RoundedCornerShape(10.dp),
-                        colors = CardDefaults.cardColors(containerColor = VapeOnCardBackground)
-                    ) {
-                        Column(modifier = Modifier.padding(12.dp)) {
-                            Text(saborOriginal.nombre, color = VapeOnTextPrimary, fontWeight = FontWeight.Bold)
-                            Text("Marca: ${saborOriginal.marca}", color = VapeOnGold, fontSize = 13.sp)
-                        }
-                    }
-                }
-            },
+            title = { Text("Eliminar sabor", color = VapeOnGold) },
+            text = { Text("¿Seguro que deseas eliminar '" + saborOriginal.nombre + "' de " + saborOriginal.marca + "?") },
             confirmButton = {
-                Button(
-                    onClick = {
-                        saboresViewModel.eliminarSabor(saborOriginal)
-                        mostrarConfirmacionEliminar = false
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = VapeOnRed)
-                ) {
-                    Text("Eliminar", color = VapeOnTextPrimary, fontWeight = FontWeight.Bold)
-                }
+                TextButton(onClick = {
+                    saboresViewModel.eliminarSabor(saborOriginal)
+                    mostrarConfirmacionEliminar = false
+                }) { Text("Eliminar", color = MaterialTheme.colorScheme.error) }
             },
             dismissButton = {
-                TextButton(onClick = { mostrarConfirmacionEliminar = false }) {
-                    Text("Cancelar", color = VapeOnTextSecondary)
-                }
+                TextButton(onClick = { mostrarConfirmacionEliminar = false }) { Text("Cancelar", color = VapeOnTextPrimary) }
             },
             containerColor = VapeOnSurface
         )

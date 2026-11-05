@@ -32,7 +32,7 @@ fun MenuScreen(
     irHistorial: () -> Unit = {},
     irPedidos: () -> Unit = {},
     irMarcas: () -> Unit = {},
-    mostrarMarcas: Boolean = false,
+    mostrarMarcas: Boolean = true,
     irSabores: () -> Unit = {},
     cerrarSesion: () -> Unit = {},
     irTarjetas: () -> Unit = {},
@@ -42,11 +42,17 @@ fun MenuScreen(
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
 
-    val opcionesMenu = if (esAdmin) buildList {
-        addAll(listOf("Roles", "Catálogo", "Pedidos"))
-        if (mostrarMarcas) add("Marcas")
-        addAll(listOf("Sabores", "Pagos", "Clientes", "Proveedores", "Cerrar sesión"))
-    } else listOf(
+    val opcionesMenu = if (esAdmin) listOf(
+        "Catálogo",
+        "Pedidos",
+        "Marcas",
+        "Sabores",
+        "Roles",
+        "Pagos",
+        "Clientes",
+        "Proveedores",
+        "Cerrar sesión"
+    ) else listOf(
         "Catálogo",
         "Carrito",
         "Historial de compras",

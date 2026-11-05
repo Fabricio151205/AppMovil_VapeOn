@@ -9,6 +9,8 @@ import com.example.vapeon_movil.services.dto.SaborDocumento
 import com.example.vapeon_movil.utils.obtenerSaboresPorMarca
 import com.example.vapeon_movil.utils.claveMarca
 import com.example.vapeon_movil.utils.mismaMarca
+import com.example.vapeon_movil.utils.marcasParaFormulario
+import com.example.vapeon_movil.utils.LISTA_MARCAS_DISPONIBLES
 import com.example.vapeon_movil.viewmodels.SaboresViewModel
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -47,8 +49,59 @@ class SaboresCrudTest {
     }
 
     @Test
-    fun patchDeSaborSoloModificaNombreYMarca() {
-        assertEquals(listOf("nombre", "marca"), CAMPOS_CATALOGO_SABOR)
+    fun patchDeSaborIncluyeNombreMarcaEImagen() {
+        assertEquals(listOf("nombre", "marca", "imagenUri"), CAMPOS_CATALOGO_SABOR)
+    }
+
+    @Test
+    fun saborDocumentoLeeImagenDataUri() {
+        val doc = SaborDocumento(
+            name = "projects/x/databases/(default)/documents/sabores/s1",
+            fields = SaborCampos(
+                nombre = FirestoreValue(stringValue = "Mango"),
+                marca = FirestoreValue(stringValue = "Oxbar"),
+                imagenUri = FirestoreValue(stringValue = "data:image/jpeg;base64,AAAA")
+            )
+        )
+        assertEquals("data:image/jpeg;base64,AAAA", doc.toEntity().imagenUri)
+    }
+
+    @Test
+    fun saborDocumentoUsaCampoImagenLegadoComoRespaldo() {
+        val doc = SaborDocumento(
+            name = "projects/x/databases/(default)/documents/sabores/s2",
+            fields = SaborCampos(
+                nombre = FirestoreValue(stringValue = "Menta"),
+                marca = FirestoreValue(stringValue = "Czar"),
+                imagen = FirestoreValue(stringValue = "data:image/jpeg;base64,BBBB")
+            )
+        )
+        assertEquals("data:image/jpeg;base64,BBBB", doc.toEntity().imagenUri)
+    }
+
+    @Test
+    fun escrituraIncluyeImagenCuandoExiste() {
+        val item = SaborItem(
+            id = "s3",
+            nombre = "Uva",
+            marca = "Nexa",
+            imagenUri = "data:image/jpeg;base64,CCCC"
+        )
+        val container = SaborContainer.fromEntity(item)
+        assertEquals("data:image/jpeg;base64,CCCC", container.fields.imagenUri?.stringValue)
+    }
+
+    @Test
+    fun escrituraOmiteImagenCuandoEsNula() {
+        val item = SaborItem(id = "s4", nombre = "Sandía", marca = "Argus")
+        val container = SaborContainer.fromEntity(item)
+        assertNull(container.fields.imagenUri)
+    }
+
+    @Test
+    fun formularioUsaMarcasDeFirestoreYListaBaseComoRespaldo() {
+        assertEquals(listOf("Oxbar"), marcasParaFormulario(listOf("Oxbar", " oxbar ")))
+        assertEquals(LISTA_MARCAS_DISPONIBLES, marcasParaFormulario(emptyList()))
     }
 
     @Test

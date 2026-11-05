@@ -12,8 +12,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.vapeon_movil.entities.Producto
+import com.example.vapeon_movil.entities.SaborItem
 import com.example.vapeon_movil.ui.theme.VapeOnGold
 import com.example.vapeon_movil.ui.theme.VapeOnTextPrimary
+import com.example.vapeon_movil.utils.imagenProducto
 
 @Composable
 fun MarcaSection(
@@ -21,6 +23,7 @@ fun MarcaSection(
     productos: List<Producto>,
     irDetalleProducto: (Producto) -> Unit,
     esAdmin: Boolean = false,
+    sabores: List<SaborItem> = emptyList(),
     onVerTodos: () -> Unit = {},
     eliminarProducto: (Producto) -> Unit = {},
     editarProducto: (Producto) -> Unit = {}
@@ -68,6 +71,7 @@ fun MarcaSection(
                         precio = producto.precio,
                         esAdmin = esAdmin,
                         stockTotal = producto.stockTotal,
+                        imagenUri = imagenProducto(producto, sabores),
                         onClick = { irDetalleProducto(producto) },
                         onEliminar = { eliminarProducto(producto) },
                         onEditar = { editarProducto(producto) },

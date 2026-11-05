@@ -4,9 +4,9 @@
 | :--- | :--- |
 | **Identificador** | `SPEC-VAPEON-001` |
 | **Proyecto** | VapeON - Aplicación Móvil Android |
-| **Versión** | `1.3.0` |
+| **Versión** | `1.5.0` |
 | **Estado** | `Aprobado` |
-| **Fecha de Publicación** | `2026-10-30` |
+| **Fecha de Publicación** | `2026-11-04` |
 | **Plataforma Objetivo** | Android (minSdk 31, targetSdk 37, compileSdk 37) |
 | **Ubicación del Documento** | `doc/spec.md` (Raíz del Repositorio) |
 
@@ -17,7 +17,7 @@
 ### 1.1 Declaración del Problema
 El mercado de dispositivos y accesorios de vapeo requiere plataformas digitales ágiles que permitan a los usuarios mayores de edad consultar catálogos actualizados por marca y stock en tiempo real, garantizando un control estricto de acceso (+18), veracidad en especificaciones de producto y herramientas administrativas para la gestión del inventario.
 
-### 1.2 Alcance del Sistema (Version 1.3.0)
+### 1.2 Alcance del Sistema (Version 1.5.0)
 - **Flujo Guiado de Recuperación de Contraseña (3 Pasos)**:
   - Paso 1: Solicitud de correo con validación de sintaxis y existencia en Firestore REST. Notificación flotante simulada sobre el tope de pantalla con código de 6 dígitos.
   - Paso 2: Verificación de código de 6 casilleros dorados/oscuros (`BasicTextField` con captura directa).
@@ -27,11 +27,19 @@ El mercado de dispositivos y accesorios de vapeo requiere plataformas digitales 
   - Categorías superiores: **"Todos"**, **"Nuevos"** (agregados hace máximo 1 semana / 7 días) y **"Promociones"** (`precio <= 60.0`).
   - Botón e ícono flotante de filtros (`Icons.Default.Tune`) ubicado a la izquierda del botón *"Todos"*, con modal para marcas y orden de precio (RF13).
   - Control de visibilidad de stock por rol (**RNE01**): Clientes solo ven productos con `stockTotal > 0`. Administradores ven todos los productos y los agotados muestran la etiqueta roja **"Sin stock"** en la tarjeta.
-- **Ficha Técnica y Gestión de Sabores**:
+- **Ficha Técnica, Sabores e Imágenes Dinámicas**:
   - `DetalleProductoScreen` renderiza únicamente los sabores pertenecientes a dicho producto. Si fue creado sin sabor (`tieneSabor == false`), la sección de sabores se oculta.
-  - `EditarProductoScreen` y `AgregarProductoScreen` incluyen el selector conmutador `tieneSabor` (*"¿El producto incluye selección de sabores?"*).
-- **Indicadores de Carga Estandarizados**:
-  - Spinner animado `CircularProgressIndicator(color = VapeOnGold, modifier = Modifier.size(36.dp))` y texto `VapeOnTextSecondary` en vistas de carga.
+  - `AgregarSaborScreen` y `EditarSaborScreen` permiten seleccionar una foto de sabor desde la galería o cámara, la cual se comprime y se almacena como data URI base64 en Firestore.
+  - Al pulsar cualquier chip de sabor en `DetalleProductoScreen`, la imagen del producto cambia instantáneamente para mostrar la foto correspondiente a dicho sabor.
+  - Si un sabor no tiene foto Base64 en Firestore, el resolvedor de imágenes `resolverImagenProducto` identifica el tipo de producto (**Kit Completo** `kitcompleto` vs **Recargas/Cartuchos** `recarga`) y muestra el drawable `muestra_...` nativo correspondiente.
+- **Flujo de Checkout y Tarjetas en 4 Pasos**:
+  - Registro de tarjetas simulado en 4 pasos (`AgregarTarjetaNumeroScreen`, `AgregarTarjetaExpiracionScreen`, `AgregarTarjetaCvvScreen`, `AgregarTarjetaTitularScreen`).
+  - Uso de `VisualTransformation`: `CardNumberVisualTransformation` para agrupar los 16 dígitos en bloques de 4 con espacios sin saltos de cursor, y `ExpirationDateVisualTransformation` para el formato **Año / Mes** (`AA / MM`).
+  - Boleta electrónica troquelada (`DatosEntregaScreen`) con número correlativo incremental (`BOLETA ELECTRONICA N° %04d`), bordes troquelados (`arreglo_boleta` / `arreglo_pedido`) y renderizado 100% dinámico de ítems reales del carrito sin datos de prueba.
+  - Selección de método de pago (`MetodoPagoScreen`), dirección (`SeleccionDireccionScreen`) y tarjetas guardadas (`SeleccionTarjetaScreen`).
+- **Barra de Notificaciones y Menú de Administración**:
+  - Configuración global en `Theme.kt` (`window.statusBarColor = VapeOnBackground` con `isAppearanceLightStatusBars = false`) para garantizar la barra de estado negra con íconos blancos y espaciado consistente.
+  - Habilitación permanente de la opción **"Marcas"** en el menú de navegación lateral para el rol Administrador hacia `MarcasAdminScreen`.
 
 ---
 
@@ -43,3 +51,5 @@ El mercado de dispositivos y accesorios de vapeo requiere plataformas digitales 
 | `1.1.0` | `2026-10-02` | Equipo VapeON | Integración de `DetalleProductoScreen`, `ForgotPasswordScreen` e indicadores de carga. |
 | `1.2.0` | `2026-10-11` | Equipo VapeON | Persistencia local del carrito (`SharedPreferences` + `Gson`) y RBAC de carrito. |
 | `1.3.0` | `2026-10-30` | Equipo VapeON | Flujo de recuperación de contraseña de 3 pasos con notificación flotante, filtros flotantes por marca/precio (RF12/RF13), regla de stock por rol (RNE01), conmutador `tieneSabor` e indicadores de carga en `VapeOnGold`. |
+| `1.4.0` | `2026-11-04` | Equipo VapeON | CRUD de marcas con siembra inicial y guardas de relaciones; imagen opcional de sabor desde galería/cámara almacenada como data URI base64 en Firestore. |
+| `1.5.0` | `2026-11-04` | Equipo VapeON | Flujo de tarjetas en 4 pasos con `VisualTransformation`, boleta troquelada incremental dinámica, resolvedor de imágenes por sabor/tipo (Kit Completo vs Recarga), barra de notificaciones negra global y menú de marcas. |

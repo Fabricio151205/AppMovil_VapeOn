@@ -15,7 +15,7 @@ import retrofit2.http.Query
 // Contrato HTTP — Colección "sabores" en Firestore
 // DTOs de transporte en: services/dto/SaborDto.kt
 // ─────────────────────────────────────────────
-internal val CAMPOS_CATALOGO_SABOR = listOf("nombre", "marca")
+internal val CAMPOS_CATALOGO_SABOR = listOf("nombre", "marca", "imagenUri")
 
 interface SaborService {
 

@@ -7,8 +7,8 @@ Documento de especificación y diseño de arquitectura para la aplicación móvi
 ## 1. Resumen Ejecutivo y Propósito
 
 **VapeON Móvil** es una aplicación nativa para Android orientada al comercio electrónico y gestión de catálogo de productos de vapeo. Proporciona una experiencia de usuario fluida con soporte para dos perfiles de usuario principales:
-- **Cliente**: Exploración de catálogo por marcas y filtros flotantes (RF12 / RF13), visualización exclusiva de productos con stock disponible (RNE01), ficha técnica, sabores propios, carrito de compras persistente localmente y proceso de checkout/pedidos.
-- **Administrador**: Gestión completa del inventario (CRUD de productos: crear, listar, editar con conmutador de sabores `tieneSabor` y eliminar), supervisión de pedidos, gestión de la colección máster de sabores y acceso al panel administrativo. **Sin acceso al carrito.**
+- **Cliente**: Exploración de catálogo por marcas y filtros flotantes (RF12 / RF13), visualización exclusiva de productos con stock disponible (RNE01), ficha técnica con imágenes dinámicas por sabor, carrito de compras persistente localmente y proceso de checkout/pedidos con boleta electrónica troquelada e incremental.
+- **Administrador**: Gestión completa del inventario (CRUD de productos: crear, listar, editar con conmutador de sabores `tieneSabor` y eliminar), supervisión de pedidos, gestión de la colección máster de sabores y marcas, y acceso al panel administrativo desde el menú lateral. **Sin acceso al carrito.**
 
 ---
 
@@ -26,8 +26,6 @@ Documento de especificación y diseño de arquitectura para la aplicación móvi
 | **Base de Datos / Backend** | Google Cloud Firestore (**REST API v1 — sin SDK nativo**) | Almacenamiento NoSQL en la nube vía HTTP REST puro. |
 | **Persistencia Local** | `SharedPreferences` + `Gson` | Almacenamiento del carrito de compras local. |
 | **Gestor de Compilación** | Gradle con Kotlin DSL (`build.gradle.kts`) | Gestión modular de dependencias con version catalog. |
-
-> **Nota importante sobre Firebase**: El proyecto utiliza **exclusivamente la REST API de Firestore** (`https://firestore.googleapis.com/v1/projects/dbvapeon/...`) vía **Retrofit**. El SDK nativo `firebase-firestore-ktx` **no está instalado** para evitar confusión. Solo se mantiene `firebase-analytics` para métricas.
 
 ---
 
@@ -48,6 +46,8 @@ graph TD
             CVM[CarritoViewModel]
             PED_VM[PedidoViewModel]
             SAB_VM[SaboresViewModel]
+            MAR_VM[MarcasViewModel]
+            TAR_VM[TarjetaViewModel]
         end
 
         subgraph Screens ["Pantallas Composables"]
@@ -57,12 +57,15 @@ graph TD
             HS[HomeScreen]
             AHS[AdminHomeScreen]
             CS[CatalogoScreen - Filtros Flotantes]
-            DPS[DetalleProductoScreen]
+            DPS[DetalleProductoScreen - Galería Dinámica por Sabor]
             CAR[CarritoScreen ★ solo CLIENTE]
-            CHK[CheckoutScreen]
-            APS[AgregarProductoScreen]
-            EPS[EditarProductoScreen]
+            DES[DatosEntregaScreen - Boleta Incremental]
+            MPS[MetodoPagoScreen]
+            SDS[SeleccionDireccionScreen]
+            STS[SeleccionTarjetaScreen]
+            TSR[AgregarTarjeta - 4 Pasos con VisualTransformation]
             SAB_ADM[SaboresAdminScreen]
+            MAR_ADM[MarcasAdminScreen]
             PED_ADM[PedidosAdminScreen]
         end
 
@@ -70,6 +73,7 @@ graph TD
             PC[ProductCard]
             MS[MarcaSection]
             ICC[ItemCarritoCard]
+            ISV[ImagenSaborView]
         end
 
         VA --> ViewModels
@@ -88,6 +92,8 @@ graph TD
         ENT_RES[ResumenPago]
         ENT_PED[Pedido]
         ENT_SAB[SaborItem]
+        ENT_MAR[Marca]
+        ENT_TAR[Tarjeta]
     end
 
     subgraph Data_Layer ["Capa de Red y Datos"]
@@ -96,11 +102,15 @@ graph TD
         US[UsuarioService]
         PED_S[PedidoService]
         SAB_S[SaborService]
+        MAR_S[MarcaService]
+        TAR_S[TarjetaService]
 
         RC --> PS
         RC --> US
         RC --> PED_S
         RC --> SAB_S
+        RC --> MAR_S
+        RC --> TAR_S
     end
 
     subgraph Backend ["Backend Cloud"]
@@ -120,14 +130,15 @@ graph TD
 | Pantalla / Funcionalidad | CLIENTE | ADMIN |
 | :--- | :---: | :---: |
 | Catálogo (solo lectura de stock disponible RNE01) | ✅ | ✅ |
-| Detalle de Producto | ✅ | ✅ |
+| Detalle de Producto con galería por sabor | ✅ | ✅ |
 | Carrito de Compras | ✅ | ❌ |
-| Checkout y Pedidos | ✅ | ❌ |
+| Checkout, Boleta Incremental y Registro de Tarjetas | ✅ | ❌ |
 | Historial de Compras | ✅ | ❌ |
 | Agregar Producto (CRUD) | ❌ | ✅ |
 | Editar Producto (CRUD + `tieneSabor`) | ❌ | ✅ |
 | Eliminar Producto (CRUD) | ❌ | ✅ |
-| Gestión de Sabores Máster | ❌ | ✅ |
+| Gestión de Sabores Máster e Imágenes Base64 | ❌ | ✅ |
+| Gestión de Marcas (CRUD + siembra inicial) | ❌ | ✅ |
 | Administración de Pedidos | ❌ | ✅ |
 | Panel Administrativo | ❌ | ✅ |
 
@@ -138,6 +149,8 @@ graph TD
 | Versión | Fecha | Descripción de Cambios |
 | :--- | :--- | :--- |
 | **v1.0.0** | `2026-09-26` | Versión inicial de la arquitectura MVVM, Single Activity y servicios Retrofit para Firestore. |
-| **v1.1.0** | `2026-10-02` | Integración de `DetalleProductoScreen`, `ForgotPasswordScreen`, `AgregarProductoScreen`, `EditarProductoScreen` y `CircularProgressIndicator`. |
+| **v1.1.0** | `2026-10-02` | Integración de `DetalleProductoScreen`, `ForgotPasswordScreen`, `AgregarProductoScreen`, `EditarProductoScreen` e indicadores de carga. |
 | **v1.2.0** | `2026-10-11` | Persistencia local del carrito (`SharedPreferences` + `Gson`), validaciones de formularios y control RBAC. |
 | **v1.3.0** | `2026-10-30` | Flujo de recuperación de contraseña de 3 pasos con notificación flotante, filtros flotantes por marca/precio (RF12/RF13), regla de stock por rol (RNE01), conmutador `tieneSabor` e indicadores de carga estandarizados. |
+| **v1.4.0** | `2026-11-04` | CRUD de marcas (`marcas`), siembra idempotente de la lista base y bloqueo de relaciones. Almacenamiento de imágenes de sabor en Base64. |
+| **v1.5.0** | `2026-11-04` | Flujo de tarjetas en 4 pasos con `VisualTransformation` (número y fecha `AA / MM`), boleta troquelada incremental (`BOLETA ELECTRONICA N° %04d`), resolvedor de imágenes por sabor/tipo (Kit Completo vs Recarga), barra de notificaciones negra global e inclusión de Marcas en el menú lateral de administración. |

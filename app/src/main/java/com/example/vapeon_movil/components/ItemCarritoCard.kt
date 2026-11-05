@@ -9,17 +9,13 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.foundation.Image
-import com.example.vapeon_movil.R
 import com.example.vapeon_movil.entities.ItemCarrito
 import com.example.vapeon_movil.ui.theme.*
 
@@ -30,6 +26,7 @@ import com.example.vapeon_movil.ui.theme.*
  * y botón de eliminación (×). Mínimo táctil 48dp en todos los controles.
  *
  * @param item         Ítem del carrito a representar.
+ * @param imagenUri    Imagen del sabor como data URI base64 (opcional).
  * @param onIncrementar  Callback al pulsar (+).
  * @param onDecrementar  Callback al pulsar (−). Si cantidad llega a 0 el ViewModel lo elimina.
  * @param onEliminar   Callback al pulsar (×) para quitar el ítem completamente.
@@ -40,7 +37,8 @@ fun ItemCarritoCard(
     onIncrementar: () -> Unit,
     onDecrementar: () -> Unit,
     onEliminar: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    imagenUri: String? = null
 ) {
     Card(
         modifier = modifier.fillMaxWidth(),
@@ -55,9 +53,6 @@ fun ItemCarritoCard(
             verticalAlignment = Alignment.CenterVertically
         ) {
             // ── Imagen del producto ──────────────────────────────────────────
-            val imagenRes = remember(item.nombre, item.saborSeleccionado) {
-                com.example.vapeon_movil.utils.resolverImagenProducto(item.nombre, item.saborSeleccionado)
-            }
             Box(
                 modifier = Modifier
                     .size(72.dp)
@@ -65,14 +60,14 @@ fun ItemCarritoCard(
                     .background(VapeOnSurface),
                 contentAlignment = Alignment.Center
             ) {
-                Image(
-                    painter = painterResource(id = imagenRes),
-                    contentDescription = "Imagen de ${item.nombre}",
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(4.dp)
-                )
+                if (!imagenUri.isNullOrBlank()) {
+                    ImagenSaborView(
+                        dataUri = imagenUri,
+                        contentDescription = "Imagen de ${item.nombre}",
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.width(14.dp))
