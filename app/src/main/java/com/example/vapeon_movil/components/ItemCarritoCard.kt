@@ -68,7 +68,7 @@ fun ItemCarritoCard(
                 Image(
                     painter = painterResource(id = imagenRes),
                     contentDescription = "Imagen de ${item.nombre}",
-                    contentScale = ContentScale.Fit,
+                    contentScale = ContentScale.Crop,
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(4.dp)

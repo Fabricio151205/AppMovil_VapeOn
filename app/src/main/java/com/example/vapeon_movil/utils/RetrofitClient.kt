@@ -19,4 +19,8 @@ object RetrofitClient {
     val saborService: com.example.vapeon_movil.services.SaborService by lazy {
         retrofit.create(com.example.vapeon_movil.services.SaborService::class.java)
     }
+
+    val marcaService: com.example.vapeon_movil.services.MarcaService by lazy {
+        retrofit.create(com.example.vapeon_movil.services.MarcaService::class.java)
+    }
 }

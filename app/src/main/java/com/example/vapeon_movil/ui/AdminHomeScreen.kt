@@ -42,6 +42,7 @@ fun AdminHomeScreen(
     onEstadisticasClick: () -> Unit = {},
     onInversionistasClick: () -> Unit = {},
     irPedidos: () -> Unit = {},
+    irMarcas: () -> Unit = {},
     irSabores: () -> Unit = {},
     cerrarSesion: () -> Unit = {}
 ) {
@@ -57,6 +58,8 @@ fun AdminHomeScreen(
         irCatalogo = irCatalogo,
         esAdmin = true,
         irPedidos = irPedidos,
+        irMarcas = irMarcas,
+        mostrarMarcas = true,
         irSabores = irSabores,
         cerrarSesion = cerrarSesion,
         onPerfilClick = onPerfilClick,

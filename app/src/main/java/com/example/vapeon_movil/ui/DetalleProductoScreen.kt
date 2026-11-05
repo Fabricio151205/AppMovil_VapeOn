@@ -152,7 +152,7 @@ fun DetalleProductoScreen(
                     Image(
                         painter = painterResource(id = imagenRes),
                         contentDescription = producto.nombre.ifEmpty { "Producto VapeON" },
-                        contentScale = ContentScale.Fit,
+                        contentScale = ContentScale.Crop,
                         modifier = Modifier
                             .fillMaxSize()
                     )

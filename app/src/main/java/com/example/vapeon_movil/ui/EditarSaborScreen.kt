@@ -21,7 +21,8 @@ import androidx.compose.ui.unit.sp
 import androidx.activity.compose.BackHandler
 import com.example.vapeon_movil.entities.SaborItem
 import com.example.vapeon_movil.ui.theme.*
-import com.example.vapeon_movil.utils.LISTA_MARCAS_DISPONIBLES
+import com.example.vapeon_movil.utils.marcasUnicas
+import com.example.vapeon_movil.viewmodels.MarcasViewModel
 import com.example.vapeon_movil.viewmodels.SaboresViewModel
 
 /**
@@ -33,6 +34,7 @@ import com.example.vapeon_movil.viewmodels.SaboresViewModel
 fun EditarSaborScreen(
     saborOriginal: SaborItem,
     saboresViewModel: SaboresViewModel,
+    marcasViewModel: MarcasViewModel,
     volver: () -> Unit
 ) {
     BackHandler(onBack = volver)
@@ -41,6 +43,8 @@ fun EditarSaborScreen(
     var mensajeError by rememberSaveable { mutableStateOf("") }
     var menuMarcaExpandido by remember { mutableStateOf(false) }
     var mostrarConfirmacionEliminar by remember { mutableStateOf(false) }
+    val marcasDisponibles = marcasUnicas(marcasViewModel.listaMarcas.map { it.nombre } + saborOriginal.marca)
+    LaunchedEffect(Unit) { marcasViewModel.cargarMarcas() }
 
     LaunchedEffect(saboresViewModel.operacionExitosa) {
         if (saboresViewModel.operacionExitosa) {
@@ -185,7 +189,7 @@ fun EditarSaborScreen(
                     onDismissRequest = { menuMarcaExpandido = false },
                     modifier = Modifier.background(VapeOnSurface)
                 ) {
-                    LISTA_MARCAS_DISPONIBLES.forEach { opcion ->
+                    marcasDisponibles.forEach { opcion ->
                         DropdownMenuItem(
                             text = {
                                 Text(
