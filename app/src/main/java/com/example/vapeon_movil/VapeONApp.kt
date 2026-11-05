@@ -49,10 +49,14 @@ import com.example.vapeon_movil.ui.RegisterScreen
 import com.example.vapeon_movil.ui.SaboresAdminScreen
 import com.example.vapeon_movil.ui.AgregarSaborScreen
 import com.example.vapeon_movil.ui.EditarSaborScreen
+import com.example.vapeon_movil.ui.MarcasAdminScreen
+import com.example.vapeon_movil.ui.AgregarMarcaScreen
+import com.example.vapeon_movil.ui.EditarMarcaScreen
 import com.example.vapeon_movil.viewmodels.PedidoViewModel
 import com.example.vapeon_movil.viewmodels.CarritoViewModel
 import com.example.vapeon_movil.viewmodels.ProductoViewModel
 import com.example.vapeon_movil.viewmodels.SaboresViewModel
+import com.example.vapeon_movil.viewmodels.MarcasViewModel
 import com.example.vapeon_movil.viewmodels.UsuarioViewModel
 import com.example.vapeon_movil.ui.TarjetasScreen
 import com.example.vapeon_movil.viewmodels.TarjetaViewModel
@@ -70,6 +74,7 @@ fun VapeONApp() {
     val carritoViewModel: CarritoViewModel  = viewModel()
     val pedidoViewModel: PedidoViewModel = viewModel()
     val saboresViewModel: SaboresViewModel = viewModel()
+    val marcasViewModel: MarcasViewModel = viewModel()
     val tarjetaViewModel: TarjetaViewModel = viewModel()
 
     val usuarioActual = usuarioViewModel.usuarioActual
@@ -84,6 +89,7 @@ fun VapeONApp() {
     // Identificador del sabor seleccionado para editar (nombre+marca como clave compuesta)
     var saborEditarNombre by rememberSaveable { mutableStateOf("") }
     var saborEditarMarca by rememberSaveable { mutableStateOf("") }
+    var marcaEditarId by rememberSaveable { mutableStateOf("") }
 
     // Borradores de presentación asociados a la sesión. Nunca contienen PAN ni CVV.
     var entregaRevisada by rememberSaveable(claveSesion) { mutableStateOf(false) }
@@ -254,8 +260,9 @@ fun VapeONApp() {
             "tarjetaCvv" -> pantallaActual = "tarjetaExpiracion"
             "tarjetaTitular" -> pantallaActual = "tarjetaCvv"
             "detallePedido" -> pantallaActual = "historialCompras"
-            "saboresAdmin", "pedidosAdmin" -> pantallaActual = "admin"
+            "saboresAdmin", "marcasAdmin", "pedidosAdmin" -> pantallaActual = "admin"
             "agregarSabor", "editarSabor" -> pantallaActual = "saboresAdmin"
+            "agregarMarca", "editarMarca" -> pantallaActual = "marcasAdmin"
             "cajaTotal" -> pantallaActual = "admin"
             "ventasMarca" -> pantallaActual = "cajaTotal"
             "detallePedidoAdmin" -> pantallaActual = rutaRetornoDetalleCaja(detalleDesdeCaja)
@@ -327,6 +334,7 @@ fun VapeONApp() {
                 productoViewModel = productoViewModel,
                 cerrarSesion = ::cerrarSesion,
                 irPedidos = { pantallaActual = "pedidosAdmin" },
+                irMarcas = { pantallaActual = "marcasAdmin" },
                 irSabores = { pantallaActual = "saboresAdmin" },
                 irCatalogo = { pantallaActual = "catalogo" },
                 irEditarProducto = { producto ->
@@ -435,6 +443,7 @@ fun VapeONApp() {
             SaboresAdminScreen(
                 usuario = usuarioViewModel.usuarioActual,
                 saboresViewModel = saboresViewModel,
+                marcasViewModel = marcasViewModel,
                 volver = { pantallaActual = "admin" },
                 irAgregarSabor = { pantallaActual = "agregarSabor" },
                 irEditarSabor = { sabor ->
@@ -446,6 +455,36 @@ fun VapeONApp() {
                 irPedidos = { pantallaActual = "pedidosAdmin" },
                 cerrarSesion = ::cerrarSesion
             )
+        }
+
+        "marcasAdmin" -> {
+            LaunchedEffect(claveSesion) {
+                productoViewModel.cargarProductos()
+                saboresViewModel.cargarSabores()
+                marcasViewModel.cargarMarcas()
+            }
+            MarcasAdminScreen(
+                marcasViewModel = marcasViewModel,
+                productos = productoViewModel.productos,
+                sabores = saboresViewModel.listaSabores,
+                volver = { pantallaActual = "admin" },
+                irAgregarMarca = { pantallaActual = "agregarMarca" },
+                irEditarMarca = { marca -> marcaEditarId = marca.id; pantallaActual = "editarMarca" }
+            )
+        }
+
+        "agregarMarca" -> AgregarMarcaScreen(
+            marcasViewModel = marcasViewModel,
+            volver = { pantallaActual = "marcasAdmin" }
+        )
+
+        "editarMarca" -> {
+            val marca = marcasViewModel.listaMarcas.find { it.id == marcaEditarId }
+            if (marca == null) pantallaActual = "marcasAdmin" else {
+                val relacionada = productoViewModel.productos.any { com.example.vapeon_movil.utils.mismaMarca(it.marca, marca.nombre) } ||
+                    saboresViewModel.listaSabores.any { com.example.vapeon_movil.utils.mismaMarca(it.marca, marca.nombre) }
+                EditarMarcaScreen(marca, relacionada, marcasViewModel) { pantallaActual = "marcasAdmin" }
+            }
         }
 
         "detallePedidoAdmin" -> {
@@ -567,6 +606,7 @@ fun VapeONApp() {
         "agregarSabor" -> {
             AgregarSaborScreen(
                 saboresViewModel = saboresViewModel,
+                marcasViewModel = marcasViewModel,
                 volver = { pantallaActual = "saboresAdmin" }
             )
         }
@@ -582,6 +622,7 @@ fun VapeONApp() {
                 EditarSaborScreen(
                     saborOriginal = saborEditar,
                     saboresViewModel = saboresViewModel,
+                    marcasViewModel = marcasViewModel,
                     volver = { pantallaActual = "saboresAdmin" }
                 )
             }
@@ -592,6 +633,7 @@ fun VapeONApp() {
             AgregarProductoScreen(
                 productoViewModel = productoViewModel,
                 saboresViewModel = saboresViewModel,
+                marcasViewModel = marcasViewModel,
                 volver = { pantallaActual = "catalogo" }
             )
         }
@@ -606,6 +648,7 @@ fun VapeONApp() {
                     producto = producto,
                     productoViewModel = productoViewModel,
                     saboresViewModel = saboresViewModel,
+                    marcasViewModel = marcasViewModel,
                     volver = { pantallaActual = if (esAdminUser) "admin" else "catalogo" }
                 )
             }
@@ -656,7 +699,7 @@ internal fun rutaRegistroTarjetaSegura(ruta: String, ultimos4: String, marca: St
     if (ruta == "tarjetaTitular" && !cvvCompletado) return "tarjetaCvv"
     return ruta
 }
-private val RUTAS_ADMIN = setOf("cajaTotal", "ventasMarca", "admin", "agregarProducto", "editarProducto", "pedidosAdmin", "detallePedidoAdmin", "saboresAdmin", "agregarSabor", "editarSabor")
+private val RUTAS_ADMIN = setOf("cajaTotal", "ventasMarca", "admin", "agregarProducto", "editarProducto", "pedidosAdmin", "detallePedidoAdmin", "saboresAdmin", "agregarSabor", "editarSabor", "marcasAdmin", "agregarMarca", "editarMarca")
 private val RUTAS_COMPARTIDAS = setOf("catalogo", "detalle")
 
 internal fun claveSesionNavegacion(usuario: Usuario?): String? {

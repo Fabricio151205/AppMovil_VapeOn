@@ -27,7 +27,8 @@ import androidx.compose.ui.unit.sp
 import com.example.vapeon_movil.entities.Producto
 import com.example.vapeon_movil.services.dto.*
 import com.example.vapeon_movil.ui.theme.*
-import com.example.vapeon_movil.utils.LISTA_MARCAS_DISPONIBLES
+import com.example.vapeon_movil.utils.marcasUnicas
+import com.example.vapeon_movil.viewmodels.MarcasViewModel
 import com.example.vapeon_movil.utils.obtenerSaboresPorMarca
 import com.example.vapeon_movil.utils.mismaMarca
 import com.example.vapeon_movil.viewmodels.ProductoViewModel
@@ -38,9 +39,11 @@ fun EditarProductoScreen(
     producto: Producto,
     productoViewModel: ProductoViewModel,
     saboresViewModel: SaboresViewModel = androidx.lifecycle.viewmodel.compose.viewModel(),
+    marcasViewModel: MarcasViewModel,
     volver: () -> Unit
 ) {
-    LaunchedEffect(Unit) { saboresViewModel.cargarSabores() }
+    LaunchedEffect(Unit) { saboresViewModel.cargarSabores(); marcasViewModel.cargarMarcas() }
+    val marcasDisponibles = marcasUnicas(marcasViewModel.listaMarcas.map { it.nombre } + producto.marca)
     val context = androidx.compose.ui.platform.LocalContext.current
     DisposableEffect(producto.id, productoViewModel) {
         productoViewModel.iniciarEdicion(producto.id)
@@ -168,14 +171,18 @@ fun EditarProductoScreen(
         return
     }
     key(documento.name, documento.updateTime) {
-        FormularioEditarProducto(documento, productoViewModel, saboresViewModel, volver)
+        FormularioEditarProducto(documento, productoViewModel, saboresViewModel, marcasDisponibles, volver)
     }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun FormularioEditarProducto(
-    documento: ProductoDocumento, productoViewModel: ProductoViewModel, saboresViewModel: SaboresViewModel, volver: () -> Unit
+    documento: ProductoDocumento,
+    productoViewModel: ProductoViewModel,
+    saboresViewModel: SaboresViewModel,
+    marcasDisponibles: List<String>,
+    volver: () -> Unit
 ) {
     val producto = Producto(
         id = documento.name.substringAfterLast('/'), nombre = documento.fields.nombre?.asString().orEmpty(),
@@ -363,7 +370,7 @@ private fun FormularioEditarProducto(
                     onDismissRequest = { menuMarcaExpandido = false },
                     modifier = Modifier.background(VapeOnSurface)
                 ) {
-                    LISTA_MARCAS_DISPONIBLES.forEach { opcionMarca ->
+                    marcasDisponibles.forEach { opcionMarca ->
                         DropdownMenuItem(
                             text = {
                                 Text(

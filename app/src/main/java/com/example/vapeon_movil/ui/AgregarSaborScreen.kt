@@ -20,7 +20,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.activity.compose.BackHandler
 import com.example.vapeon_movil.ui.theme.*
-import com.example.vapeon_movil.utils.LISTA_MARCAS_DISPONIBLES
+import com.example.vapeon_movil.utils.marcasUnicas
+import com.example.vapeon_movil.viewmodels.MarcasViewModel
 import com.example.vapeon_movil.viewmodels.SaboresViewModel
 
 /**
@@ -31,13 +32,19 @@ import com.example.vapeon_movil.viewmodels.SaboresViewModel
 @Composable
 fun AgregarSaborScreen(
     saboresViewModel: SaboresViewModel,
+    marcasViewModel: MarcasViewModel,
     volver: () -> Unit
 ) {
     BackHandler(onBack = volver)
     var nombre by rememberSaveable { mutableStateOf("") }
-    var marca by rememberSaveable { mutableStateOf(LISTA_MARCAS_DISPONIBLES.first()) }
+    var marca by rememberSaveable { mutableStateOf("") }
     var mensajeError by rememberSaveable { mutableStateOf("") }
     var menuMarcaExpandido by remember { mutableStateOf(false) }
+    val marcasDisponibles = marcasUnicas(marcasViewModel.listaMarcas.map { it.nombre })
+    LaunchedEffect(Unit) { marcasViewModel.cargarMarcas() }
+    LaunchedEffect(marcasDisponibles) {
+        if (marca.isBlank() && marcasDisponibles.isNotEmpty()) marca = marcasDisponibles.first()
+    }
 
     LaunchedEffect(saboresViewModel.operacionExitosa) {
         if (saboresViewModel.operacionExitosa) {
@@ -170,7 +177,7 @@ fun AgregarSaborScreen(
                     onDismissRequest = { menuMarcaExpandido = false },
                     modifier = Modifier.background(VapeOnSurface)
                 ) {
-                    LISTA_MARCAS_DISPONIBLES.forEach { opcion ->
+                    marcasDisponibles.forEach { opcion ->
                         DropdownMenuItem(
                             text = {
                                 Text(
@@ -221,6 +228,7 @@ fun AgregarSaborScreen(
                     when {
                         nombre.isBlank() ->
                             mensajeError = "El nombre del sabor es obligatorio"
+                        marca.isBlank() -> mensajeError = "Selecciona una marca registrada"
                         else -> {
                             mensajeError = ""
                             saboresViewModel.agregarSabor(nombre.trim(), marca)

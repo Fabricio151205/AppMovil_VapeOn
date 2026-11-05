@@ -31,6 +31,8 @@ fun MenuScreen(
     onTituloClick: () -> Unit = {},
     irHistorial: () -> Unit = {},
     irPedidos: () -> Unit = {},
+    irMarcas: () -> Unit = {},
+    mostrarMarcas: Boolean = false,
     irSabores: () -> Unit = {},
     cerrarSesion: () -> Unit = {},
     irTarjetas: () -> Unit = {},
@@ -40,16 +42,11 @@ fun MenuScreen(
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
 
-    val opcionesMenu = if (esAdmin) listOf(
-        "Roles",
-        "Catálogo",
-        "Pedidos",
-        "Sabores",
-        "Pagos",
-        "Clientes",
-        "Proveedores",
-        "Cerrar sesión"
-    ) else listOf(
+    val opcionesMenu = if (esAdmin) buildList {
+        addAll(listOf("Roles", "Catálogo", "Pedidos"))
+        if (mostrarMarcas) add("Marcas")
+        addAll(listOf("Sabores", "Pagos", "Clientes", "Proveedores", "Cerrar sesión"))
+    } else listOf(
         "Catálogo",
         "Carrito",
         "Historial de compras",
@@ -88,7 +85,7 @@ fun MenuScreen(
                     NavigationDrawerItem(
                         label = {
                             Text(
-                                text = if (opcion in listOf("Catálogo", "Carrito", "Pedidos", "Sabores", "Historial de compras", "Mis tarjetas", "Cerrar sesión")) opcion else "$opcion (No disponible)",
+                                text = if (opcion in listOf("Catálogo", "Carrito", "Pedidos", "Marcas", "Sabores", "Historial de compras", "Mis tarjetas", "Cerrar sesión")) opcion else "$opcion (No disponible)",
                                 color = VapeOnTextPrimary,
                                 fontWeight = FontWeight.Medium
                             )
@@ -102,6 +99,7 @@ fun MenuScreen(
                                 "Historial de compras" -> if (!esAdmin) irHistorial()
                                 "Mis tarjetas" -> if (!esAdmin) irTarjetas()
                                 "Pedidos" -> if (esAdmin) irPedidos()
+                                "Marcas" -> if (esAdmin) irMarcas()
                                 "Sabores" -> if (esAdmin) irSabores()
                                 "Cerrar sesión" -> cerrarSesion()
                                 else -> {

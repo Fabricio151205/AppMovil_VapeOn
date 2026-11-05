@@ -28,8 +28,9 @@ import androidx.compose.ui.unit.sp
 import com.example.vapeon_movil.entities.SaborItem
 import com.example.vapeon_movil.entities.Usuario
 import com.example.vapeon_movil.ui.theme.*
-import com.example.vapeon_movil.utils.LISTA_MARCAS_DISPONIBLES
+import com.example.vapeon_movil.utils.marcasUnicas
 import com.example.vapeon_movil.utils.mismaMarca
+import com.example.vapeon_movil.viewmodels.MarcasViewModel
 import com.example.vapeon_movil.viewmodels.SaboresViewModel
 import kotlinx.coroutines.launch
 
@@ -38,6 +39,7 @@ import kotlinx.coroutines.launch
 fun SaboresAdminScreen(
     usuario: Usuario?,
     saboresViewModel: SaboresViewModel,
+    marcasViewModel: MarcasViewModel,
     volver: () -> Unit,
     irAgregarSabor: () -> Unit = {},
     irEditarSabor: (SaborItem) -> Unit = {},
@@ -54,6 +56,10 @@ fun SaboresAdminScreen(
 
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+    val marcasDisponibles = marcasUnicas(
+        marcasViewModel.listaMarcas.map { it.nombre } + saboresViewModel.listaSabores.map { it.marca }
+    )
+    LaunchedEffect(Unit) { marcasViewModel.cargarMarcas() }
 
     LaunchedEffect(saboresViewModel.operacionExitosa) {
         if (saboresViewModel.operacionExitosa) {
@@ -152,7 +158,7 @@ fun SaboresAdminScreen(
 
                 // Chips filtro por marca
                 val filtroActual = saboresViewModel.marcaFiltroSeleccionada
-                val marcasFiltro = listOf("Todas") + LISTA_MARCAS_DISPONIBLES
+                val marcasFiltro = listOf("Todas") + marcasDisponibles
 
                 LazyRow(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -274,7 +280,8 @@ fun SaboresAdminScreen(
         DialogoFormularioSabor(
             titulo = "Agregar Nuevo Sabor",
             nombreInicial = "",
-            marcaInicial = LISTA_MARCAS_DISPONIBLES.first(),
+            marcaInicial = marcasDisponibles.firstOrNull().orEmpty(),
+            marcasDisponibles = marcasDisponibles,
             onGuardar = { nombre, marca ->
                 saboresViewModel.agregarSabor(nombre, marca)
                 mostrarDialogoAgregar = false
@@ -289,6 +296,7 @@ fun SaboresAdminScreen(
             titulo = "Editar Sabor",
             nombreInicial = saborAntiguo.nombre,
             marcaInicial = saborAntiguo.marca,
+            marcasDisponibles = marcasUnicas(marcasDisponibles + saborAntiguo.marca),
             onGuardar = { nombre, marca ->
                 saboresViewModel.editarSabor(saborAntiguo, nombre, marca)
                 saborEditar = null
@@ -389,6 +397,7 @@ private fun DialogoFormularioSabor(
     titulo: String,
     nombreInicial: String,
     marcaInicial: String,
+    marcasDisponibles: List<String>,
     onGuardar: (nombre: String, marca: String) -> Unit,
     onDescartar: () -> Unit
 ) {
@@ -443,7 +452,7 @@ private fun DialogoFormularioSabor(
                         onDismissRequest = { menuMarcaExpandido = false },
                         modifier = Modifier.background(VapeOnSurface)
                     ) {
-                        LISTA_MARCAS_DISPONIBLES.forEach { opMarca ->
+                        marcasDisponibles.forEach { opMarca ->
                             DropdownMenuItem(
                                 text = {
                                     Text(

@@ -25,7 +25,8 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.vapeon_movil.ui.theme.*
-import com.example.vapeon_movil.utils.LISTA_MARCAS_DISPONIBLES
+import com.example.vapeon_movil.utils.marcasUnicas
+import com.example.vapeon_movil.viewmodels.MarcasViewModel
 import com.example.vapeon_movil.utils.obtenerSaboresPorMarca
 import com.example.vapeon_movil.utils.mismaMarca
 import com.example.vapeon_movil.viewmodels.ProductoViewModel
@@ -36,9 +37,10 @@ import com.example.vapeon_movil.viewmodels.SaboresViewModel
 fun AgregarProductoScreen(
     productoViewModel: ProductoViewModel,
     saboresViewModel: SaboresViewModel = androidx.lifecycle.viewmodel.compose.viewModel(),
+    marcasViewModel: MarcasViewModel,
     volver: () -> Unit
 ) {
-    LaunchedEffect(Unit) { saboresViewModel.cargarSabores() }
+    LaunchedEffect(Unit) { saboresViewModel.cargarSabores(); marcasViewModel.cargarMarcas() }
     val anterior = productoViewModel.datosCreacionPendiente
     var nombre by rememberSaveable { mutableStateOf(anterior?.nombre?.asString().orEmpty()) }
     var marca by rememberSaveable { mutableStateOf(anterior?.marca?.asString().orEmpty()) }
@@ -48,6 +50,7 @@ fun AgregarProductoScreen(
     var descripcion by rememberSaveable { mutableStateOf(anterior?.descripcion?.asString().orEmpty()) }
     var sabor by rememberSaveable { mutableStateOf(anterior?.sabor?.asString().orEmpty()) }
     var tieneSabor by rememberSaveable { mutableStateOf(sabor.isNotBlank()) }
+    val marcasDisponibles = marcasUnicas(marcasViewModel.listaMarcas.map { it.nombre })
 
     val cargando = productoViewModel.cargandoCreacion
     var mensajeError by rememberSaveable { mutableStateOf("") }
@@ -218,7 +221,7 @@ fun AgregarProductoScreen(
                     onDismissRequest = { menuMarcaExpandido = false },
                     modifier = Modifier.background(VapeOnSurface)
                 ) {
-                    LISTA_MARCAS_DISPONIBLES.forEach { opcionMarca ->
+                    marcasDisponibles.forEach { opcionMarca ->
                         DropdownMenuItem(
                             text = {
                                 Text(
