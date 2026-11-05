@@ -75,3 +75,15 @@ data class Pedido(
 }
 
 private fun String?.normalizado(): String = this?.trim()?.lowercase(java.util.Locale.ROOT).orEmpty()
+
+fun calcularNumeroSecuencialPedido(pedidoId: String, todosLosPedidos: List<Pedido>): Int {
+    val ordenados = todosLosPedidos.distinctBy { it.id }.sortedBy { java.time.Instant.parse(it.fecha) }
+    val index = ordenados.indexOfFirst { it.id == pedidoId }
+    return if (index >= 0) index + 1 else 1
+}
+
+fun obtenerNumeroPedidoReal(pedidoId: String, caja: CajaTotal): Int {
+    val cronologicos = caja.pedidos.distinctBy { it.id }.sortedBy { java.time.Instant.parse(it.fecha) }
+    val index = cronologicos.indexOfFirst { it.id == pedidoId }
+    return if (index >= 0) index + 1 else 1
+}

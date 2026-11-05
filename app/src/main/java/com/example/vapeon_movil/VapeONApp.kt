@@ -13,6 +13,7 @@ import androidx.compose.ui.unit.sp
 import com.example.vapeon_movil.entities.calcularCaja
 import com.example.vapeon_movil.entities.marcasDeCaja
 import com.example.vapeon_movil.ui.CajaTotalScreen
+import com.example.vapeon_movil.ui.VentasMarcaScreen
 import com.example.vapeon_movil.utils.moneda
 import com.example.vapeon_movil.entities.Usuario
 import com.example.vapeon_movil.ui.theme.*
@@ -417,18 +418,37 @@ fun VapeONApp() {
             }
         }
 
-        "cajaTotal", "ventasMarca" -> {
+        "cajaTotal" -> {
             LaunchedEffect(claveSesion) {
                 pedidoViewModel.cargarCaja(usuarioActual)
                 productoViewModel.cargarProductos()
             }
-            CajaTotalScreen(caja, marcasCaja, marcaCaja,
-                pedidoViewModel.cargandoCaja || (!pedidoViewModel.cajaCargada && pedidoViewModel.errorCaja == null),
-                pedidoViewModel.errorCaja, pedidoViewModel.invalidosCaja + caja.invalidos,
-                productoViewModel.cargando, productoViewModel.error,
-                { marca -> marcaCaja = marca; pantallaActual = "ventasMarca" },
-                { id -> pedidoSeleccionadoId = id; detalleDesdeCaja = true; pantallaActual = "detallePedidoAdmin" },
-                { pantallaActual = "admin" })
+            CajaTotalScreen(
+                caja = caja,
+                marcas = marcasCaja,
+                marcaSeleccionada = marcaCaja,
+                cargando = pedidoViewModel.cargandoCaja || (!pedidoViewModel.cajaCargada && pedidoViewModel.errorCaja == null),
+                error = pedidoViewModel.errorCaja,
+                advertencias = pedidoViewModel.invalidosCaja + caja.invalidos,
+                cargandoMarcas = productoViewModel.cargando,
+                errorMarcas = productoViewModel.error,
+                seleccionarMarca = { marca -> marcaCaja = marca },
+                verDetalleMarca = { marca -> marcaCaja = marca },
+                verDetallePedido = { id -> pedidoSeleccionadoId = id; detalleDesdeCaja = true; pantallaActual = "detallePedidoAdmin" },
+                volver = { pantallaActual = "admin" }
+            )
+        }
+
+        "ventasMarca" -> {
+            VentasMarcaScreen(
+                caja = caja,
+                marca = marcaCaja,
+                cargando = pedidoViewModel.cargandoCaja,
+                error = pedidoViewModel.errorCaja,
+                recargar = { pedidoViewModel.cargarCaja(usuarioActual) },
+                verDetalle = { id -> pedidoSeleccionadoId = id; detalleDesdeCaja = true; pantallaActual = "detallePedidoAdmin" },
+                volver = { pantallaActual = "cajaTotal" }
+            )
         }
         "pedidosAdmin" -> {
             PedidosAdminScreen(

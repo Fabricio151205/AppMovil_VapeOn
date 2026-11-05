@@ -17,6 +17,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.vapeon_movil.entities.Usuario
+import com.example.vapeon_movil.entities.calcularNumeroSecuencialPedido
 import com.example.vapeon_movil.ui.theme.*
 import com.example.vapeon_movil.viewmodels.PedidoViewModel
 
@@ -82,7 +83,11 @@ fun DetallePedidoScreen(
                             modifier = Modifier.heightIn(min = 48.dp)) { Text("Reintentar") }
                     }
                     pedido != null && (esAdmin || pedido.usuarioId == usuarioId) && pedido.id == pedidoId -> {
-                        Text("Pedido ${pedido.id}", style = MaterialTheme.typography.titleLarge,
+                        val listaBase = if (esAdmin) pedidoViewModel.pedidosAdmin else listOf(pedido)
+                        val numeroSecuencial = calcularNumeroSecuencialPedido(pedido.id, listaBase)
+                        val textoPedido = String.format(java.util.Locale.ROOT, "Pedido N° %04d", numeroSecuencial)
+
+                        Text(textoPedido, style = MaterialTheme.typography.titleLarge,
                             color = VapeOnTextPrimary, fontWeight = FontWeight.Bold)
                         Text("Fecha: ${fechaPedidoTexto(pedido.fecha)}", color = VapeOnTextPrimary)
                         Text("Estado del pedido: ${pedido.estado}", color = VapeOnGold)

@@ -1,122 +1,286 @@
 package com.example.vapeon_movil.ui
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.example.vapeon_movil.entities.CajaTotal
+import com.example.vapeon_movil.entities.obtenerNumeroPedidoReal
 import com.example.vapeon_movil.ui.theme.*
-import java.math.BigDecimal
-import java.text.NumberFormat
+import com.example.vapeon_movil.utils.moneda
 import java.time.Instant
-import java.time.ZoneId
-import java.time.format.DateTimeFormatter
-import java.util.Locale
-
-private fun importeCaja(valor: BigDecimal): String = "S/ " + NumberFormat.getNumberInstance(Locale.US).apply {
-    minimumFractionDigits = 2
-    maximumFractionDigits = 2
-}.format(valor).replace(',', ' ')
 
 @Composable
-fun CajaTotalScreen(caja: CajaTotal, marcas: List<String>, marcaSeleccionada: String,
-    cargando: Boolean, error: String?, advertencias: Int, cargandoMarcas: Boolean,
-    errorMarcas: String?, seleccionarMarca: (String) -> Unit, verDetalle: (String) -> Unit,
-    volver: () -> Unit) {
+fun CajaTotalScreen(
+    caja: CajaTotal,
+    marcas: List<String>,
+    marcaSeleccionada: String,
+    cargando: Boolean,
+    error: String?,
+    advertencias: Int,
+    cargandoMarcas: Boolean,
+    errorMarcas: String?,
+    seleccionarMarca: (String) -> Unit,
+    verDetalleMarca: (String) -> Unit,
+    verDetallePedido: (String) -> Unit,
+    volver: () -> Unit
+) {
     BackHandler(onBack = volver)
-    val ventas = caja.ventas(marcaSeleccionada)
-    Surface(color = VapeOnBackground, modifier = Modifier.fillMaxSize()) {
-        LazyColumn(Modifier.fillMaxSize().padding(horizontal = 20.dp),
-            contentPadding = PaddingValues(top = 12.dp, bottom = 24.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)) {
-            item {
-                IconButton(onClick = volver, modifier = Modifier.size(48.dp)) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver al panel", tint = VapeOnTextPrimary)
+
+    val marcasVisibles = remember(marcas, caja.marcas) {
+        (marcas + caja.marcas).map { it.trim() }.filter { it.isNotBlank() }.distinct()
+    }
+
+    val ventasFiltradas = remember(caja, marcaSeleccionada) {
+        caja.ventas(marcaSeleccionada)
+            .sortedWith(compareByDescending<com.example.vapeon_movil.entities.VentaCaja> { Instant.parse(it.pedido.fecha) }.thenBy { it.pedido.id })
+    }
+
+    Surface(
+        color = VapeOnBackground,
+        modifier = Modifier
+            .fillMaxSize()
+            .statusBarsPadding()
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .imePadding()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 24.dp, vertical = 16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            // ENCABEZADO CON BOTÓN DE REGRESO
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(onClick = volver) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "Volver al panel",
+                        tint = VapeOnTextPrimary,
+                        modifier = Modifier.size(26.dp)
+                    )
                 }
-                Text("CAJA TOTAL", style = MaterialTheme.typography.headlineMedium,
-                    fontWeight = FontWeight.Bold, color = VapeOnTextPrimary)
             }
-            when {
-                cargando -> item { CircularProgressIndicator(color = VapeOnGold) }
-                error != null -> item { Text(error, color = MaterialTheme.colorScheme.error) }
-                else -> {
-                    item {
-                        Text(importeCaja(caja.productos), style = MaterialTheme.typography.headlineLarge,
-                            fontWeight = FontWeight.Bold, color = VapeOnGold)
-                        Spacer(Modifier.height(12.dp))
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text("Productos", color = VapeOnTextSecondary)
-                            Text(importeCaja(caja.productos), color = VapeOnTextPrimary)
-                        }
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text("Delivery", color = VapeOnTextSecondary)
-                            Text(importeCaja(caja.delivery), color = VapeOnTextPrimary)
-                        }
-                        HorizontalDivider(Modifier.padding(vertical = 8.dp), color = VapeOnGold)
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text("Total recibido", color = VapeOnTextPrimary)
-                            Text(importeCaja(caja.total), color = VapeOnGold, fontWeight = FontWeight.Bold)
-                        }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // TÍTULO "CAJA TOTAL" Y MONTO ACUMULADO
+            Text(
+                text = "CAJA TOTAL",
+                color = VapeOnTextPrimary,
+                fontSize = 22.sp,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center,
+                letterSpacing = 1.sp
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Text(
+                text = moneda(caja.total.toDouble()),
+                color = VapeOnTextPrimary,
+                fontSize = 28.sp,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center
+            )
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // FILA DE CHIPS DE FILTRO DE MARCAS EN FORMATO PÍLDORA (TODOS, OXBAR, LIFEPOD, ETC.)
+            LazyRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                item {
+                    val esTodosSeleccionado = marcaSeleccionada.isBlank()
+                    Button(
+                        onClick = { seleccionarMarca("") },
+                        shape = RoundedCornerShape(50),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (esTodosSeleccionado) VapeOnRed else VapeOnRedDark,
+                            contentColor = VapeOnTextPrimary
+                        ),
+                        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 10.dp)
+                    ) {
+                        Text(
+                            text = "Todos",
+                            fontWeight = if (esTodosSeleccionado) FontWeight.Bold else FontWeight.Medium,
+                            fontSize = 14.sp
+                        )
                     }
-                    item {
-                        LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            item {
-                                FilterChip(selected = marcaSeleccionada.isBlank(), onClick = { seleccionarMarca("") },
-                                    label = { Text("Todos") }, modifier = Modifier.heightIn(min = 48.dp))
-                            }
-                            items(marcas, key = { it }) { marca ->
-                                FilterChip(selected = marca.equals(marcaSeleccionada, true), onClick = { seleccionarMarca(marca) },
-                                    label = { Text(marca) }, modifier = Modifier.heightIn(min = 48.dp))
-                            }
-                        }
-                        if (cargandoMarcas) LinearProgressIndicator(modifier = Modifier.fillMaxWidth(), color = VapeOnGold)
-                        errorMarcas?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+                }
+
+                items(marcasVisibles, key = { it }) { marca ->
+                    val esEstaMarca = marca.equals(marcaSeleccionada, ignoreCase = true)
+                    Button(
+                        onClick = { seleccionarMarca(marca) },
+                        shape = RoundedCornerShape(50),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (esEstaMarca) VapeOnRed else VapeOnRedDark,
+                            contentColor = VapeOnTextPrimary
+                        ),
+                        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 10.dp)
+                    ) {
+                        Text(
+                            text = marca,
+                            fontWeight = if (esEstaMarca) FontWeight.Bold else FontWeight.Medium,
+                            fontSize = 14.sp
+                        )
                     }
-                    item {
-                        Text(marcaSeleccionada.ifBlank { "Todos" }, style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Bold, color = VapeOnTextPrimary)
-                        if (marcaSeleccionada.isNotBlank()) Text(importeCaja(ventas.fold(BigDecimal.ZERO) { suma, venta -> suma + venta.importe }),
-                            style = MaterialTheme.typography.titleMedium, color = VapeOnGold)
-                        if (advertencias > 0) Text("Ventas excluidas por datos inconsistentes: $advertencias", color = MaterialTheme.colorScheme.error)
-                        if (ventas.isEmpty()) Text("Sin ventas entregadas.", color = VapeOnTextSecondary)
-                    }
-                    items(ventas, key = { it.pedido.id }) { venta ->
-                        Card(shape = RoundedCornerShape(20.dp),
-                            colors = CardDefaults.cardColors(containerColor = VapeOnCardBackground)) {
-                            Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                Text("Pedido ${venta.pedido.id}", color = VapeOnTextSecondary,
-                                    style = MaterialTheme.typography.labelMedium)
-                                Text(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm").withZone(ZoneId.of("America/Lima"))
-                                    .format(Instant.parse(venta.pedido.fecha)), color = VapeOnTextSecondary,
-                                    style = MaterialTheme.typography.bodySmall)
+                }
+            }
+
+            if (cargando || cargandoMarcas) {
+                Spacer(modifier = Modifier.height(20.dp))
+                LinearProgressIndicator(modifier = Modifier.fillMaxWidth(), color = VapeOnGold)
+            }
+
+            if (error != null || errorMarcas != null) {
+                Spacer(modifier = Modifier.height(10.dp))
+                Text(text = error ?: errorMarcas.orEmpty(), color = MaterialTheme.colorScheme.error, fontSize = 13.sp)
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // TÍTULO DE LA SECCIÓN DE MARCA SELECCIONADA
+            val tituloSeccion = marcaSeleccionada.ifBlank { "Todas las Ventas" }
+            Box(
+                modifier = Modifier.fillMaxWidth(),
+                contentAlignment = Alignment.CenterStart
+            ) {
+                Text(
+                    text = tituloSeccion,
+                    color = VapeOnTextPrimary,
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            // TARJETAS DE PEDIDOS ENTREGADOS (MÁS RECIENTE ARRIBA)
+            if (ventasFiltradas.isEmpty() && !cargando) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 30.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "Sin ventas entregadas registradas.",
+                        color = VapeOnTextSecondary,
+                        fontSize = 14.sp
+                    )
+                }
+            } else {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    ventasFiltradas.forEach { venta ->
+                        val numeroSecuencial = obtenerNumeroPedidoReal(venta.pedido.id, caja)
+                        val textoPedido = String.format(java.util.Locale.ROOT, "Pedido N° %04d", numeroSecuencial)
+                        val cantidadTotalOrden = venta.productos.sumOf { it.cantidad }
+
+                        Card(
+                            shape = RoundedCornerShape(20.dp),
+                            colors = CardDefaults.cardColors(containerColor = VapeOnCardBackground),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { verDetallePedido(venta.pedido.id) }
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(18.dp)
+                            ) {
+                                // CABECERA REAL SECUENCIAL "Pedido N° 0001"
+                                Text(
+                                    text = textoPedido,
+                                    color = VapeOnTextSecondary,
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Medium
+                                )
+
+                                Spacer(modifier = Modifier.height(8.dp))
+
+                                // PRODUCTOS E IMPORTES
                                 venta.productos.forEach { linea ->
-                                    Text(linea.nombre, color = VapeOnTextPrimary, style = MaterialTheme.typography.titleMedium)
-                                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                        Text("Cant.: ${linea.cantidad}", color = VapeOnTextSecondary)
-                                        Text(importeCaja(linea.subtotal), color = VapeOnTextPrimary)
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(vertical = 2.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(
+                                            text = linea.nombre,
+                                            color = VapeOnTextPrimary,
+                                            fontSize = 15.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            modifier = Modifier.weight(1f)
+                                        )
+                                        Text(
+                                            text = moneda(linea.subtotal.toDouble()),
+                                            color = VapeOnTextPrimary,
+                                            fontSize = 15.sp,
+                                            fontWeight = FontWeight.Bold
+                                        )
                                     }
                                 }
-                                HorizontalDivider(color = VapeOnGold)
-                                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                    Text(importeCaja(venta.importe), color = VapeOnGold, fontWeight = FontWeight.Bold)
-                                    TextButton(onClick = { verDetalle(venta.pedido.id) }, modifier = Modifier.heightIn(min = 48.dp)) {
-                                        Text("Ver detalle", color = VapeOnTextPrimary)
-                                    }
+
+                                Spacer(modifier = Modifier.height(12.dp))
+
+                                HorizontalDivider(color = VapeOnGold, thickness = 2.dp)
+
+                                Spacer(modifier = Modifier.height(8.dp))
+
+                                // FILA INFERIOR: CANTIDAD Y "Ver detalle"
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = "Cant.: $cantidadTotalOrden",
+                                        color = VapeOnTextSecondary,
+                                        fontSize = 13.sp
+                                    )
+
+                                    Text(
+                                        text = "Ver detalle",
+                                        color = VapeOnTextPrimary,
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        modifier = Modifier.clickable { verDetallePedido(venta.pedido.id) }
+                                    )
                                 }
                             }
                         }
                     }
                 }
             }
+
+            Spacer(modifier = Modifier.height(24.dp))
         }
     }
 }
