@@ -13,6 +13,7 @@ import androidx.compose.ui.unit.sp
 import com.example.vapeon_movil.entities.calcularCaja
 import com.example.vapeon_movil.entities.marcasDeCaja
 import com.example.vapeon_movil.ui.CajaTotalScreen
+import com.example.vapeon_movil.ui.PronosticoDemandaScreen
 import com.example.vapeon_movil.ui.VentasMarcaScreen
 import com.example.vapeon_movil.utils.moneda
 import com.example.vapeon_movil.entities.Usuario
@@ -61,6 +62,7 @@ import com.example.vapeon_movil.viewmodels.MarcasViewModel
 import com.example.vapeon_movil.viewmodels.UsuarioViewModel
 import com.example.vapeon_movil.ui.TarjetasScreen
 import com.example.vapeon_movil.viewmodels.TarjetaViewModel
+import com.example.vapeon_movil.viewmodels.PronosticoDemandaViewModel
 
 @Composable
 fun VapeONApp() {
@@ -77,6 +79,7 @@ fun VapeONApp() {
     val saboresViewModel: SaboresViewModel = viewModel()
     val marcasViewModel: MarcasViewModel = viewModel()
     val tarjetaViewModel: TarjetaViewModel = viewModel()
+    val pronosticoDemandaViewModel: PronosticoDemandaViewModel = viewModel()
 
     val usuarioActual = usuarioViewModel.usuarioActual
     val claveSesion = claveSesionNavegacion(usuarioActual)
@@ -265,6 +268,7 @@ fun VapeONApp() {
             "agregarSabor", "editarSabor" -> pantallaActual = "saboresAdmin"
             "agregarMarca", "editarMarca" -> pantallaActual = "marcasAdmin"
             "cajaTotal" -> pantallaActual = "admin"
+            "pronosticoDemanda" -> pantallaActual = "admin"
             "ventasMarca" -> pantallaActual = "cajaTotal"
             "detallePedidoAdmin" -> pantallaActual = rutaRetornoDetalleCaja(detalleDesdeCaja)
             "agregarProducto" -> pantallaActual = "catalogo"
@@ -326,6 +330,7 @@ fun VapeONApp() {
             LaunchedEffect(claveSesion) { pedidoViewModel.cargarCaja(usuarioActual) }
             AdminHomeScreen(
                 onCajaTotalClick = { marcaCaja = ""; pantallaActual = "cajaTotal" },
+                onPrediccionClick = { pantallaActual = "pronosticoDemanda" },
                 textoCaja = when {
                     pedidoViewModel.cargandoCaja -> "Cargando…"
                     pedidoViewModel.errorCaja != null -> "Error al cargar"
@@ -438,6 +443,12 @@ fun VapeONApp() {
                 volver = { pantallaActual = "admin" }
             )
         }
+
+        "pronosticoDemanda" -> PronosticoDemandaScreen(
+            usuario = usuarioActual,
+            viewModel = pronosticoDemandaViewModel,
+            volver = { pantallaActual = "admin" }
+        )
 
         "ventasMarca" -> {
             VentasMarcaScreen(
@@ -729,7 +740,7 @@ internal fun rutaRegistroTarjetaSegura(ruta: String, ultimos4: String, marca: St
     if (ruta == "tarjetaTitular" && !cvvCompletado) return "tarjetaCvv"
     return ruta
 }
-private val RUTAS_ADMIN = setOf("cajaTotal", "ventasMarca", "admin", "agregarProducto", "editarProducto", "pedidosAdmin", "detallePedidoAdmin", "saboresAdmin", "agregarSabor", "editarSabor", "marcasAdmin", "agregarMarca", "editarMarca")
+private val RUTAS_ADMIN = setOf("cajaTotal", "ventasMarca", "pronosticoDemanda", "admin", "agregarProducto", "editarProducto", "pedidosAdmin", "detallePedidoAdmin", "saboresAdmin", "agregarSabor", "editarSabor", "marcasAdmin", "agregarMarca", "editarMarca")
 private val RUTAS_COMPARTIDAS = setOf("catalogo", "detalle")
 
 internal fun claveSesionNavegacion(usuario: Usuario?): String? {

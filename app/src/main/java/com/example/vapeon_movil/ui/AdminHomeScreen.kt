@@ -121,12 +121,7 @@ fun AdminHomeScreen(
             // 2. SECCIÓN: PREDICCIÓN DE INVENTARIO
             // ==========================================
             Card(
-                onClick = {
-                    onPrediccionClick()
-                    scope.launch {
-                        snackbarHostState.showSnackbar("Módulo de Predicción de Inventario no disponible")
-                    }
-                },
+                onClick = onPrediccionClick,
                 shape = RoundedCornerShape(26.dp),
                 colors = CardDefaults.cardColors(containerColor = VapeOnRed),
                 modifier = Modifier
@@ -144,14 +139,14 @@ fun AdminHomeScreen(
                         modifier = Modifier.weight(0.9f)
                     ) {
                         Text(
-                            text = "Predicción:",
+                            text = "Pronóstico:",
                             color = VapeOnTextPrimary,
                             fontSize = 13.sp,
                             fontWeight = FontWeight.Normal
                         )
                         Spacer(modifier = Modifier.height(2.dp))
                         Text(
-                            text = "No disponible",
+                            text = "Demanda",
                             color = VapeOnTextPrimary,
                             fontSize = 24.sp,
                             fontWeight = FontWeight.Black,
@@ -160,7 +155,7 @@ fun AdminHomeScreen(
                     }
 
                     Text(
-                        text = "Sin datos de predicción. Módulo no disponible.",
+                        text = "Modelo Holt entrenado con ventas reales entregadas.",
                         color = VapeOnTextPrimary,
                         fontSize = 15.sp,
                         lineHeight = 20.sp,
