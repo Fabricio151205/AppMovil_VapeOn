@@ -4,9 +4,9 @@
 | :--- | :--- |
 | **Identificador** | `SPEC-VAPEON-001` |
 | **Proyecto** | VapeON - Aplicación Móvil Android |
-| **Versión** | `1.5.0` |
+| **Versión** | `1.6.0` |
 | **Estado** | `Aprobado` |
-| **Fecha de Publicación** | `2026-11-04` |
+| **Fecha de Publicación** | `2026-11-06` |
 | **Plataforma Objetivo** | Android (minSdk 31, targetSdk 37, compileSdk 37) |
 | **Ubicación del Documento** | `doc/spec.md` (Raíz del Repositorio) |
 
@@ -40,6 +40,16 @@ El mercado de dispositivos y accesorios de vapeo requiere plataformas digitales 
 - **Barra de Notificaciones y Menú de Administración**:
   - Configuración global en `Theme.kt` (`window.statusBarColor = VapeOnBackground` con `isAppearanceLightStatusBars = false`) para garantizar la barra de estado negra con íconos blancos y espaciado consistente.
   - Habilitación permanente de la opción **"Marcas"** en el menú de navegación lateral para el rol Administrador hacia `MarcasAdminScreen`.
+- **HU-05 — Pronóstico de Demanda**:
+  - Acceso exclusivo ADMIN desde `AdminHomeScreen`.
+  - Lectura de snapshots reales de la colección `pedidos` mediante Firestore REST, sin crear una colección de pronósticos.
+  - Solo los pedidos con `estado = ENTREGADO` forman parte del entrenamiento.
+  - Las ventas se agrupan por `productoId` y día local de `America/Lima`; los días intermedios sin ventas se representan con demanda cero.
+  - Modelo Holt lineal con `alpha` y `beta` ajustados mediante búsqueda acotada y selección por menor error cuadrático de entrenamiento.
+  - Validación cronológica final con MAE y RMSE; nunca se mezcla aleatoriamente el orden temporal.
+  - Mínimos centralizados: 14 observaciones diarias, 3 días con demanda y separación viable entre entrenamiento y validación.
+  - Cuando no se cumplen los mínimos, la UI muestra el histórico real y `Datos insuficientes`, sin fabricar pronóstico.
+  - Gráfica responsive con Canvas que diferencia histórico, validación y horizonte futuro.
 
 ---
 
@@ -53,3 +63,40 @@ El mercado de dispositivos y accesorios de vapeo requiere plataformas digitales 
 | `1.3.0` | `2026-10-30` | Equipo VapeON | Flujo de recuperación de contraseña de 3 pasos con notificación flotante, filtros flotantes por marca/precio (RF12/RF13), regla de stock por rol (RNE01), conmutador `tieneSabor` e indicadores de carga en `VapeOnGold`. |
 | `1.4.0` | `2026-11-04` | Equipo VapeON | CRUD de marcas con siembra inicial y guardas de relaciones; imagen opcional de sabor desde galería/cámara almacenada como data URI base64 en Firestore. |
 | `1.5.0` | `2026-11-04` | Equipo VapeON | Flujo de tarjetas en 4 pasos con `VisualTransformation`, boleta troquelada incremental dinámica, resolvedor de imágenes por sabor/tipo (Kit Completo vs Recarga), barra de notificaciones negra global y menú de marcas. |
+| `1.6.0` | `2026-11-06` | Equipo VapeON | HU-05 con series reales de pedidos entregados, ajuste Holt, validación temporal MAE/RMSE, gráfica administrativa y estado explícito de datos insuficientes. |
+
+---
+
+## 3. Especificación ética y técnica de HU-05
+
+### 3.1 Transparencia y límites
+
+- El módulo se denomina **Pronóstico de demanda — Modelo Holt** y no se presenta como inteligencia artificial generativa.
+- No utiliza datos de clientes, direcciones, teléfonos ni información financiera para entrenar.
+- No genera observaciones, ventas ni pedidos artificiales.
+- La ausencia de historial suficiente se informa explícitamente; no se sustituye por promedios fijos o resultados aleatorios.
+- El pronóstico es informativo y no modifica automáticamente inventario, precios ni decisiones de compra.
+
+### 3.2 Flujo técnico
+
+```mermaid
+flowchart TD
+    A[Firestore: pedidos reales] --> B[PedidoService REST]
+    B --> C[PronosticoDemandaViewModel]
+    C --> D[Pedidos ENTREGADO deduplicados]
+    D --> E[Serie diaria por productoId]
+    E --> F{¿Datos suficientes?}
+    F -- No --> G[Histórico + estado Datos insuficientes]
+    F -- Sí --> H[Entrenamiento Holt]
+    H --> I[Validación temporal MAE/RMSE]
+    I --> J[Pronóstico futuro]
+    J --> K[PronosticoDemandaScreen + Canvas]
+```
+
+### 3.3 Criterios de aceptación
+
+- **Dado** un pedido con estado distinto de `ENTREGADO`, **cuando** se construye el dataset, **entonces** sus cantidades no se contabilizan.
+- **Dado** un producto con menos de 14 observaciones o menos de 3 días con demanda, **cuando** el administrador lo selecciona, **entonces** no se genera una serie futura.
+- **Dado** un historial suficiente, **cuando** se entrena el modelo, **entonces** `alpha` y `beta` proceden del ajuste sobre los datos reales y el tramo final se reserva para MAE/RMSE.
+- **Dado** un producto eliminado del catálogo, **cuando** conserva ventas históricas, **entonces** continúa disponible mediante el snapshot del pedido.
+- **Dado** un usuario CLIENTE, **cuando** intenta restaurar la ruta de pronóstico, **entonces** la guardia de navegación lo devuelve a su pantalla autorizada.

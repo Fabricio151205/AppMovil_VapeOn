@@ -12,7 +12,7 @@ class RotacionNavegacionTest {
     private val rutasCliente = listOf("home", "catalogo", "detalle", "carrito", "checkout",
         "historialCompras", "detallePedido", "tarjetas") + RUTAS_COMPRA + RUTAS_REGISTRO_TARJETA
     private val rutasAdmin = listOf("admin", "catalogo", "detalle", "agregarProducto",
-        "editarProducto", "pedidosAdmin", "detallePedidoAdmin")
+        "editarProducto", "pedidosAdmin", "detallePedidoAdmin", "pronosticoDemanda")
 
     @Test fun conservaTodasLasRutasDelClienteConLaMismaSesion() {
         rutasCliente.forEach { ruta ->
@@ -34,7 +34,7 @@ class RotacionNavegacionTest {
     }
 
     @Test fun noRestauraPantallasDeOtroRol() {
-        listOf("admin", "agregarProducto", "editarProducto", "pedidosAdmin", "detallePedidoAdmin").forEach {
+        listOf("admin", "agregarProducto", "editarProducto", "pedidosAdmin", "detallePedidoAdmin", "pronosticoDemanda").forEach {
             assertEquals("home", pantallaRestauradaSegura(it, cliente, claveSesionNavegacion(cliente)))
         }
         rutasCliente.filter { it !in setOf("catalogo", "detalle") }.forEach {
