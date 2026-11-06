@@ -64,6 +64,7 @@ import com.example.vapeon_movil.viewmodels.ProductoViewModel
 import com.example.vapeon_movil.viewmodels.SaboresViewModel
 import com.example.vapeon_movil.viewmodels.MarcasViewModel
 import com.example.vapeon_movil.viewmodels.UsuarioViewModel
+import com.example.vapeon_movil.viewmodels.validarMayoriaEdad
 import com.example.vapeon_movil.ui.TarjetasScreen
 import com.example.vapeon_movil.viewmodels.TarjetaViewModel
 import com.example.vapeon_movil.viewmodels.PronosticoDemandaViewModel
@@ -217,7 +218,10 @@ fun VapeONApp() {
     val esAdminUser = usuarioActual?.rol?.equals("ADMIN", ignoreCase = true) == true
 
     // La guardia se aplica antes de componer una pantalla, no después de mostrarla.
-    val pantallaPermitida = pantallaRestauradaSegura(pantallaActual, usuarioActual, propietarioNavegacion)
+    val pantallaPermitida = rutaCompraMayorEdadSegura(
+        pantallaRestauradaSegura(pantallaActual, usuarioActual, propietarioNavegacion),
+        usuarioActual
+    )
     val confirmadoPropio = pedidoViewModel.pedidoConfirmado?.takeIf {
         it.usuarioId == usuarioActual?.id && usuarioActual?.rol.equals("CLIENTE", true)
     }
@@ -414,6 +418,10 @@ fun VapeONApp() {
                     sabores          = saboresViewModel.listaSabores,
                     volver           = { pantallaActual = "home" },
                     irCheckout = {
+                        if (rutaCompraMayorEdadSegura("datosEntrega", usuarioActual) != "datosEntrega") {
+                            pantallaActual = "home"
+                            return@CarritoScreen
+                        }
                         if (pedidoViewModel.requiereComprobacion || pedidoViewModel.cargando) {
                             pantallaActual = "checkout"
                         } else {
@@ -735,6 +743,14 @@ internal val RUTAS_COMPRA = setOf("checkout", "datosEntrega", "seleccionDireccio
 internal val RUTAS_REGISTRO_TARJETA = setOf("tarjetaNumero", "tarjetaExpiracion", "tarjetaCvv", "tarjetaTitular")
 private val RUTAS_CLIENTE = setOf("home", "carrito", "historialCompras", "detallePedido", "tarjetas") +
     RUTAS_COMPRA + RUTAS_REGISTRO_TARJETA
+
+/** RNO01: una ruta restaurada tampoco puede omitir la comprobación de edad. */
+internal fun rutaCompraMayorEdadSegura(ruta: String, usuario: Usuario?): String {
+    if (ruta !in RUTAS_COMPRA) return ruta
+    val clienteValido = usuario?.rol.equals("CLIENTE", ignoreCase = true) &&
+        validarMayoriaEdad(usuario?.fechaNacimiento.orEmpty()) == null
+    return if (clienteValido) ruta else if (usuario?.rol.equals("ADMIN", true)) "admin" else "home"
+}
 
 /** Navegar o restaurar una ruta nunca omite los pasos previos ni fabrica una confirmación. */
 internal fun rutaCompraSegura(ruta: String, entregaRevisada: Boolean, direccionConfirmada: Boolean,

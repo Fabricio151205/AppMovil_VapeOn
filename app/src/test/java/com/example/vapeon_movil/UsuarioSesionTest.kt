@@ -6,6 +6,7 @@ import com.example.vapeon_movil.viewmodels.UsuarioViewModel
 import com.example.vapeon_movil.viewmodels.correoRegistroValido
 import com.example.vapeon_movil.viewmodels.telefonoRegistroValido
 import com.example.vapeon_movil.viewmodels.validarRegistro
+import com.example.vapeon_movil.viewmodels.validarMayoriaEdad
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import org.junit.Assert.*
@@ -146,6 +147,18 @@ class UsuarioSesionTest {
 
     @Test fun cumplioDieciochoAyerEsAceptado() {
         assertNull(errorRegistro(fecha = "29/10/2008"))
+    }
+
+    @Test fun reglaReutilizableDeMayoriaConservaLosLimitesDeRno01() {
+        val hoy = LocalDate.of(2026, 10, 30)
+        assertNull(validarMayoriaEdad("30/10/2008", hoy))
+        assertNull(validarMayoriaEdad("29/10/2008", hoy))
+        assertEquals("Debes tener 18 años cumplidos o más para registrarte.",
+            validarMayoriaEdad("31/10/2008", hoy))
+        listOf("", "31/02/2000", "01/01/2999").forEach {
+            assertEquals("Ingresa una fecha de nacimiento válida en formato dd/mm/aaaa.",
+                validarMayoriaEdad(it, hoy))
+        }
     }
 
     @Test fun fechaFuturaEsRechazada() {
