@@ -10,9 +10,14 @@ import com.example.vapeon_movil.ui.theme.*
 import com.example.vapeon_movil.viewmodels.TarjetaViewModel
 
 @Composable
-fun SeleccionTarjetaScreen(usuario: Usuario?, tarjetaViewModel: TarjetaViewModel,
-    volver: () -> Unit, agregarTarjeta: () -> Unit, desdeCheckout: Boolean = true,
-    continuar: () -> Unit = {}) {
+fun SeleccionTarjetaScreen(
+    usuario: Usuario?,
+    tarjetaViewModel: TarjetaViewModel,
+    volver: () -> Unit,
+    agregarTarjeta: () -> Unit,
+    desdeCheckout: Boolean = true,
+    continuar: () -> Unit = {}
+) {
     val id = usuario?.takeIf { it.rol.equals("CLIENTE", true) }?.id.orEmpty()
     val vm = tarjetaViewModel
     LaunchedEffect(id) {
@@ -40,7 +45,7 @@ fun SeleccionTarjetaScreen(usuario: Usuario?, tarjetaViewModel: TarjetaViewModel
                 val seleccionada = vm.tarjetaSeleccionada?.id == tarjeta.id
                 val vencida = tarjeta.estaVencida()
                 if (propia) Card(colors = CardDefaults.cardColors(
-                    containerColor = if (seleccionada) VapeOnRedDark else VapeOnCardBackground)) {
+                    containerColor = if (seleccionada) VapeOnSelected else VapeOnCardNotSelected)) {
                     Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text(tarjeta.marca, color = VapeOnGold, style = MaterialTheme.typography.titleMedium)
                         Text("**** **** **** ${tarjeta.ultimos4}", color = VapeOnTextPrimary)

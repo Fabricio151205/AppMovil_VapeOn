@@ -87,7 +87,9 @@ fun SeleccionDireccionScreen(
 
                     Card(
                         shape = RoundedCornerShape(20.dp),
-                        colors = CardDefaults.cardColors(containerColor = VapeOnCardBackground),
+                        colors = CardDefaults.cardColors(
+                            containerColor = if (esSeleccionada) VapeOnSelected else VapeOnCardNotSelected
+                        ),
                         modifier = Modifier
                             .fillMaxWidth()
                             .clickable {

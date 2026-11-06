@@ -564,7 +564,7 @@ fun VapeONApp() {
             volver = { pantallaActual = "datosEntrega" },
             continuar = { direccionConfirmada = true; pantallaActual = "metodoPago" })
 
-        "metodoPago" -> MetodoPagoScreen(volver = { pantallaActual = "seleccionDireccion" },
+        "metodoPago" -> MetodoPagoScreen(carritoViewModel = carritoViewModel, volver = { pantallaActual = "seleccionDireccion" },
             efectivo = { pantallaActual = "efectivo" }, tarjeta = { pantallaActual = "seleccionTarjeta" },
             yape = { pantallaActual = "yape" })
 

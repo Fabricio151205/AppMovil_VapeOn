@@ -19,16 +19,18 @@ val VapeOnGoldVariant = Color(0xFFC8860E)    // Dorado oscuro / variante
 val VapeOnBackground = Color(0xFF0D0E15)     // Fondo principal oscuro de toda la app
 val VapeOnSurface = Color(0xFF161822)        // Fondo de contenedores y campos
 val VapeOnSurfaceVariant = Color(0xFF222533) // Fondo de elementos secundarios o contenedores
-val VapeOnCardBackground = Color(0xFF3F321B)  // Fondo bronce/dorado oscuro de las tarjetas de productos
-val VapeOnProductImageBg = Color(0xFFFFFFFF)  // Fondo blanco redondeado para imágenes de productos
+val VapeOnSelected = Color(0xFF4A4B51)       // Fondo de tarjetas y opciones seleccionadas
+val VapeOnCardNotSelected = Color(0xFF1B1C23) // Fondo de tarjetas y opciones no seleccionadas
+val VapeOnCardBackground = VapeOnCardNotSelected // Alias de compatibilidad para tarjetas estándar
+val VapeOnProductImageBg = Color(0xFF000000)  // Fondo redondeado para imágenes de productos
 
 // --- Campos de Entrada / Búsqueda ---
-val VapeOnInputBackground = Color(0xFF141620) // Fondo de la barra de búsqueda / campos de texto
+val VapeOnInputBackground = Color(0xFF1A1B22) // Fondo de la barra de búsqueda / campos de texto
 val VapeOnInputBorder = Color(0xFF4D3D22)     // Borde dorado sutil alrededor de la búsqueda/inputs
 
 // --- Textos e Íconos ---
 val VapeOnTextPrimary = Color(0xFFFFFFFF)    // Texto principal en blanco (Nombres, precios, "Ver todos")
-val VapeOnTextSecondary = Color(0xFF8E8E93)  // Texto secundario / placeholder ("Buscar Productos")
+val VapeOnTextSecondary = Color(0xFFD3D3D0)  // Texto secundario / placeholder ("Buscar Productos")
 val VapeOnTextMuted = Color(0xFF5A5C66)      // Texto deshabilitado o de menor jerarquía
 
 // --- Bordes, Divisores y Estado ---
@@ -43,4 +45,3 @@ val Pink80 = VapeOnGold
 val Purple40 = VapeOnRed
 val PurpleGrey40 = VapeOnRedHover
 val Pink40 = VapeOnGold
-
