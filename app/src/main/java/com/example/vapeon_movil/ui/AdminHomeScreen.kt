@@ -131,18 +131,7 @@ fun AdminHomeScreen(
             }
 
             Card(
-<<<<<<< HEAD
-                onClick = {
-                    onPrediccionClick()
-                    if (primerCritico != null) {
-                        irDetalleProducto(primerCritico)
-                    } else {
-                        irCatalogo()
-                    }
-                },
-=======
                 onClick = onPrediccionClick,
->>>>>>> 340e4aeff2e6fec2aeb1c495a6aa84d1edf358da
                 shape = RoundedCornerShape(26.dp),
                 colors = CardDefaults.cardColors(containerColor = VapeOnRed),
                 modifier = Modifier
@@ -160,22 +149,18 @@ fun AdminHomeScreen(
                         modifier = Modifier.weight(0.9f)
                     ) {
                         Text(
-                            text = "Pronóstico:",
+                            text = "Predicción:",
                             color = VapeOnTextPrimary,
                             fontSize = 13.sp,
                             fontWeight = FontWeight.Normal
                         )
                         Spacer(modifier = Modifier.height(2.dp))
                         Text(
-<<<<<<< HEAD
                             text = when {
                                 productosAgotados.isNotEmpty() -> "${productosAgotados.size} Agotados"
                                 productosCriticos.isNotEmpty() -> "${productosCriticos.size} Alertas"
                                 else -> "Saludable"
                             },
-=======
-                            text = "Demanda",
->>>>>>> 340e4aeff2e6fec2aeb1c495a6aa84d1edf358da
                             color = VapeOnTextPrimary,
                             fontSize = 22.sp,
                             fontWeight = FontWeight.Black,
@@ -184,7 +169,6 @@ fun AdminHomeScreen(
                     }
 
                     Text(
-<<<<<<< HEAD
                         text = when {
                             primerCritico != null && primerCritico.stockTotal == 0 ->
                                 "¡Urgente! ${primerCritico.nombre} se encuentra sin stock."
@@ -193,9 +177,6 @@ fun AdminHomeScreen(
                             else ->
                                 "Inventario saludable. Todos los productos tienen stock suficiente."
                         },
-=======
-                        text = "Modelo Holt entrenado con ventas reales entregadas.",
->>>>>>> 340e4aeff2e6fec2aeb1c495a6aa84d1edf358da
                         color = VapeOnTextPrimary,
                         fontSize = 14.sp,
                         lineHeight = 18.sp,

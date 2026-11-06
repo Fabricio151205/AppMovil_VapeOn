@@ -14,6 +14,10 @@ import com.example.vapeon_movil.entities.calcularCaja
 import com.example.vapeon_movil.entities.marcasDeCaja
 import com.example.vapeon_movil.ui.CajaTotalScreen
 import com.example.vapeon_movil.ui.PronosticoDemandaScreen
+import com.example.vapeon_movil.ui.PrediccionAdminScreen
+import com.example.vapeon_movil.ui.AlertasStockAdminScreen
+import com.example.vapeon_movil.ui.ProductosSinMovimientoScreen
+import com.example.vapeon_movil.ui.SugerenciasReabastecimientoScreen
 import com.example.vapeon_movil.ui.VentasMarcaScreen
 import com.example.vapeon_movil.utils.moneda
 import com.example.vapeon_movil.entities.Usuario
@@ -330,7 +334,7 @@ fun VapeONApp() {
             LaunchedEffect(claveSesion) { pedidoViewModel.cargarCaja(usuarioActual) }
             AdminHomeScreen(
                 onCajaTotalClick = { marcaCaja = ""; pantallaActual = "cajaTotal" },
-                onPrediccionClick = { pantallaActual = "pronosticoDemanda" },
+                onPrediccionClick = { pantallaActual = "prediccionAdmin" },
                 textoCaja = when {
                     pedidoViewModel.cargandoCaja -> "Cargando…"
                     pedidoViewModel.errorCaja != null -> "Error al cargar"
@@ -444,10 +448,36 @@ fun VapeONApp() {
             )
         }
 
+        "prediccionAdmin" -> PrediccionAdminScreen(
+            volver = { pantallaActual = "admin" },
+            irPronosticoDemanda = { pantallaActual = "pronosticoDemanda" },
+            irAlertasStock = { pantallaActual = "alertasStockAdmin" },
+            irSinMovimiento = { pantallaActual = "sinMovimientoAdmin" },
+            irSugerenciasReabastecimiento = { pantallaActual = "sugerenciasReabastecimientoAdmin" }
+        )
+
         "pronosticoDemanda" -> PronosticoDemandaScreen(
             usuario = usuarioActual,
             viewModel = pronosticoDemandaViewModel,
-            volver = { pantallaActual = "admin" }
+            volver = { pantallaActual = "prediccionAdmin" }
+        )
+
+        "alertasStockAdmin" -> AlertasStockAdminScreen(
+            productoViewModel = productoViewModel,
+            volver = { pantallaActual = "prediccionAdmin" },
+            irEditarProducto = { producto -> seleccionarProducto(producto, editar = true) }
+        )
+
+        "sinMovimientoAdmin" -> ProductosSinMovimientoScreen(
+            productoViewModel = productoViewModel,
+            volver = { pantallaActual = "prediccionAdmin" },
+            irEditarProducto = { producto -> seleccionarProducto(producto, editar = true) }
+        )
+
+        "sugerenciasReabastecimientoAdmin" -> SugerenciasReabastecimientoScreen(
+            productoViewModel = productoViewModel,
+            volver = { pantallaActual = "prediccionAdmin" },
+            irEditarProducto = { producto -> seleccionarProducto(producto, editar = true) }
         )
 
         "ventasMarca" -> {
@@ -740,7 +770,12 @@ internal fun rutaRegistroTarjetaSegura(ruta: String, ultimos4: String, marca: St
     if (ruta == "tarjetaTitular" && !cvvCompletado) return "tarjetaCvv"
     return ruta
 }
-private val RUTAS_ADMIN = setOf("cajaTotal", "ventasMarca", "pronosticoDemanda", "admin", "agregarProducto", "editarProducto", "pedidosAdmin", "detallePedidoAdmin", "saboresAdmin", "agregarSabor", "editarSabor", "marcasAdmin", "agregarMarca", "editarMarca")
+private val RUTAS_ADMIN = setOf(
+    "cajaTotal", "ventasMarca", "pronosticoDemanda", "admin", "agregarProducto",
+    "editarProducto", "pedidosAdmin", "detallePedidoAdmin", "saboresAdmin",
+    "agregarSabor", "editarSabor", "marcasAdmin", "agregarMarca", "editarMarca",
+    "prediccionAdmin", "alertasStockAdmin", "sinMovimientoAdmin", "sugerenciasReabastecimientoAdmin"
+)
 private val RUTAS_COMPARTIDAS = setOf("catalogo", "detalle")
 
 internal fun claveSesionNavegacion(usuario: Usuario?): String? {
