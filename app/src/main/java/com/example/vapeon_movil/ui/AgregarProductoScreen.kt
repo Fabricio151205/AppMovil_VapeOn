@@ -25,6 +25,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.vapeon_movil.ui.theme.*
+import com.example.vapeon_movil.components.SelectorImagenSabor
 import com.example.vapeon_movil.utils.marcasParaFormulario
 import com.example.vapeon_movil.viewmodels.MarcasViewModel
 import com.example.vapeon_movil.utils.obtenerSaboresPorMarca
@@ -50,6 +51,8 @@ fun AgregarProductoScreen(
     var descripcion by rememberSaveable { mutableStateOf(anterior?.descripcion?.asString().orEmpty()) }
     var sabor by rememberSaveable { mutableStateOf(anterior?.sabor?.asString().orEmpty()) }
     var tieneSabor by rememberSaveable { mutableStateOf(sabor.isNotBlank()) }
+    var imagenUri by rememberSaveable { mutableStateOf<String?>(anterior?.imagenUri?.asString()) }
+    var procesandoImagen by remember { mutableStateOf(false) }
     val marcasDisponibles = marcasParaFormulario(marcasViewModel.listaMarcas.map { it.nombre })
 
     val cargando = productoViewModel.cargandoCreacion
@@ -364,6 +367,17 @@ fun AgregarProductoScreen(
 
             Spacer(modifier = Modifier.height(18.dp))
 
+            SelectorImagenSabor(
+                imagenDataUri = imagenUri,
+                onImagenCambiada = { imagenUri = it },
+                procesandoImagen = procesandoImagen,
+                onProcesandoCambia = { procesandoImagen = it },
+                textoCheckbox = "Agregar imagen por defecto del producto",
+                textoAyuda = "Esta imagen se mostrará en el catálogo para los sabores que no tengan una foto propia."
+            )
+
+            Spacer(modifier = Modifier.height(18.dp))
+
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -627,7 +641,8 @@ fun AgregarProductoScreen(
                         descripcion = descripcion,
                         sabor = saborFinal,
                         stockPorSabor = stockMap,
-                        categoria = categoria
+                        categoria = categoria,
+                        imagenUri = imagenUri
                     )
                 },
                 enabled = !cargando,

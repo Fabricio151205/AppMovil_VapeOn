@@ -1,6 +1,7 @@
 package com.example.vapeon_movil.ui
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -93,15 +94,13 @@ fun MetodoPagoScreen(
             val esEfectivo = metodoSeleccionado == "EFECTIVO"
             Card(
                 shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(containerColor = VapeOnCardBackground),
+                colors = CardDefaults.cardColors(
+                    containerColor = if (esEfectivo) VapeOnSelected else VapeOnCardNotSelected
+                ),
+                border = BorderStroke(1.dp, VapeOnCardBorder),
                 modifier = Modifier
                     .fillMaxWidth()
                     .clickable { metodoSeleccionado = "EFECTIVO" }
-                    .border(
-                        width = if (esEfectivo) 2.dp else 1.dp,
-                        color = if (esEfectivo) VapeOnGold else VapeOnInputBorder,
-                        shape = RoundedCornerShape(20.dp)
-                    )
             ) {
                 Column(
                     modifier = Modifier
@@ -136,10 +135,10 @@ fun MetodoPagoScreen(
                                 .clip(CircleShape)
                                 .border(
                                     width = 2.dp,
-                                    color = if (esEfectivo) VapeOnGold else VapeOnTextSecondary,
+                                    color = VapeOnCardBorder,
                                     shape = CircleShape
                                 )
-                                .background(if (esEfectivo) VapeOnGold.copy(alpha = 0.2f) else androidx.compose.ui.graphics.Color.Transparent)
+                                .background(if (esEfectivo) VapeOnCardBorder.copy(alpha = 0.3f) else androidx.compose.ui.graphics.Color.Transparent)
                                 .clickable { metodoSeleccionado = "EFECTIVO" },
                             contentAlignment = Alignment.Center
                         ) {
@@ -148,7 +147,7 @@ fun MetodoPagoScreen(
                                     modifier = Modifier
                                         .size(12.dp)
                                         .clip(CircleShape)
-                                        .background(VapeOnGold)
+                                        .background(VapeOnCardBorder)
                                 )
                             }
                         }
@@ -179,11 +178,11 @@ fun MetodoPagoScreen(
                                 colors = OutlinedTextFieldDefaults.colors(
                                     focusedContainerColor = VapeOnInputBackground,
                                     unfocusedContainerColor = VapeOnInputBackground,
-                                    focusedBorderColor = VapeOnGold,
-                                    unfocusedBorderColor = VapeOnInputBorder,
+                                    focusedBorderColor = VapeOnCardBorder,
+                                    unfocusedBorderColor = VapeOnCardBorder,
                                     focusedTextColor = VapeOnTextPrimary,
                                     unfocusedTextColor = VapeOnTextPrimary,
-                                    cursorColor = VapeOnGold
+                                    cursorColor = VapeOnCardBorder
                                 ),
                                 modifier = Modifier.width(120.dp)
                             )
@@ -204,7 +203,7 @@ fun MetodoPagoScreen(
                             )
                             Text(
                                 text = moneda(vueltoVal),
-                                color = VapeOnGold,
+                                color = VapeOnTextPrimary,
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.Bold
                             )
@@ -221,15 +220,13 @@ fun MetodoPagoScreen(
             val esYape = metodoSeleccionado == "YAPE"
             Card(
                 shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(containerColor = VapeOnCardBackground),
+                colors = CardDefaults.cardColors(
+                    containerColor = if (esYape) VapeOnSelected else VapeOnCardNotSelected
+                ),
+                border = BorderStroke(1.dp, VapeOnCardBorder),
                 modifier = Modifier
                     .fillMaxWidth()
                     .clickable { metodoSeleccionado = "YAPE" }
-                    .border(
-                        width = if (esYape) 2.dp else 1.dp,
-                        color = if (esYape) VapeOnGold else VapeOnInputBorder,
-                        shape = RoundedCornerShape(20.dp)
-                    )
             ) {
                 Column(
                     modifier = Modifier
@@ -264,10 +261,10 @@ fun MetodoPagoScreen(
                                 .clip(CircleShape)
                                 .border(
                                     width = 2.dp,
-                                    color = if (esYape) VapeOnGold else VapeOnTextSecondary,
+                                    color = VapeOnCardBorder,
                                     shape = CircleShape
                                 )
-                                .background(if (esYape) VapeOnGold.copy(alpha = 0.2f) else androidx.compose.ui.graphics.Color.Transparent)
+                                .background(if (esYape) VapeOnCardBorder.copy(alpha = 0.3f) else androidx.compose.ui.graphics.Color.Transparent)
                                 .clickable { metodoSeleccionado = "YAPE" },
                             contentAlignment = Alignment.Center
                         ) {
@@ -276,7 +273,7 @@ fun MetodoPagoScreen(
                                     modifier = Modifier
                                         .size(12.dp)
                                         .clip(CircleShape)
-                                        .background(VapeOnGold)
+                                        .background(VapeOnCardBorder)
                                 )
                             }
                         }
@@ -305,15 +302,13 @@ fun MetodoPagoScreen(
             val esTarjeta = metodoSeleccionado == "TARJETA"
             Card(
                 shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(containerColor = VapeOnCardBackground),
+                colors = CardDefaults.cardColors(
+                    containerColor = if (esTarjeta) VapeOnSelected else VapeOnCardNotSelected
+                ),
+                border = BorderStroke(1.dp, VapeOnCardBorder),
                 modifier = Modifier
                     .fillMaxWidth()
                     .clickable { metodoSeleccionado = "TARJETA" }
-                    .border(
-                        width = if (esTarjeta) 2.dp else 1.dp,
-                        color = if (esTarjeta) VapeOnGold else VapeOnInputBorder,
-                        shape = RoundedCornerShape(20.dp)
-                    )
             ) {
                 Column(
                     modifier = Modifier
@@ -348,10 +343,10 @@ fun MetodoPagoScreen(
                                 .clip(CircleShape)
                                 .border(
                                     width = 2.dp,
-                                    color = if (esTarjeta) VapeOnGold else VapeOnTextSecondary,
+                                    color = VapeOnCardBorder,
                                     shape = CircleShape
                                 )
-                                .background(if (esTarjeta) VapeOnGold.copy(alpha = 0.2f) else androidx.compose.ui.graphics.Color.Transparent)
+                                .background(if (esTarjeta) VapeOnCardBorder.copy(alpha = 0.3f) else androidx.compose.ui.graphics.Color.Transparent)
                                 .clickable { metodoSeleccionado = "TARJETA" },
                             contentAlignment = Alignment.Center
                         ) {
@@ -360,7 +355,7 @@ fun MetodoPagoScreen(
                                     modifier = Modifier
                                         .size(12.dp)
                                         .clip(CircleShape)
-                                        .background(VapeOnGold)
+                                        .background(VapeOnCardBorder)
                                 )
                             }
                         }
@@ -388,7 +383,8 @@ fun MetodoPagoScreen(
             // ==========================================
             Card(
                 shape = RoundedCornerShape(24.dp),
-                colors = CardDefaults.cardColors(containerColor = VapeOnCardBackground),
+                colors = CardDefaults.cardColors(containerColor = VapeOnCardNotSelected),
+                border = BorderStroke(1.dp, VapeOnCardBorder),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(

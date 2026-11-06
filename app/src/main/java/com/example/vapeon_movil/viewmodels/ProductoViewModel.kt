@@ -118,6 +118,7 @@ class ProductoViewModel(
 
     fun crearProducto(nombre: String, marca: String, precio: Double, stock: Int, descripcion: String, sabor: String = "", stockPorSabor: Map<String, Int> = emptyMap(),
         categoria: String = "",
+        imagenUri: String? = null,
         onExito: (() -> Unit)? = null) {
         if (cargandoCreacion) return
         val marcaLimpia = marca.trim()
@@ -137,7 +138,8 @@ class ProductoViewModel(
             descripcion = FirestoreValue(stringValue = descripcion),
             sabor = if (sabor.isNotBlank()) FirestoreValue(stringValue = sabor) else null,
             stockPorSabor = if (stockPorSabor.isNotEmpty()) stockPorSabor.aFirestoreMapa() else null,
-            categoria = FirestoreValue(stringValue = categoria.trim())
+            categoria = FirestoreValue(stringValue = categoria.trim()),
+            imagenUri = if (!imagenUri.isNullOrBlank()) FirestoreValue(stringValue = imagenUri) else null
         ))
         val intento = creacionPendiente ?: (UUID.randomUUID().toString() to cuerpo).also { creacionPendiente = it }
         if (intento.second != cuerpo) {
@@ -219,7 +221,8 @@ class ProductoViewModel(
                     descripcion = doc.fields.descripcion?.asString().orEmpty(),
                     sabor = doc.fields.sabor?.asString().orEmpty(),
                     stockPorSabor = doc.fields.stockPorSabor.aStockMap(),
-                    categoria = doc.fields.categoria?.stringValue.orEmpty()
+                    categoria = doc.fields.categoria?.stringValue.orEmpty(),
+                    imagenUri = doc.fields.imagenUri?.asString()
                 )
                 if (propietarioProductoRuta == claveSesion) productoParaRuta = producto
             } catch (e: CancellationException) {
@@ -261,7 +264,8 @@ class ProductoViewModel(
                         sabor       = doc.fields.sabor?.asString()       ?: "",
                         stockPorSabor = doc.fields.stockPorSabor.aStockMap(),
                         fechaCreacion = doc.createTime ?: doc.updateTime ?: "",
-                        categoria = doc.fields.categoria?.stringValue.orEmpty()
+                        categoria = doc.fields.categoria?.stringValue.orEmpty(),
+                        imagenUri   = doc.fields.imagenUri?.asString()
                     )
                 } ?: emptyList()
                 inventarioCargado = true
@@ -360,6 +364,7 @@ class ProductoViewModel(
     fun guardarProductoEdicion(
         nombre: String, marca: String, precio: Double, stock: Int, descripcion: String, sabor: String = "", stockPorSabor: Map<String, Int> = emptyMap(),
         categoria: String? = null,
+        imagenUri: String? = null,
         onExito: (() -> Unit)? = null
     ) {
         if (guardandoEdicion || cargandoEdicion || requiereRecargarEdicion) return
@@ -381,6 +386,8 @@ class ProductoViewModel(
             errorEdicion = "La categoría del producto no puede quedar vacía."
             return
         }
+        val anteriorImagen = anteriores.imagenUri?.asString().orEmpty()
+        val nuevaImagen = (imagenUri ?: anteriorImagen)
         val cuerpo = ProductoContainer(ProductoCampos(
             nombre = if (nombre != anteriores.nombre?.asString()) FirestoreValue(stringValue = nombre) else null,
             marca = if (marcaLimpia != anteriores.marca?.asString()) FirestoreValue(stringValue = marcaLimpia) else null,
@@ -389,13 +396,15 @@ class ProductoViewModel(
             descripcion = if (descripcion != anteriores.descripcion?.asString()) FirestoreValue(stringValue = descripcion) else null,
             sabor = if (sabor != anteriores.sabor?.asString().orEmpty()) FirestoreValue(stringValue = sabor) else null,
             stockPorSabor = if (stockPorSabor != anteriores.stockPorSabor.aStockMap()) stockPorSabor.aFirestoreMapa() else null,
-            categoria = if (categoriaNueva != categoriaAnterior) FirestoreValue(stringValue = categoriaNueva) else null
+            categoria = if (categoriaNueva != categoriaAnterior) FirestoreValue(stringValue = categoriaNueva) else null,
+            imagenUri = if (nuevaImagen != anteriorImagen) FirestoreValue(stringValue = nuevaImagen) else null
         ))
         val campos = listOfNotNull(
             cuerpo.fields.nombre?.let { "nombre" }, cuerpo.fields.marca?.let { "marca" },
             cuerpo.fields.precio?.let { "precio" }, cuerpo.fields.stock?.let { "stock" },
             cuerpo.fields.descripcion?.let { "descripcion" }, cuerpo.fields.sabor?.let { "sabor" },
-            cuerpo.fields.stockPorSabor?.let { "stockPorSabor" }, cuerpo.fields.categoria?.let { "categoria" }
+            cuerpo.fields.stockPorSabor?.let { "stockPorSabor" }, cuerpo.fields.categoria?.let { "categoria" },
+            cuerpo.fields.imagenUri?.let { "imagenUri" }
         )
         if (campos.isEmpty()) {
             errorEdicion = "No hay cambios para guardar."

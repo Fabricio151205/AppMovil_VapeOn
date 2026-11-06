@@ -34,11 +34,6 @@ fun imagenDeSaborEstricto(
 /**
  * Resuelve la imagen (data URI base64) del sabor que corresponde a [marca] y a
  * alguno de los nombres en [nombresSabor].
- *
- * La búsqueda ignora mayúsculas/minúsculas y usa [mismaMarca] para tolerar
- * variantes conocidas de la marca. Si ninguno de los nombres coincide pero la
- * marca sí tiene imágenes registradas, se devuelve la primera imagen de esa
- * marca para no dejar la vista sin imagen.
  */
 fun imagenDeSabor(
     marca: String,
@@ -64,10 +59,11 @@ fun imagenDeSabor(
 }
 
 /**
- * Imagen representativa de un [Producto] a partir de su marca y de los sabores
- * declarados en `stockPorSabor` o en el campo legado `sabor`.
+ * Imagen representativa de un [Producto] a partir de su `imagenUri` guardada,
+ * o de los sabores declarados en `stockPorSabor` o en el campo legado `sabor`.
  */
 fun imagenProducto(producto: Producto, sabores: List<SaborItem>): String? {
+    if (!producto.imagenUri.isNullOrBlank()) return producto.imagenUri
     val nombresSabor = when {
         producto.stockPorSabor.isNotEmpty() -> producto.stockPorSabor.keys.toList()
         producto.sabor.isNotBlank() -> producto.sabor.split(",").map { it.trim() }

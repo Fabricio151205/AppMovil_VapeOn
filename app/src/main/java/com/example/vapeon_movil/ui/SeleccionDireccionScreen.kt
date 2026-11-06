@@ -1,5 +1,6 @@
 package com.example.vapeon_movil.ui
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -90,17 +91,13 @@ fun SeleccionDireccionScreen(
                         colors = CardDefaults.cardColors(
                             containerColor = if (esSeleccionada) VapeOnSelected else VapeOnCardNotSelected
                         ),
+                        border = BorderStroke(1.dp, VapeOnCardBorder),
                         modifier = Modifier
                             .fillMaxWidth()
                             .clickable {
                                 direccionSeleccionada = dirNombre
                                 cambiarDireccion(dirNombre)
                             }
-                            .border(
-                                width = if (esSeleccionada) 2.dp else 1.dp,
-                                color = if (esSeleccionada) VapeOnGold else VapeOnInputBorder,
-                                shape = RoundedCornerShape(20.dp)
-                            )
                     ) {
                         Column(
                             modifier = Modifier

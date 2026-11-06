@@ -21,7 +21,8 @@ data class ProductoCampos(
     val descripcion: FirestoreValue? = null,
     val sabor: FirestoreValue? = null,
     val stockPorSabor: FirestoreValor? = null,
-    val categoria: FirestoreValue? = null
+    val categoria: FirestoreValue? = null,
+    val imagenUri: FirestoreValue? = null
 )
 
 fun Map<String, Int>.aFirestoreMapa(): FirestoreValor {

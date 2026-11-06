@@ -22,6 +22,7 @@ val VapeOnSurfaceVariant = Color(0xFF222533) // Fondo de elementos secundarios o
 val VapeOnSelected = Color(0xFF4A4B51)       // Fondo de tarjetas y opciones seleccionadas
 val VapeOnCardNotSelected = Color(0xFF1B1C23) // Fondo de tarjetas y opciones no seleccionadas
 val VapeOnCardBackground = VapeOnCardNotSelected // Alias de compatibilidad para tarjetas estándar
+val VapeOnCardBorder = Color(0xFF4A4B51)
 val VapeOnProductImageBg = Color(0xFF000000)  // Fondo redondeado para imágenes de productos
 
 // --- Campos de Entrada / Búsqueda ---

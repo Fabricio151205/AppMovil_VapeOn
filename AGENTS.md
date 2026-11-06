@@ -73,6 +73,9 @@ El proyecto sigue una arquitectura **Single-Activity** con interfaz declarativa 
   - `UsuarioViewModel.kt`: gestiona la sesión activa (login, rol, cierre de sesión).
   - Se instancian con `viewModel()` en `VapeONApp.kt` (scope de Activity) y se pasan como parámetros a las pantallas.
 
+IMPORTANTE
+No leas todo el codigo por completo solo lee lo que sea necesario para poder agregar lo solicitado. 
+Si solo vas a editar el diseño de las interfaces entonces no debes ejecutar la aplicacion o las pruebas unitarias.
 ---
 
 ## 4. Marco Ético y Reglas de Negocio 🛡️

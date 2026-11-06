@@ -10,7 +10,8 @@ data class Producto(
     val sabor: String = "",
     val stockPorSabor: Map<String, Int> = emptyMap(),
     val fechaCreacion: String = "",
-    val categoria: String = ""
+    val categoria: String = "",
+    val imagenUri: String? = null
 ) {
     /**
      * Determina si el producto fue agregado recientemente (máximo hace 1 semana / 7 días).

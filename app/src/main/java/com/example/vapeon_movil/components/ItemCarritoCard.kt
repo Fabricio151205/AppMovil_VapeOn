@@ -2,6 +2,7 @@ package com.example.vapeon_movil.components
 
 import com.example.vapeon_movil.utils.moneda
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -44,6 +45,7 @@ fun ItemCarritoCard(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = VapeOnCardBackground),
+        border = BorderStroke(1.dp, VapeOnCardBorder),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Row(

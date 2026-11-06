@@ -1,5 +1,6 @@
 package com.example.vapeon_movil.ui
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -44,8 +45,12 @@ fun SeleccionTarjetaScreen(
                 val propia = tarjeta.usuarioId == id
                 val seleccionada = vm.tarjetaSeleccionada?.id == tarjeta.id
                 val vencida = tarjeta.estaVencida()
-                if (propia) Card(colors = CardDefaults.cardColors(
-                    containerColor = if (seleccionada) VapeOnSelected else VapeOnCardNotSelected)) {
+                if (propia) Card(
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (seleccionada) VapeOnSelected else VapeOnCardNotSelected
+                    ),
+                    border = BorderStroke(1.dp, VapeOnCardBorder)
+                ) {
                     Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text(tarjeta.marca, color = VapeOnGold, style = MaterialTheme.typography.titleMedium)
                         Text("**** **** **** ${tarjeta.ultimos4}", color = VapeOnTextPrimary)

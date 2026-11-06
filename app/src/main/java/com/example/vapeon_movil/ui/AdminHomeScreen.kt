@@ -118,13 +118,25 @@ fun AdminHomeScreen(
             Spacer(modifier = Modifier.height(16.dp))
 
             // ==========================================
-            // 2. SECCIÓN: PREDICCIÓN DE INVENTARIO
+            // 2. SECCIÓN: PREDICCIÓN E INTELIGENCIA DE INVENTARIO
             // ==========================================
+            val productosCriticos = remember(productosFirebase) {
+                productosFirebase.filter { it.stockTotal <= 5 }
+            }
+            val productosAgotados = remember(productosFirebase) {
+                productosFirebase.filter { it.stockTotal == 0 }
+            }
+            val primerCritico = remember(productosCriticos, productosAgotados) {
+                productosAgotados.firstOrNull() ?: productosCriticos.firstOrNull()
+            }
+
             Card(
                 onClick = {
                     onPrediccionClick()
-                    scope.launch {
-                        snackbarHostState.showSnackbar("Módulo de Predicción de Inventario no disponible")
+                    if (primerCritico != null) {
+                        irDetalleProducto(primerCritico)
+                    } else {
+                        irCatalogo()
                     }
                 },
                 shape = RoundedCornerShape(26.dp),
@@ -151,19 +163,30 @@ fun AdminHomeScreen(
                         )
                         Spacer(modifier = Modifier.height(2.dp))
                         Text(
-                            text = "No disponible",
+                            text = when {
+                                productosAgotados.isNotEmpty() -> "${productosAgotados.size} Agotados"
+                                productosCriticos.isNotEmpty() -> "${productosCriticos.size} Alertas"
+                                else -> "Saludable"
+                            },
                             color = VapeOnTextPrimary,
-                            fontSize = 24.sp,
+                            fontSize = 22.sp,
                             fontWeight = FontWeight.Black,
                             letterSpacing = 0.5.sp
                         )
                     }
 
                     Text(
-                        text = "Sin datos de predicción. Módulo no disponible.",
+                        text = when {
+                            primerCritico != null && primerCritico.stockTotal == 0 ->
+                                "¡Urgente! ${primerCritico.nombre} se encuentra sin stock."
+                            primerCritico != null ->
+                                "Reabastecer ${primerCritico.nombre} (quedan solo ${primerCritico.stockTotal} u.)."
+                            else ->
+                                "Inventario saludable. Todos los productos tienen stock suficiente."
+                        },
                         color = VapeOnTextPrimary,
-                        fontSize = 15.sp,
-                        lineHeight = 20.sp,
+                        fontSize = 14.sp,
+                        lineHeight = 18.sp,
                         modifier = Modifier.weight(1.1f)
                     )
                 }

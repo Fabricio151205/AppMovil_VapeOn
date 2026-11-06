@@ -27,6 +27,7 @@ import androidx.compose.ui.unit.sp
 import com.example.vapeon_movil.entities.Producto
 import com.example.vapeon_movil.services.dto.*
 import com.example.vapeon_movil.ui.theme.*
+import com.example.vapeon_movil.components.SelectorImagenSabor
 import com.example.vapeon_movil.utils.marcasParaFormulario
 import com.example.vapeon_movil.viewmodels.MarcasViewModel
 import com.example.vapeon_movil.utils.obtenerSaboresPorMarca
@@ -202,6 +203,8 @@ private fun FormularioEditarProducto(
     var sabor by rememberSaveable { mutableStateOf(producto.sabor) }
     var stockPorSaborState by rememberSaveable { mutableStateOf(producto.stockPorSabor.mapValues { it.value.toString() }) }
     var tieneSabor by rememberSaveable { mutableStateOf(producto.sabor.isNotBlank() || producto.stockPorSabor.isNotEmpty()) }
+    var imagenUri by rememberSaveable { mutableStateOf(documento.fields.imagenUri?.asString()) }
+    var procesandoImagen by remember { mutableStateOf(false) }
 
     val cargando = productoViewModel.guardandoEdicion
     var mensajeError by rememberSaveable { mutableStateOf("") }
@@ -390,9 +393,20 @@ private fun FormularioEditarProducto(
 
             Spacer(modifier = Modifier.height(14.dp))
 
+            Text(
+                text = "Marca",
+                color = VapeOnTextPrimary,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 6.dp)
+            )
+
             OutlinedTextField(
-                value = categoria, onValueChange = { categoria = it },
-                label = { Text("Categoría") }, singleLine = true,
+                value = categoria,
+                onValueChange = { categoria = it },
+                singleLine = true,
                 supportingText = {
                     if (producto.categoria.isBlank()) Text("Este producto antiguo puede conservar la categoría sin definir.")
                 },
@@ -501,6 +515,17 @@ private fun FormularioEditarProducto(
                     cursorColor = VapeOnGold
                 ),
                 modifier = Modifier.fillMaxWidth()
+            )
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            SelectorImagenSabor(
+                imagenDataUri = imagenUri,
+                onImagenCambiada = { imagenUri = it },
+                procesandoImagen = procesandoImagen,
+                onProcesandoCambia = { procesandoImagen = it },
+                textoCheckbox = "Agregar imagen por defecto del producto",
+                textoAyuda = "Esta imagen se mostrará en el catálogo para los sabores que no tengan una foto propia."
             )
 
             Spacer(modifier = Modifier.height(14.dp))
@@ -783,7 +808,8 @@ private fun FormularioEditarProducto(
                         descripcion = descripcion,
                         sabor = saborFinal,
                         stockPorSabor = stockMap,
-                        categoria = categoria
+                        categoria = categoria,
+                        imagenUri = imagenUri
                     )
                 },
                 enabled = !cargando && !productoViewModel.requiereRecargarEdicion,

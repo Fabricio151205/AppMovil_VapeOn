@@ -85,6 +85,9 @@ fun DetalleProductoScreen(
         resolverImagenProducto(contextoProducto, saborSeleccionado)
     }
 
+    val imagenFinal = imagenSaborBase64?.takeIf { it.isNotBlank() }
+        ?: producto.imagenUri?.takeIf { it.isNotBlank() }
+
     Surface(
         modifier = Modifier
             .fillMaxSize()
@@ -161,10 +164,10 @@ fun DetalleProductoScreen(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.TopStart
                 ) {
-                    // Imagen dinámica del sabor seleccionado (Ocupa el 100% del contenedor sin espacios vacíos)
-                    if (!imagenSaborBase64.isNullOrBlank()) {
+                    // Imagen dinámica del sabor o producto predeterminado (Ocupa el 100% del contenedor sin espacios vacíos)
+                    if (!imagenFinal.isNullOrBlank()) {
                         ImagenSaborView(
-                            dataUri = imagenSaborBase64,
+                            dataUri = imagenFinal,
                             contentDescription = producto.nombre.ifEmpty { "Producto VapeON" },
                             contentScale = ContentScale.Crop,
                             maxDimensionPx = 1024,

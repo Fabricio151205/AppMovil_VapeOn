@@ -2,6 +2,7 @@ package com.example.vapeon_movil.components
 
 import com.example.vapeon_movil.utils.moneda
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -35,6 +36,7 @@ fun ProductCard(
     Card(
         shape = RoundedCornerShape(26.dp),
         colors = CardDefaults.cardColors(containerColor = VapeOnCardBackground),
+        border = BorderStroke(1.dp, VapeOnCardBorder),
         modifier = Modifier
             .width(170.dp)
             .clickable { onClick() }
