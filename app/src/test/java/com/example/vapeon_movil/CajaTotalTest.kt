@@ -168,4 +168,90 @@ class CajaTotalTest {
     @Test fun nuevaSesionNoRestauraRutaAjena() {
         assertEquals("admin", pantallaRestauradaSegura("ventasMarca", Usuario(id = "B", rol = "ADMIN"), "A:ADMIN"))
     }
+
+    @Test fun mismoProductoAcumulaPedidosLineasYSaboresPorId() {
+        val fresa = linea("LifePod", "10.00", 2).copy(productoId = "producto-1", nombre = "Pod",
+            categoria = "Pods", sabor = "Fresa")
+        val menta = fresa.copy(cantidad = 3, subtotal = BigDecimal("30.00"), sabor = "Menta")
+        val otraVenta = fresa.copy(cantidad = 1, subtotal = BigDecimal("10.00"), sabor = "Uva")
+        val caja = calcularCaja(listOf(pedido("a", lineas = listOf(fresa, menta)),
+            pedido("b", lineas = listOf(otraVenta))))
+        val producto = caja.reporteProductos().single()
+        assertEquals("producto-1", producto.productoId)
+        assertEquals(6, producto.unidades)
+        dinero("60.00", producto.ingreso)
+        assertEquals(6, caja.unidadesVendidas)
+    }
+
+    @Test fun productosConMismoNombrePeroDistintoIdNoSeMezclan() {
+        val primera = linea("Oxbar", "20.00", 1).copy(productoId = "producto-a", nombre = "Kit")
+        val segunda = primera.copy(productoId = "producto-b", precioUnitario = BigDecimal("30.00"),
+            subtotal = BigDecimal("30.00"))
+        val reporte = calcularCaja(listOf(pedido(lineas = listOf(primera, segunda)))).reporteProductos()
+        assertEquals(setOf("producto-a", "producto-b"), reporte.map { it.productoId }.toSet())
+        assertEquals(2, reporte.size)
+    }
+
+    @Test fun categoriaAcumulaProductosUnidadesEIngresosHistoricos() {
+        val bateria = linea("Oxbar", "25.00", 2).copy(productoId = "b1", categoria = "Batería")
+        val otraBateria = linea("Nexa", "30.00", 3).copy(productoId = "b2", categoria = "Batería")
+        val pod = linea("LifePod", "10.00", 1).copy(productoId = "p1", categoria = "Pod")
+        val categorias = calcularCaja(listOf(pedido(lineas = listOf(bateria, otraBateria, pod))))
+            .reporteCategorias().associateBy { it.categoria }
+        assertEquals(5, categorias.getValue("Batería").unidades)
+        dinero("140.00", categorias.getValue("Batería").ingreso)
+        assertEquals(1, categorias.getValue("Pod").unidades)
+        dinero("10.00", categorias.getValue("Pod").ingreso)
+    }
+
+    @Test fun categoriasAusentesVaciasOConEspaciosSonSinCategoria() {
+        val base = linea(precio = "10.00", cantidad = 1)
+        val lineas = listOf(base.copy(productoId = "a", categoria = null),
+            base.copy(productoId = "b", categoria = ""),
+            base.copy(productoId = "c", categoria = "   "))
+        val categoria = calcularCaja(listOf(pedido(lineas = lineas))).reporteCategorias().single()
+        assertEquals(SIN_CATEGORIA, categoria.categoria)
+        assertEquals(3, categoria.unidades)
+        dinero("30.00", categoria.ingreso)
+    }
+
+    @Test fun deliveryPermaneceFueraDeProductosYCategoriasYSeSumaUnaVez() {
+        val linea = linea(precio = "20.00", cantidad = 2).copy(categoria = "Kit")
+        val caja = calcularCaja(listOf(pedido(lineas = listOf(linea))))
+        dinero("40.00", caja.productos)
+        dinero("40.00", caja.reporteProductos().single().ingreso)
+        dinero("40.00", caja.reporteCategorias().single().ingreso)
+        dinero("5.00", caja.delivery)
+        dinero("45.00", caja.total)
+    }
+
+    @Test fun rangoRespetaAmbosLimitesYExcluyeInstantesContiguosEnLima() {
+        val justoAntes = pedido("antes", fecha = "2026-10-29T04:59:59Z")
+        val inicio = pedido("inicio", fecha = "2026-10-29T05:00:00Z")
+        val final = pedido("final", fecha = "2026-10-31T04:59:59Z")
+        val justoDespues = pedido("despues", fecha = "2026-10-31T05:00:00Z")
+        val caja = calcularCaja(listOf(justoAntes, inicio, final, justoDespues),
+            "29/10/2026", "30/10/2026")
+        assertEquals(listOf("final", "inicio"), caja.pedidos.map { it.id })
+    }
+
+    @Test fun rangoCompletoYSoloUnDiaMantienenLosSnapshotsCorrespondientes() {
+        val primero = pedido("a", fecha = "2026-10-29T12:00:00Z")
+        val segundo = pedido("b", fecha = "2026-10-30T12:00:00Z")
+        assertEquals(2, calcularCaja(listOf(primero, segundo)).pedidos.size)
+        assertEquals(listOf("a"), calcularCaja(listOf(primero, segundo),
+            "29/10/2026", "29/10/2026").pedidos.map { it.id })
+    }
+
+    @Test fun productoEliminadoDelCatalogoConservaTodoSuSnapshotEnReporte() {
+        val historico = linea("Marca histórica", "37.50", 2).copy(productoId = "eliminado",
+            nombre = "Producto eliminado", categoria = "Categoría histórica", sabor = "Sabor histórico")
+        val caja = calcularCaja(listOf(pedido(lineas = listOf(historico))))
+        val producto = caja.reporteProductos().single()
+        assertEquals("Producto eliminado", producto.nombre)
+        assertEquals("Marca histórica", producto.marca)
+        dinero("75.00", producto.ingreso)
+        assertEquals("Categoría histórica", caja.reporteCategorias().single().categoria)
+        assertEquals("Sabor histórico", caja.ventas().single().productos.single().sabor)
+    }
 }

@@ -41,6 +41,17 @@ interface UsuarioService {
     suspend fun eliminarUsuario(@Path("id") id: String): Any
 }
 
+/** Contrato separado para que el cambio administrativo nunca reutilice el PATCH completo. */
+interface UsuarioRolesService {
+    @PATCH("usuarios/{id}")
+    suspend fun actualizarRol(
+        @Path("id") id: String,
+        @Query("updateMask.fieldPaths") campo: String = "rol",
+        @Query("currentDocument.updateTime") updateTime: String,
+        @Body body: UsuarioContainer
+    ): UsuarioDocumento
+}
+
 suspend fun UsuarioService.listarTodosUsuarios(): UsuarioListResponse {
     val documentos = mutableListOf<UsuarioDocumento>()
     val tokens = mutableSetOf<String>()

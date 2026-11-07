@@ -12,16 +12,59 @@ import java.util.Locale
 data class VentaCaja(val pedido: Pedido, val productos: List<ProductoPedido>) {
     val importe: BigDecimal get() = productos.fold(BigDecimal.ZERO) { suma, linea -> suma + linea.subtotal }
 }
+data class IngresoProductoCaja(
+    val productoId: String,
+    val nombre: String,
+    val marca: String,
+    val unidades: Int,
+    val ingreso: BigDecimal
+)
+data class IngresoCategoriaCaja(
+    val categoria: String,
+    val unidades: Int,
+    val ingreso: BigDecimal
+)
 data class CajaTotal(val pedidos: List<Pedido>, val invalidos: Int = 0) {
     val productos: BigDecimal get() = pedidos.fold(BigDecimal.ZERO) { suma, pedido -> suma + pedido.subtotal }
     val delivery: BigDecimal get() = pedidos.fold(BigDecimal.ZERO) { suma, pedido -> suma + pedido.delivery }
     val total: BigDecimal get() = productos + delivery
+    val unidadesVendidas: Int get() = pedidos.sumOf { pedido -> pedido.productos.sumOf { it.cantidad } }
     val marcas: List<String> get() = marcasDeCaja(pedidos.flatMap { it.productos }.map { it.marca })
     fun ventas(marca: String = ""): List<VentaCaja> = pedidos.mapNotNull { pedido ->
-        val lineas = pedido.productos.filter { marca.isBlank() || claveMarcaCaja(it.marca) == claveMarcaCaja(marca) }
+        val lineas = lineas(marca, pedido.productos)
         if (lineas.isEmpty()) null else VentaCaja(pedido, lineas)
     }
+
+    /** Agrupa por identidad histórica del producto, nunca por nombre ni por catálogo actual. */
+    fun reporteProductos(marca: String = ""): List<IngresoProductoCaja> = pedidos
+        .flatMap { lineas(marca, it.productos) }
+        .groupBy { it.productoId }
+        .map { (productoId, lineas) ->
+            val referencia = lineas.first()
+            IngresoProductoCaja(productoId, referencia.nombre, referencia.marca,
+                lineas.sumOf { it.cantidad },
+                lineas.fold(BigDecimal.ZERO) { suma, linea -> suma + linea.subtotal })
+        }
+        .sortedWith(compareByDescending<IngresoProductoCaja> { it.ingreso }.thenBy { it.nombre }.thenBy { it.productoId })
+
+    /** La categoría proviene exclusivamente del snapshot; los históricos incompletos quedan identificados. */
+    fun reporteCategorias(marca: String = ""): List<IngresoCategoriaCaja> = pedidos
+        .flatMap { lineas(marca, it.productos) }
+        .groupBy { it.categoria?.trim().takeUnless(String?::isNullOrBlank) ?: SIN_CATEGORIA }
+        .map { (categoria, lineas) ->
+            IngresoCategoriaCaja(categoria, lineas.sumOf { it.cantidad },
+                lineas.fold(BigDecimal.ZERO) { suma, linea -> suma + linea.subtotal })
+        }
+        .sortedWith(compareByDescending<IngresoCategoriaCaja> { it.ingreso }.thenBy { it.categoria })
+
+    fun unidadesVendidas(marca: String): Int = ventas(marca).sumOf { venta ->
+        venta.productos.sumOf { it.cantidad }
+    }
+
+    private fun lineas(marca: String, productos: List<ProductoPedido>): List<ProductoPedido> =
+        productos.filter { marca.isBlank() || claveMarcaCaja(it.marca) == claveMarcaCaja(marca) }
 }
+const val SIN_CATEGORIA = "Sin categoría"
 /** Equivalencia histórica exclusiva de Caja; no cambia los datos guardados. */
 internal fun claveMarcaCaja(marca: String): String = when (val clave = marca.trim().lowercase(Locale.ROOT)) {
     "lifepood" -> "lifepod"

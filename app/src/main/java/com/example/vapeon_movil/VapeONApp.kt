@@ -52,6 +52,7 @@ import com.example.vapeon_movil.ui.DetallePedidoScreen
 import com.example.vapeon_movil.ui.HomeScreen
 import com.example.vapeon_movil.ui.LoginScreen
 import com.example.vapeon_movil.ui.RegisterScreen
+import com.example.vapeon_movil.ui.RolesScreen
 import com.example.vapeon_movil.ui.SaboresAdminScreen
 import com.example.vapeon_movil.ui.AgregarSaborScreen
 import com.example.vapeon_movil.ui.EditarSaborScreen
@@ -64,6 +65,7 @@ import com.example.vapeon_movil.viewmodels.ProductoViewModel
 import com.example.vapeon_movil.viewmodels.SaboresViewModel
 import com.example.vapeon_movil.viewmodels.MarcasViewModel
 import com.example.vapeon_movil.viewmodels.UsuarioViewModel
+import com.example.vapeon_movil.viewmodels.RolesViewModel
 import com.example.vapeon_movil.viewmodels.validarMayoriaEdad
 import com.example.vapeon_movil.ui.TarjetasScreen
 import com.example.vapeon_movil.viewmodels.TarjetaViewModel
@@ -85,6 +87,7 @@ fun VapeONApp() {
     val marcasViewModel: MarcasViewModel = viewModel()
     val tarjetaViewModel: TarjetaViewModel = viewModel()
     val pronosticoDemandaViewModel: PronosticoDemandaViewModel = viewModel()
+    val rolesViewModel: RolesViewModel = viewModel()
 
     val usuarioActual = usuarioViewModel.usuarioActual
     val claveSesion = claveSesionNavegacion(usuarioActual)
@@ -116,7 +119,14 @@ fun VapeONApp() {
 
     var marcaCaja by rememberSaveable(claveSesion) { mutableStateOf("") }
     var detalleDesdeCaja by rememberSaveable(claveSesion) { mutableStateOf(false) }
-    val caja = remember(pedidoViewModel.pedidosCaja) { calcularCaja(pedidoViewModel.pedidosCaja) }
+    var cajaDesde by rememberSaveable(claveSesion) { mutableStateOf("") }
+    var cajaHasta by rememberSaveable(claveSesion) { mutableStateOf("") }
+    var cajaDesdeAplicado by rememberSaveable(claveSesion) { mutableStateOf("") }
+    var cajaHastaAplicado by rememberSaveable(claveSesion) { mutableStateOf("") }
+    var errorRangoCaja by rememberSaveable(claveSesion) { mutableStateOf<String?>(null) }
+    val caja = remember(pedidoViewModel.pedidosCaja, cajaDesdeAplicado, cajaHastaAplicado) {
+        calcularCaja(pedidoViewModel.pedidosCaja, cajaDesdeAplicado, cajaHastaAplicado)
+    }
     val marcasCaja = remember(productoViewModel.productos) {
         marcasDeCaja(productoViewModel.productos.map { it.marca })
     }
@@ -351,6 +361,7 @@ fun VapeONApp() {
                 irPedidos = { pantallaActual = "pedidosAdmin" },
                 irMarcas = { pantallaActual = "marcasAdmin" },
                 irSabores = { pantallaActual = "saboresAdmin" },
+                irRoles = { pantallaActual = "roles" },
                 irCatalogo = { pantallaActual = "catalogo" },
                 irEditarProducto = { producto ->
                     seleccionarProducto(producto, editar = true)
@@ -359,6 +370,20 @@ fun VapeONApp() {
                     seleccionarProducto(producto)
                 }
             )
+        }
+
+        // ── GESTIÓN DE ROLES (solo ADMIN) ────────────────────────────────────
+        "roles" -> {
+            val admin = usuarioActual
+            if (admin != null && admin.rol.equals("ADMIN", true)) {
+                RolesScreen(
+                    adminActual = admin,
+                    rolesViewModel = rolesViewModel,
+                    volver = { pantallaActual = "admin" }
+                )
+            } else {
+                LaunchedEffect(Unit) { pantallaActual = if (admin == null) "login" else "home" }
+            }
         }
 
         // ── CATÁLOGO ──────────────────────────────────────────────────────────
@@ -379,6 +404,7 @@ fun VapeONApp() {
                 irPedidos = { pantallaActual = "pedidosAdmin" },
                 irMarcas  = { pantallaActual = "marcasAdmin" },
                 irSabores = { pantallaActual = "saboresAdmin" },
+                irRoles = { pantallaActual = "roles" },
                 irCarrito = { pantallaActual = "carrito" },
                 irHistorial = { pantallaActual = "historialCompras" },
                 irTarjetas = { pantallaActual = "tarjetas" }
@@ -449,6 +475,26 @@ fun VapeONApp() {
                 advertencias = pedidoViewModel.invalidosCaja + caja.invalidos,
                 cargandoMarcas = productoViewModel.cargando,
                 errorMarcas = productoViewModel.error,
+                desde = cajaDesde,
+                hasta = cajaHasta,
+                errorRango = errorRangoCaja,
+                cambiarDesde = { cajaDesde = it; errorRangoCaja = null },
+                cambiarHasta = { cajaHasta = it; errorRangoCaja = null },
+                aplicarRango = {
+                    try {
+                        calcularCaja(pedidoViewModel.pedidosCaja, cajaDesde, cajaHasta)
+                        cajaDesdeAplicado = cajaDesde.trim()
+                        cajaHastaAplicado = cajaHasta.trim()
+                        errorRangoCaja = null
+                    } catch (e: IllegalArgumentException) {
+                        errorRangoCaja = e.message ?: "Rango de fechas inválido."
+                    }
+                },
+                restablecerRango = {
+                    cajaDesde = ""; cajaHasta = ""
+                    cajaDesdeAplicado = ""; cajaHastaAplicado = ""
+                    errorRangoCaja = null
+                },
                 seleccionarMarca = { marca -> marcaCaja = marca },
                 verDetalleMarca = { marca -> marcaCaja = marca },
                 verDetallePedido = { id -> pedidoSeleccionadoId = id; detalleDesdeCaja = true; pantallaActual = "detallePedidoAdmin" },
@@ -787,7 +833,7 @@ internal fun rutaRegistroTarjetaSegura(ruta: String, ultimos4: String, marca: St
     return ruta
 }
 private val RUTAS_ADMIN = setOf(
-    "cajaTotal", "ventasMarca", "pronosticoDemanda", "admin", "agregarProducto",
+    "cajaTotal", "ventasMarca", "pronosticoDemanda", "admin", "roles", "agregarProducto",
     "editarProducto", "pedidosAdmin", "detallePedidoAdmin", "saboresAdmin",
     "agregarSabor", "editarSabor", "marcasAdmin", "agregarMarca", "editarMarca",
     "prediccionAdmin", "alertasStockAdmin", "sinMovimientoAdmin", "sugerenciasReabastecimientoAdmin"

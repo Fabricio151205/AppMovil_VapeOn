@@ -8,5 +8,8 @@ data class Usuario(
     val fechaNacimiento: String = "",
     val correo: String = "",
     val password: String = "",
-    val rol: String = "CLIENTE"
+    val rol: String = "CLIENTE",
+    val dni: String? = null,
+    val createTime: String? = null,
+    val updateTime: String? = null
 )

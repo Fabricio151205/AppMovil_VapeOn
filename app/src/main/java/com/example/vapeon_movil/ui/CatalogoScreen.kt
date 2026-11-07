@@ -47,6 +47,7 @@ fun CatalogoScreen(
     irPedidos: () -> Unit = {},
     irMarcas: () -> Unit = {},
     irSabores: () -> Unit = {},
+    irRoles: () -> Unit = {},
     cerrarSesion: () -> Unit = {},
     irTarjetas: () -> Unit = {}
 ) {
@@ -98,6 +99,7 @@ fun CatalogoScreen(
         irPedidos = irPedidos,
         irMarcas = irMarcas,
         irSabores = irSabores,
+        irRoles = irRoles,
         cerrarSesion = cerrarSesion,
         esAdmin = esAdmin,
         onPerfilClick = onPerfilClick,
