@@ -4,7 +4,7 @@
 | :--- | :--- |
 | **Identificador** | `SPEC-VAPEON-001` |
 | **Proyecto** | VapeON - Aplicación Móvil Android |
-| **Versión** | `1.6.0` |
+| **Versión** | `1.8.5` |
 | **Estado** | `Aprobado` |
 | **Fecha de Publicación** | `2026-11-06` |
 | **Plataforma Objetivo** | Android (minSdk 31, targetSdk 37, compileSdk 37) |
@@ -17,7 +17,7 @@
 ### 1.1 Declaración del Problema
 El mercado de dispositivos y accesorios de vapeo requiere plataformas digitales ágiles que permitan a los usuarios mayores de edad consultar catálogos actualizados por marca y stock en tiempo real, garantizando un control estricto de acceso (+18), veracidad en especificaciones de producto y herramientas administrativas para la gestión del inventario.
 
-### 1.2 Alcance del Sistema (Version 1.5.0)
+### 1.2 Alcance del Sistema (Versión 1.8.5)
 - **Flujo Guiado de Recuperación de Contraseña (3 Pasos)**:
   - Paso 1: Solicitud de correo con validación de sintaxis y existencia en Firestore REST. Notificación flotante simulada sobre el tope de pantalla con código de 6 dígitos.
   - Paso 2: Verificación de código de 6 casilleros dorados/oscuros (`BasicTextField` con captura directa).
@@ -37,6 +37,31 @@ El mercado de dispositivos y accesorios de vapeo requiere plataformas digitales 
   - Uso de `VisualTransformation`: `CardNumberVisualTransformation` para agrupar los 16 dígitos en bloques de 4 con espacios sin saltos de cursor, y `ExpirationDateVisualTransformation` para el formato **Año / Mes** (`AA / MM`).
   - Boleta electrónica troquelada (`DatosEntregaScreen`) con número correlativo incremental (`BOLETA ELECTRONICA N° %04d`), bordes troquelados (`arreglo_boleta` / `arreglo_pedido`) y renderizado 100% dinámico de ítems reales del carrito sin datos de prueba.
   - Selección de método de pago (`MetodoPagoScreen`), dirección (`SeleccionDireccionScreen`) y tarjetas guardadas (`SeleccionTarjetaScreen`).
+  - **Mapa de ubicación dentro de la app**: al pulsar **"Ver Ubicación"** en una dirección guardada se abre `VerUbicacionScreen` a pantalla completa con el SDK nativo de Google Maps (`maps-compose`), sin salir de la aplicación. La dirección se geocodifica en tiempo de ejecución con `Geocoder` y se marca en el mapa; la tecla Atrás regresa a la lista de direcciones.
+  - La API key se lee desde `MAPS_API_KEY` en `local.properties` (no versionado) y se inyecta en el `AndroidManifest` como `com.google.android.geo.API_KEY`. Si no está configurada, la app muestra instrucciones en lugar de un mapa vacío.
+- **CRUD de Direcciones del Cliente (colección `direcciones`)**:
+  - Acceso desde la opción **"Mis direcciones"** del menú lateral del rol CLIENTE.
+  - Alta, listado, edición y eliminación con confirmación; alias obligatorio, dirección obligatoria y sin duplicados por cliente.
+  - `SeleccionDireccionScreen` consume las direcciones reales del cliente; la lista fija de ejemplo fue eliminada.
+  - Desde el checkout se pueden agregar y editar direcciones, y "Ver Ubicación" sigue disponible para cada una.
+  - El alta y la edición incluyen **selección del punto exacto en el mapa**: primero se escribe la dirección, el mapa se centra en el resultado aproximado y el cliente toca el lugar exacto antes de guardar.
+  - Al confirmar el punto, la **geocodificación inversa** obtiene el nombre de la calle o lugar y actualiza el campo "Dirección de entrega".
+  - `latitud` y `longitud` se guardan en Firestore; `Ver Ubicación` reutiliza esas coordenadas cuando existen.
+  - Las rutas `direcciones`, `agregarDireccion` y `editarDireccion` son exclusivas de CLIENTE. Especificación detallada en `doc/specs/direcciones_spec.md`.
+  - **Mapa del punto de entrega en el detalle del pedido**: el checkout copia las coordenadas de la dirección elegida al pedido; el detalle muestra un mapa de solo lectura con el marcador exacto y un botón para abrirlo a pantalla completa, tanto para el cliente como para el administrador.
+  - Los pedidos históricos sin coordenadas siguen funcionando: el mapa se resuelve geocodificando el texto de `direccionEntrega`.
+- **Lista de Pedidos del Administrador con filtros**:
+  - Filtros **"Todos"**, **"Registrados"**, **"En camino"** y **"Completados"** aplicados sobre los pedidos reales de Firestore.
+  - La vista **"Todos"** oculta los pedidos entregados; estos solo se consultan en **"Completados"**, de modo que el trabajo diario muestre únicamente los pedidos registrados y en camino.
+  - Cada tarjeta muestra el número secuencial, la fecha, la cantidad de ítems, el total, el estado real y el acceso **"Ver detalle"**.
+  - Los filtros se aplican en memoria sobre la lista ya cargada, sin nuevas consultas ni datos de ejemplo.
+- **Detalle del Pedido rediseñado**:
+  - Encabezado con marca VAPEON, título "Detalle del Pedido", número secuencial y fecha real.
+  - Estado, dirección de entrega, cliente y teléfono tomados del pedido en Firestore.
+  - Tarjeta **"Estado del Pedido"** con pasos **R → EC → E** (Registrado, En camino, Entregado); el administrador puede tocar un paso para actualizar el estado real.
+  - Listado de productos con marca, cantidad, precio unitario y subtotal reales.
+  - Tarjeta **"Resumen de la Compra"** con Sub Total, Delivery, TOTAL A PAGAR, monto pagado, vuelto y método de pago.
+  - Se conserva el mapa del punto exacto de entrega con acceso a pantalla completa.
 - **Barra de Notificaciones y Menú de Administración**:
   - Configuración global en `Theme.kt` (`window.statusBarColor = VapeOnBackground` con `isAppearanceLightStatusBars = false`) para garantizar la barra de estado negra con íconos blancos y espaciado consistente.
   - Habilitación permanente de la opción **"Marcas"** en el menú de navegación lateral para el rol Administrador hacia `MarcasAdminScreen`.
@@ -64,6 +89,13 @@ El mercado de dispositivos y accesorios de vapeo requiere plataformas digitales 
 | `1.4.0` | `2026-11-04` | Equipo VapeON | CRUD de marcas con siembra inicial y guardas de relaciones; imagen opcional de sabor desde galería/cámara almacenada como data URI base64 en Firestore. |
 | `1.5.0` | `2026-11-04` | Equipo VapeON | Flujo de tarjetas en 4 pasos con `VisualTransformation`, boleta troquelada incremental dinámica, resolvedor de imágenes por sabor/tipo (Kit Completo vs Recarga), barra de notificaciones negra global y menú de marcas. |
 | `1.6.0` | `2026-11-06` | Equipo VapeON | HU-05 con series reales de pedidos entregados, ajuste Holt, validación temporal MAE/RMSE, gráfica administrativa y estado explícito de datos insuficientes. |
+| `1.7.0` | `2026-11-06` | Equipo VapeON | Mapa de Google Maps a pantalla completa en `SeleccionDireccionScreen` ("Ver Ubicación"), con geocodificación de la dirección, marcador y API key leída desde `local.properties`. |
+| `1.8.0` | `2026-11-06` | Equipo VapeON | CRUD de direcciones del cliente en Firestore, opción "Mis direcciones" en el menú, validaciones de duplicados y apropiación, y checkout conectado a las direcciones guardadas (se retiró la lista fija). |
+| `1.8.1` | `2026-11-06` | Equipo VapeON | Selección del punto exacto de entrega en Google Maps desde los formularios de dirección: geocodificación del texto escrito, marcador ajustable al tocar el mapa y persistencia de `latitud`/`longitud`. |
+| `1.8.2` | `2026-11-06` | Equipo VapeON | Geocodificación inversa al seleccionar el punto: el nombre de la calle/lugar detectado actualiza automáticamente el campo "Dirección de entrega" al confirmar el mapa. |
+| `1.8.3` | `2026-11-06` | Equipo VapeON | Mapa del punto exacto de entrega en el detalle del pedido: el checkout copia `latitud`/`longitud` al pedido y el administrador ve el marcador en un mapa embebido y a pantalla completa; los pedidos antiguos se geocodifican por texto. |
+| `1.8.4` | `2026-11-06` | Equipo VapeON | Lista de pedidos del administrador con filtros por estado ("Todos", "Registrados", "En camino", "Completados"), tarjetas con datos reales de Firestore y vista principal sin pedidos entregados. |
+| `1.8.5` | `2026-11-06` | Equipo VapeON | Rediseño del detalle del pedido: encabezado VAPEON, datos reales del pedido, tarjeta de estado con pasos R/EC/E, productos con precio y subtotal, y resumen de compra con total, pago y vuelto. |
 
 ---
 

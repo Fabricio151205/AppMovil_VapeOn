@@ -45,7 +45,9 @@ fun Pedido.aDocumento(ruta: String): PedidoDocumento {
         "direccionEntrega" to texto(direccionEntrega)
     ) + listOfNotNull(
         pagoId?.let { "pagoId" to texto(it) }, estadoPago?.let { "estadoPago" to texto(it) },
-        numeroOperacion?.let { "numeroOperacion" to texto(it) }, modalidadPago?.let { "modalidadPago" to texto(it) }
+        numeroOperacion?.let { "numeroOperacion" to texto(it) }, modalidadPago?.let { "modalidadPago" to texto(it) },
+        latitud?.let { "latitud" to FirestoreValor(doubleValue = it) },
+        longitud?.let { "longitud" to FirestoreValor(doubleValue = it) }
     ).toMap())
 }
 
@@ -99,6 +101,9 @@ internal fun PedidoDocumento.aPedido(): Pedido {
     val lineas = fields["productos"]?.arrayValue?.values
         ?: throw IllegalArgumentException("El pedido no tiene productos válidos.")
     require(lineas.isNotEmpty()) { "El pedido no tiene productos válidos." }
+    val latitud = fields["latitud"]?.let { it.doubleValue ?: it.integerValue?.toDouble() }
+    val longitud = fields["longitud"]?.let { it.doubleValue ?: it.integerValue?.toDouble() }
+    require((latitud == null) == (longitud == null)) { "El pedido tiene coordenadas incompletas." }
     return Pedido(
         id = idDocumento, usuarioId = fields.texto("usuarioId"),
         nombreCliente = fields.texto("nombreCliente"), telefono = fields.texto("telefono"), fecha = fecha,
@@ -117,7 +122,8 @@ internal fun PedidoDocumento.aPedido(): Pedido {
         vuelto = fields.dinero("vuelto"), direccionEntrega = fields["direccionEntrega"]?.stringValue.orEmpty(),
         metodoPago = fields.texto("metodoPago"), estado = fields.texto("estado"),
         pagoId = fields["pagoId"]?.stringValue, estadoPago = fields["estadoPago"]?.stringValue,
-        numeroOperacion = fields["numeroOperacion"]?.stringValue, modalidadPago = fields["modalidadPago"]?.stringValue
+        numeroOperacion = fields["numeroOperacion"]?.stringValue, modalidadPago = fields["modalidadPago"]?.stringValue,
+        latitud = latitud, longitud = longitud
     )
 }
 

@@ -42,7 +42,8 @@ fun HistorialComprasScreen(
     irCarrito: () -> Unit,
     irHistorial: () -> Unit,
     cerrarSesion: () -> Unit,
-    irTarjetas: () -> Unit = {}
+    irTarjetas: () -> Unit = {},
+    irDirecciones: () -> Unit = {}
 ) {
     val usuarioId = usuario?.takeIf { it.rol.equals("CLIENTE", true) }?.id.orEmpty()
     var filtroEstado by remember { mutableStateOf("Todos") }
@@ -61,6 +62,7 @@ fun HistorialComprasScreen(
         irCarrito = irCarrito,
         irHistorial = irHistorial,
         irTarjetas = irTarjetas,
+        irDirecciones = irDirecciones,
         cerrarSesion = cerrarSesion,
         onPerfilClick = { /* Perfil */ },
         onTituloClick = { /* Titulo */ }
@@ -248,7 +250,7 @@ fun HistorialComprasScreen(
 }
 
 @Composable
-private fun PedidoCard(
+internal fun PedidoCard(
     numeroPedido: Int,
     pedido: Pedido,
     onClickDetalle: () -> Unit

@@ -196,6 +196,45 @@ class PedidoTest {
         assertEquals(setOf("stock", "stockPorSabor"), escritura.update.fields.keys)
     }
 
+    @Test fun pedidoConservaElPuntoExactoDeEntrega() {
+        val pedido = pedidoDePrueba().copy(latitud = -12.0464, longitud = -77.0428)
+        val documento = pedido.aDocumento("projects/db/databases/(default)/documents")
+        assertEquals(-12.0464, documento.fields.getValue("latitud").doubleValue!!, 0.0)
+        assertEquals(-77.0428, documento.fields.getValue("longitud").doubleValue!!, 0.0)
+        val leido = documento.aPedido()
+        assertEquals(pedido, leido)
+        assertTrue(leido.tieneUbicacionEntrega)
+        assertEquals(-12.0464, leido.latitud!!, 0.0)
+        assertEquals(-77.0428, leido.longitud!!, 0.0)
+    }
+
+    @Test fun pedidoAntiguoSinCoordenadasSigueCargando() {
+        val pedido = pedidoDePrueba()
+        val documento = pedido.aDocumento("projects/db/databases/(default)/documents")
+        assertFalse(documento.fields.containsKey("latitud"))
+        assertFalse(documento.fields.containsKey("longitud"))
+        val leido = documento.aPedido()
+        assertNull(leido.latitud)
+        assertNull(leido.longitud)
+        assertFalse(leido.tieneUbicacionEntrega)
+    }
+
+    @Test fun pedidoConCoordenadasIncompletasSeRechaza() {
+        val documento = pedidoDePrueba().copy(latitud = -12.0464).aDocumento("projects/db/databases/(default)/documents")
+        assertThrows(IllegalArgumentException::class.java) { documento.aPedido() }
+        val soloLongitud = pedidoDePrueba().copy(longitud = -77.0428)
+            .aDocumento("projects/db/databases/(default)/documents")
+        assertThrows(IllegalArgumentException::class.java) { soloLongitud.aPedido() }
+    }
+
+    private fun pedidoDePrueba(): Pedido {
+        val precio = BigDecimal("10.00")
+        return Pedido("pedido-mapa", "cliente", "Cliente", "987654321", "2026-11-06T12:00:00Z",
+            listOf(ProductoPedido("p1", "Producto", "Marca", 1, precio, precio)),
+            precio, BigDecimal("5.00"), BigDecimal("15.00"), BigDecimal("20.00"),
+            BigDecimal("5.00"), "Av. Siempre Viva 742")
+    }
+
     @Test fun stockInsuficienteGeneralOPorSaborBloqueaAntesDelCommit() {
         val base = ProductoDocumento("productos/p1", ProductoCampos(
             stock = FirestoreValue(integerValue = "2"),

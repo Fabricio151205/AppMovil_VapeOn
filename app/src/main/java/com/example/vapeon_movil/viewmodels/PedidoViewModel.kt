@@ -449,7 +449,8 @@ class PedidoViewModel(application: Application) : AndroidViewModel(application) 
 
     fun confirmar(
         usuario: Usuario?, carrito: CarritoViewModel, productos: ProductoViewModel,
-        direccion: String, montoTexto: String
+        direccion: String, montoTexto: String,
+        latitud: Double? = null, longitud: Double? = null
     ) {
         actualizarUsuarioCheckout(usuario)
         if (tieneIntentoDigital || cargandoPago) {
@@ -503,7 +504,8 @@ class PedidoViewModel(application: Application) : AndroidViewModel(application) 
                     val preparacion = prepararProductosCompra(items, productos)
                     val pedido = Pedido(UUID.randomUUID().toString(), usuario.id,
                         "${usuario.nombre} ${usuario.apellido}".trim(), usuario.telefono.trim(),
-                        Instant.now().toString(), preparacion.lineas, subtotal, delivery, total, monto, vuelto, direccion.trim())
+                        Instant.now().toString(), preparacion.lineas, subtotal, delivery, total, monto, vuelto,
+                        direccion.trim(), latitud = latitud, longitud = longitud)
                     pedidoPendiente = pedido
                     commitPendiente = PedidoCommit(listOf(PedidoEscritura(
                         pedido.aDocumento(preparacion.ruta), PedidoPrecondicion(exists = false)
@@ -600,7 +602,8 @@ class PedidoViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     fun iniciarPagoDigital(usuario: Usuario?, carrito: CarritoViewModel, productos: ProductoViewModel,
-        direccion: String, metodo: String, tarjetaId: String? = null) {
+        direccion: String, metodo: String, tarjetaId: String? = null,
+        latitud: Double? = null, longitud: Double? = null) {
         ejecutarPago(usuario) { token ->
             // Si la respuesta anterior se perdió, se comprueba el mismo ID, nunca otra operación.
             intentoDigital?.let {
@@ -632,7 +635,8 @@ class PedidoViewModel(application: Application) : AndroidViewModel(application) 
             val borrador = Pedido(pedidoId, cliente.id, "${cliente.nombre} ${cliente.apellido}".trim(),
                 cliente.telefono.trim(), fecha, preparacion.lineas, subtotal, delivery, pago.monto, pago.monto,
                 BigDecimal.ZERO.setScale(2), direccion.trim(), metodo, pagoId = pagoId, estadoPago = "PENDIENTE",
-                numeroOperacion = pago.numeroOperacion, modalidadPago = "SIMULADO")
+                numeroOperacion = pago.numeroOperacion, modalidadPago = "SIMULADO",
+                latitud = latitud, longitud = longitud)
             val intento = IntentoPagoDigital(pago, borrador, preparacion.ruta)
             conservarDigital(intento, token) // Antes de cualquier escritura remota.
             val doc = obtenerOCrearPago(pagoService, intento)

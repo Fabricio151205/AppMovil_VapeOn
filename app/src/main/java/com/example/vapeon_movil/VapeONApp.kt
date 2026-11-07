@@ -65,7 +65,11 @@ import com.example.vapeon_movil.viewmodels.SaboresViewModel
 import com.example.vapeon_movil.viewmodels.MarcasViewModel
 import com.example.vapeon_movil.viewmodels.UsuarioViewModel
 import com.example.vapeon_movil.ui.TarjetasScreen
+import com.example.vapeon_movil.ui.DireccionesScreen
+import com.example.vapeon_movil.ui.AgregarDireccionScreen
+import com.example.vapeon_movil.ui.EditarDireccionScreen
 import com.example.vapeon_movil.viewmodels.TarjetaViewModel
+import com.example.vapeon_movil.viewmodels.DireccionesViewModel
 import com.example.vapeon_movil.viewmodels.PronosticoDemandaViewModel
 
 @Composable
@@ -83,6 +87,7 @@ fun VapeONApp() {
     val saboresViewModel: SaboresViewModel = viewModel()
     val marcasViewModel: MarcasViewModel = viewModel()
     val tarjetaViewModel: TarjetaViewModel = viewModel()
+    val direccionesViewModel: DireccionesViewModel = viewModel()
     val pronosticoDemandaViewModel: PronosticoDemandaViewModel = viewModel()
 
     val usuarioActual = usuarioViewModel.usuarioActual
@@ -98,13 +103,17 @@ fun VapeONApp() {
     var saborEditarNombre by rememberSaveable { mutableStateOf("") }
     var saborEditarMarca by rememberSaveable { mutableStateOf("") }
     var marcaEditarId by rememberSaveable { mutableStateOf("") }
+    var direccionEditarId by rememberSaveable { mutableStateOf("") }
 
     // Borradores de presentación asociados a la sesión. Nunca contienen PAN ni CVV.
     var entregaRevisada by rememberSaveable(claveSesion) { mutableStateOf(false) }
     var direccionEntrega by rememberSaveable(claveSesion) { mutableStateOf("") }
+    var direccionEntregaLat by rememberSaveable(claveSesion) { mutableStateOf<Double?>(null) }
+    var direccionEntregaLng by rememberSaveable(claveSesion) { mutableStateOf<Double?>(null) }
     var direccionConfirmada by rememberSaveable(claveSesion) { mutableStateOf(false) }
     var montoEfectivo by rememberSaveable(claveSesion) { mutableStateOf("") }
     var registroDesdeCheckout by rememberSaveable(claveSesion) { mutableStateOf(false) }
+    var direccionDesdeCheckout by rememberSaveable(claveSesion) { mutableStateOf(false) }
     var tarjetaMarca by rememberSaveable(claveSesion) { mutableStateOf("") }
     var tarjetaUltimos4 by rememberSaveable(claveSesion) { mutableStateOf("") }
     var tarjetaMes by rememberSaveable(claveSesion) { mutableStateOf("") }
@@ -123,7 +132,8 @@ fun VapeONApp() {
     fun limpiarBorradores() {
         marcaCaja = ""; detalleDesdeCaja = false
         entregaRevisada = false; direccionEntrega = ""; direccionConfirmada = false; montoEfectivo = ""
-        registroDesdeCheckout = false
+        direccionEntregaLat = null; direccionEntregaLng = null
+        registroDesdeCheckout = false; direccionDesdeCheckout = false
         tarjetaMarca = ""; tarjetaUltimos4 = ""; tarjetaMes = ""; tarjetaAnio = ""; tarjetaTitular = ""
         pasoCvvCompletado = false; esperandoRegistroTarjeta = false
     }
@@ -139,6 +149,16 @@ fun VapeONApp() {
         pasoCvvCompletado = pendiente != null
         esperandoRegistroTarjeta = false
         pantallaActual = if (pendiente != null) "tarjetaTitular" else "tarjetaNumero"
+    }
+
+    /**
+     * Vuelve al listado de direcciones o al checkout según el origen del
+     * formulario. Se usa tanto para la flecha Atrás como tras guardar.
+     */
+    fun volverDeFormularioDireccion() {
+        val destino = if (direccionDesdeCheckout) "seleccionDireccion" else "direcciones"
+        direccionDesdeCheckout = false
+        pantallaActual = destino
     }
 
     // Resultados de formularios observados por la composición vigente, incluso tras una rotación.
@@ -157,6 +177,7 @@ fun VapeONApp() {
 
     LaunchedEffect(claveSesion) {
         tarjetaViewModel.actualizarUsuario(usuarioActual)
+        direccionesViewModel.actualizarUsuario(usuarioActual)
         pedidoViewModel.actualizarUsuarioCheckout(usuarioActual)
         carritoViewModel.cargarCarrito(context, usuarioActual?.id)
         pedidoViewModel.actualizarUsuarioHistorial(usuarioActual)
@@ -166,6 +187,7 @@ fun VapeONApp() {
             productoSeleccionadoId = ""
             productoEditarId = ""
             pedidoSeleccionadoId = ""
+            direccionEditarId = ""
             propietarioNavegacion = claveSesion
             if (pantallaActual !in RUTAS_PUBLICAS) pantallaActual = pantallaInicialSesion(usuarioActual)
         }
@@ -179,12 +201,15 @@ fun VapeONApp() {
         limpiarBorradores()
         tarjetaViewModel.actualizarUsuario(null)
         tarjetaViewModel.actualizarUsuario(usuarioViewModel.usuarioActual)
+        direccionesViewModel.actualizarUsuario(null)
+        direccionesViewModel.actualizarUsuario(usuarioViewModel.usuarioActual)
         pedidoViewModel.actualizarUsuarioCheckout(usuarioViewModel.usuarioActual)
         // También descarta selecciones si el mismo usuario vuelve a iniciar sesión.
         propietarioNavegacion = claveSesionNavegacion(usuarioViewModel.usuarioActual)
         productoSeleccionadoId = ""
         productoEditarId = ""
         pedidoSeleccionadoId = ""
+        direccionEditarId = ""
         productoViewModel.actualizarSesionProducto(null)
         productoViewModel.actualizarSesionProducto(propietarioNavegacion)
     }
@@ -192,10 +217,12 @@ fun VapeONApp() {
     fun cerrarSesion() {
         limpiarBorradores()
         tarjetaViewModel.actualizarUsuario(null)
+        direccionesViewModel.actualizarUsuario(null)
         usuarioViewModel.cerrarSesion()
         productoSeleccionadoId = ""
         productoEditarId = ""
         pedidoSeleccionadoId = ""
+        direccionEditarId = ""
         propietarioNavegacion = null
         productoViewModel.actualizarSesionProducto(null)
         pedidoViewModel.actualizarUsuarioCheckout(null)
@@ -256,7 +283,7 @@ fun VapeONApp() {
         when (pantallaSegura) {
             "registro", "recuperar" -> pantallaActual = "login"
             "catalogo" -> pantallaActual = if (esAdminUser) "admin" else "home"
-            "carrito", "historialCompras", "tarjetas" -> pantallaActual = "home"
+            "carrito", "historialCompras", "tarjetas", "direcciones" -> pantallaActual = "home"
             "checkout", "datosEntrega" -> pantallaActual = "carrito"
             "seleccionDireccion" -> pantallaActual = "datosEntrega"
             "metodoPago" -> pantallaActual = "seleccionDireccion"
@@ -267,6 +294,7 @@ fun VapeONApp() {
             "tarjetaExpiracion" -> pantallaActual = "tarjetaNumero"
             "tarjetaCvv" -> pantallaActual = "tarjetaExpiracion"
             "tarjetaTitular" -> pantallaActual = "tarjetaCvv"
+            "agregarDireccion", "editarDireccion" -> volverDeFormularioDireccion()
             "detallePedido" -> pantallaActual = "historialCompras"
             "saboresAdmin", "marcasAdmin", "pedidosAdmin" -> pantallaActual = "admin"
             "agregarSabor", "editarSabor" -> pantallaActual = "saboresAdmin"
@@ -325,7 +353,8 @@ fun VapeONApp() {
                 },
                 irCarrito = { pantallaActual = "carrito" },
                 irHistorial = { pantallaActual = "historialCompras" },
-                irTarjetas = { pantallaActual = "tarjetas" }
+                irTarjetas = { pantallaActual = "tarjetas" },
+                irDirecciones = { pantallaActual = "direcciones" }
             )
         }
 
@@ -377,7 +406,8 @@ fun VapeONApp() {
                 irSabores = { pantallaActual = "saboresAdmin" },
                 irCarrito = { pantallaActual = "carrito" },
                 irHistorial = { pantallaActual = "historialCompras" },
-                irTarjetas = { pantallaActual = "tarjetas" }
+                irTarjetas = { pantallaActual = "tarjetas" },
+                irDirecciones = { pantallaActual = "direcciones" }
             )
         }
 
@@ -576,6 +606,7 @@ fun VapeONApp() {
                 irHistorial = { pantallaActual = "historialCompras" },
                 cerrarSesion = ::cerrarSesion,
                 irTarjetas = { pantallaActual = "tarjetas" },
+                irDirecciones = { pantallaActual = "direcciones" },
                 irDetallePedido = { id ->
                     pedidoSeleccionadoId = id
                     pantallaActual = "detallePedido"
@@ -597,13 +628,79 @@ fun VapeONApp() {
                 agregarTarjeta = { iniciarRegistroTarjeta(false) })
         }
 
+        // ── DIRECCIONES DEL CLIENTE (CRUD) ────────────────────────────────────
+        "direcciones" -> {
+            DireccionesScreen(
+                usuario = usuarioActual,
+                direccionesViewModel = direccionesViewModel,
+                volver = { pantallaActual = "home" },
+                agregarDireccion = {
+                    direccionesViewModel.limpiarError()
+                    direccionesViewModel.consumirExito()
+                    direccionDesdeCheckout = false
+                    pantallaActual = "agregarDireccion"
+                },
+                editarDireccion = { direccion ->
+                    direccionesViewModel.limpiarError()
+                    direccionesViewModel.consumirExito()
+                    direccionDesdeCheckout = false
+                    direccionEditarId = direccion.id
+                    pantallaActual = "editarDireccion"
+                }
+            )
+        }
+
+        "agregarDireccion" -> {
+            AgregarDireccionScreen(
+                usuario = usuarioActual,
+                direccionesViewModel = direccionesViewModel,
+                volver = ::volverDeFormularioDireccion
+            )
+        }
+
+        "editarDireccion" -> {
+            val direccion = direccionesViewModel.direcciones.find { it.id == direccionEditarId }
+            if (direccion == null) {
+                volverDeFormularioDireccion()
+            } else {
+                EditarDireccionScreen(
+                    usuario = usuarioActual,
+                    direccionOriginal = direccion,
+                    direccionesViewModel = direccionesViewModel,
+                    volver = ::volverDeFormularioDireccion
+                )
+            }
+        }
+
         "datosEntrega" -> DatosEntregaScreen(usuarioActual, carritoViewModel, pedidoViewModel, volver = { pantallaActual = "carrito" },
             continuar = { entregaRevisada = true; pantallaActual = "seleccionDireccion" })
 
-        "seleccionDireccion" -> SeleccionDireccionScreen(direccionEntrega,
-            cambiarDireccion = { direccionEntrega = it; direccionConfirmada = false },
+        "seleccionDireccion" -> SeleccionDireccionScreen(
+            usuario = usuarioActual,
+            direccionesViewModel = direccionesViewModel,
+            direccion = direccionEntrega,
+            cambiarDireccion = { elegida ->
+                direccionEntrega = elegida.direccion
+                direccionEntregaLat = elegida.latitud
+                direccionEntregaLng = elegida.longitud
+                direccionConfirmada = false
+            },
             volver = { pantallaActual = "datosEntrega" },
-            continuar = { direccionConfirmada = true; pantallaActual = "metodoPago" })
+            continuar = { direccionConfirmada = true; pantallaActual = "metodoPago" },
+            agregarDireccion = {
+                direccionesViewModel.limpiarError()
+                direccionesViewModel.consumirExito()
+                direccionDesdeCheckout = true
+                pantallaActual = "agregarDireccion"
+            },
+            editarDireccion = { direccion ->
+                direccionesViewModel.limpiarError()
+                direccionesViewModel.consumirExito()
+                direccionDesdeCheckout = true
+                direccionEditarId = direccion.id
+                pantallaActual = "editarDireccion"
+            }
+        )
 
         "metodoPago" -> MetodoPagoScreen(carritoViewModel = carritoViewModel, volver = { pantallaActual = "seleccionDireccion" },
             efectivo = { pantallaActual = "efectivo" }, tarjeta = { pantallaActual = "seleccionTarjeta" },
@@ -611,7 +708,8 @@ fun VapeONApp() {
 
         "efectivo" -> EfectivoScreen(usuarioActual, carritoViewModel, productoViewModel, pedidoViewModel,
             direccionEntrega, montoEfectivo, cambiarMonto = { montoEfectivo = it },
-            volver = { pantallaActual = "metodoPago" })
+            volver = { pantallaActual = "metodoPago" },
+            latitud = direccionEntregaLat, longitud = direccionEntregaLng)
 
         "confirmacionPedido" -> confirmadoPropio?.let { pedido ->
             val digital = pedido.pagoId != null
@@ -625,7 +723,8 @@ fun VapeONApp() {
         }
 
         "yape" -> YapeScreen(volver = { pantallaActual = "metodoPago" }, iniciarPago = {
-            pedidoViewModel.iniciarPagoDigital(usuarioActual, carritoViewModel, productoViewModel, direccionEntrega, "YAPE")
+            pedidoViewModel.iniciarPagoDigital(usuarioActual, carritoViewModel, productoViewModel, direccionEntrega,
+                "YAPE", latitud = direccionEntregaLat, longitud = direccionEntregaLng)
             pantallaActual = "pagoSimulado"
         })
 
@@ -633,7 +732,8 @@ fun VapeONApp() {
             volver = { pantallaActual = "metodoPago" }, agregarTarjeta = { iniciarRegistroTarjeta(true) },
             continuar = {
                 pedidoViewModel.iniciarPagoDigital(usuarioActual, carritoViewModel, productoViewModel,
-                    direccionEntrega, "TARJETA", tarjetaViewModel.tarjetaSeleccionada?.id)
+                    direccionEntrega, "TARJETA", tarjetaViewModel.tarjetaSeleccionada?.id,
+                    latitud = direccionEntregaLat, longitud = direccionEntregaLng)
                 pantallaActual = "pagoSimulado"
             })
 
@@ -733,8 +833,10 @@ internal val RUTAS_PAGO_DIGITAL = setOf("pagoSimulado", "confirmacionPago")
 internal val RUTAS_COMPRA = setOf("checkout", "datosEntrega", "seleccionDireccion", "metodoPago", "efectivo",
     "yape", "seleccionTarjeta", "confirmacionPedido") + RUTAS_PAGO_DIGITAL
 internal val RUTAS_REGISTRO_TARJETA = setOf("tarjetaNumero", "tarjetaExpiracion", "tarjetaCvv", "tarjetaTitular")
-private val RUTAS_CLIENTE = setOf("home", "carrito", "historialCompras", "detallePedido", "tarjetas") +
-    RUTAS_COMPRA + RUTAS_REGISTRO_TARJETA
+private val RUTAS_CLIENTE = setOf(
+    "home", "carrito", "historialCompras", "detallePedido", "tarjetas",
+    "direcciones", "agregarDireccion", "editarDireccion"
+) + RUTAS_COMPRA + RUTAS_REGISTRO_TARJETA
 
 /** Navegar o restaurar una ruta nunca omite los pasos previos ni fabrica una confirmación. */
 internal fun rutaCompraSegura(ruta: String, entregaRevisada: Boolean, direccionConfirmada: Boolean,

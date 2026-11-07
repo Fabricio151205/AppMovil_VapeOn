@@ -1,27 +1,56 @@
 package com.example.vapeon_movil.ui
 
-import com.example.vapeon_movil.utils.moneda
-
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.vapeon_movil.entities.Pedido
 import com.example.vapeon_movil.entities.Usuario
 import com.example.vapeon_movil.entities.calcularNumeroSecuencialPedido
 import com.example.vapeon_movil.ui.theme.*
 import com.example.vapeon_movil.viewmodels.PedidoViewModel
 import java.time.Instant
+
+/** Filtros visibles en la lista de pedidos del administrador. */
+internal val FILTROS_PEDIDOS_ADMIN = listOf("Todos", "Registrados", "En camino", "Completados")
+
+/**
+ * Indica si un pedido debe mostrarse al elegir un filtro.
+ *
+ * La vista principal ("Todos") oculta los pedidos entregados: estos solo se
+ * consultan en "Completados". Así el administrador trabaja únicamente con los
+ * pedidos registrados y en camino.
+ */
+internal fun pedidoCoincideFiltroAdmin(estado: String, filtro: String): Boolean {
+    val normalizado = estado.trim().uppercase()
+    val entregado = normalizado == "ENTREGADO" || normalizado == "COMPLETADO"
+    return when (filtro) {
+        "Registrados" -> normalizado == "REGISTRADO"
+        "En camino" -> normalizado == "EN CAMINO" || normalizado == "EN_CURSO" ||
+            normalizado == "EN CURSO"
+        "Completados" -> entregado
+        else -> !entregado
+    }
+}
+
+internal fun filtrarPedidosAdmin(pedidos: List<Pedido>, filtro: String): List<Pedido> =
+    pedidos.filter { pedidoCoincideFiltroAdmin(it.estado, filtro) }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -37,9 +66,13 @@ fun PedidosAdminScreen(
     }
     BackHandler(onBack = volver)
 
-    // Ordenados del más antiguo (atrasado) al más reciente
+    // Ordenados del más antiguo (atrasado) al más reciente.
     val pedidosOrdenados = remember(pedidoViewModel.pedidosAdmin) {
         pedidoViewModel.pedidosAdmin.sortedBy { Instant.parse(it.fecha) }
+    }
+    var filtro by rememberSaveable { mutableStateOf(FILTROS_PEDIDOS_ADMIN.first()) }
+    val pedidosFiltrados = remember(pedidosOrdenados, filtro) {
+        filtrarPedidosAdmin(pedidosOrdenados, filtro)
     }
 
     Surface(
@@ -55,7 +88,6 @@ fun PedidosAdminScreen(
                 .padding(horizontal = 24.dp, vertical = 16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // ENCABEZADO CON FLECHA Y TÍTULO "Detalle Pedido"
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -71,12 +103,48 @@ fun PedidosAdminScreen(
                     )
                 }
                 Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = "Detalle Pedido",
-                    color = VapeOnTextPrimary,
-                    fontSize = 22.sp,
-                    fontWeight = FontWeight.Bold
-                )
+                Column {
+                    Text(
+                        text = "Pedidos",
+                        color = VapeOnTextPrimary,
+                        fontSize = 26.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = "Historial y seguimiento de los pedidos",
+                        color = VapeOnTextSecondary,
+                        fontSize = 14.sp
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Filtros por estado sobre los datos reales de Firestore.
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                FILTROS_PEDIDOS_ADMIN.forEach { opcion ->
+                    val seleccionado = opcion == filtro
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(50))
+                            .background(if (seleccionado) VapeOnRed else VapeOnRedDark)
+                            .clickable { filtro = opcion }
+                            .padding(horizontal = 20.dp, vertical = 10.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = opcion,
+                            color = VapeOnTextPrimary,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 14.sp
+                        )
+                    }
+                }
             }
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -141,7 +209,7 @@ fun PedidosAdminScreen(
                     }
                 }
                 else -> {
-                    if (pedidosOrdenados.isEmpty()) {
+                    if (pedidosFiltrados.isEmpty()) {
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -149,7 +217,14 @@ fun PedidosAdminScreen(
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                text = if (pedidoViewModel.invalidosAdmin > 0) "No hay pedidos válidos disponibles." else "No hay pedidos registrados.",
+                                text = when {
+                                    pedidosOrdenados.isEmpty() && pedidoViewModel.invalidosAdmin > 0 ->
+                                        "No hay pedidos válidos disponibles."
+                                    filtro == "Completados" -> "No hay pedidos completados."
+                                    filtro == "Registrados" -> "No hay pedidos registrados."
+                                    filtro == "En camino" -> "No hay pedidos en camino."
+                                    else -> "No hay pedidos activos por atender."
+                                },
                                 color = VapeOnTextSecondary,
                                 fontSize = 14.sp
                             )
@@ -160,112 +235,13 @@ fun PedidosAdminScreen(
                             contentPadding = PaddingValues(bottom = 24.dp),
                             verticalArrangement = Arrangement.spacedBy(16.dp)
                         ) {
-                            items(pedidosOrdenados, key = { it.id }) { pedido ->
-                                val numeroSecuencial = calcularNumeroSecuencialPedido(pedido.id, pedidoViewModel.pedidosAdmin)
-                                val textoPedido = String.format(java.util.Locale.ROOT, "Pedido N° %04d", numeroSecuencial)
-                                val cantidadTotalOrden = pedido.productos.sumOf { it.cantidad }
-                                val resumenProductos = pedido.productos.take(2).joinToString(", ") { "${it.cantidad}x ${it.nombre}" }
-
-                                Card(
-                                    shape = RoundedCornerShape(20.dp),
-                                    colors = CardDefaults.cardColors(containerColor = VapeOnCardBackground),
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .clickable { irDetallePedido(pedido.id) }
-                                ) {
-                                    Column(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(18.dp),
-                                        verticalArrangement = Arrangement.spacedBy(6.dp)
-                                    ) {
-                                        // 1. NÚMERO DE PEDIDO Y ESTADO
-                                        Row(
-                                            modifier = Modifier.fillMaxWidth(),
-                                            horizontalArrangement = Arrangement.SpaceBetween,
-                                            verticalAlignment = Alignment.CenterVertically
-                                        ) {
-                                            Text(
-                                                text = textoPedido,
-                                                color = VapeOnTextSecondary,
-                                                fontSize = 13.sp,
-                                                fontWeight = FontWeight.Medium
-                                            )
-                                            Text(
-                                                text = "Estado: ${pedido.estado}",
-                                                color = VapeOnGold,
-                                                fontSize = 13.sp,
-                                                fontWeight = FontWeight.SemiBold
-                                            )
-                                        }
-
-                                        Spacer(modifier = Modifier.height(2.dp))
-
-                                        // 2. CLIENTE Y FECHA
-                                        Text(
-                                            text = "Cliente: ${pedido.nombreCliente}",
-                                            color = VapeOnTextPrimary,
-                                            fontSize = 15.sp,
-                                            fontWeight = FontWeight.Bold
-                                        )
-                                        Text(
-                                            text = fechaPedidoTexto(pedido.fecha),
-                                            color = VapeOnTextSecondary,
-                                            fontSize = 13.sp
-                                        )
-
-                                        Spacer(modifier = Modifier.height(4.dp))
-
-                                        // 3. PRODUCTOS Y TOTAL
-                                        Row(
-                                            modifier = Modifier.fillMaxWidth(),
-                                            horizontalArrangement = Arrangement.SpaceBetween,
-                                            verticalAlignment = Alignment.CenterVertically
-                                        ) {
-                                            Text(
-                                                text = resumenProductos.ifBlank { "Productos de la compra" },
-                                                color = VapeOnTextPrimary,
-                                                fontSize = 14.sp,
-                                                maxLines = 1,
-                                                modifier = Modifier.weight(1f)
-                                            )
-                                            Text(
-                                                text = moneda(pedido.total),
-                                                color = VapeOnTextPrimary,
-                                                fontSize = 15.sp,
-                                                fontWeight = FontWeight.Bold
-                                            )
-                                        }
-
-                                        Spacer(modifier = Modifier.height(8.dp))
-
-                                        // 4. LÍNEA DIVISORA DORADA
-                                        HorizontalDivider(color = VapeOnGold, thickness = 2.dp)
-
-                                        Spacer(modifier = Modifier.height(6.dp))
-
-                                        // 5. FILA INFERIOR: CANTIDAD Y ENLACE
-                                        Row(
-                                            modifier = Modifier.fillMaxWidth(),
-                                            horizontalArrangement = Arrangement.SpaceBetween,
-                                            verticalAlignment = Alignment.CenterVertically
-                                        ) {
-                                            Text(
-                                                text = "Cant.: $cantidadTotalOrden",
-                                                color = VapeOnTextSecondary,
-                                                fontSize = 13.sp
-                                            )
-
-                                            Text(
-                                                text = "Ver detalle y actualizar estado",
-                                                color = VapeOnGold,
-                                                fontSize = 13.sp,
-                                                fontWeight = FontWeight.Medium,
-                                                modifier = Modifier.clickable { irDetallePedido(pedido.id) }
-                                            )
-                                        }
-                                    }
-                                }
+                            items(pedidosFiltrados, key = { it.id }) { pedido ->
+                                PedidoCard(
+                                    numeroPedido = calcularNumeroSecuencialPedido(
+                                        pedido.id, pedidoViewModel.pedidosAdmin),
+                                    pedido = pedido,
+                                    onClickDetalle = { irDetallePedido(pedido.id) }
+                                )
                             }
                         }
                     }

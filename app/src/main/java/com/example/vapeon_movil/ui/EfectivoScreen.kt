@@ -18,7 +18,8 @@ import java.math.BigDecimal
 @Composable
 fun EfectivoScreen(usuario: Usuario?, carritoViewModel: CarritoViewModel, productoViewModel: ProductoViewModel,
     pedidoViewModel: PedidoViewModel, direccion: String, montoTexto: String,
-    cambiarMonto: (String) -> Unit, volver: () -> Unit) {
+    cambiarMonto: (String) -> Unit, volver: () -> Unit,
+    latitud: Double? = null, longitud: Double? = null) {
     val bloqueado = pedidoViewModel.cargando || pedidoViewModel.requiereComprobacion
     val subtotal = runCatching { Pedido.subtotal(carritoViewModel.items) }.getOrNull()
     val delivery = BigDecimal.valueOf(carritoViewModel.resumen.delivery).setScale(2)
@@ -55,7 +56,8 @@ fun EfectivoScreen(usuario: Usuario?, carritoViewModel: CarritoViewModel, produc
                 Text("TOTAL A PAGAR: S/ ${total?.let { importe(it) } ?: "—"}", color = VapeOnGold)
                 if (pedidoViewModel.cargando) CircularProgressIndicator(color = VapeOnGold)
                 Button(onClick = {
-                    pedidoViewModel.confirmar(usuario, carritoViewModel, productoViewModel, direccion, montoTexto)
+                    pedidoViewModel.confirmar(usuario, carritoViewModel, productoViewModel, direccion, montoTexto,
+                        latitud = latitud, longitud = longitud)
                 }, enabled = !pedidoViewModel.cargando && (pedidoViewModel.requiereComprobacion ||
                     (direccion.isNotBlank() && vuelto != null)),
                     colors = ButtonDefaults.buttonColors(containerColor = VapeOnRed),

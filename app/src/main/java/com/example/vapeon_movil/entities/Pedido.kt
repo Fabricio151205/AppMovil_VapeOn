@@ -34,8 +34,13 @@ data class Pedido(
     val pagoId: String? = null,
     val estadoPago: String? = null,
     val numeroOperacion: String? = null,
-    val modalidadPago: String? = null
+    val modalidadPago: String? = null,
+    /** Punto exacto de entrega confirmado en el mapa; nulo en pedidos antiguos. */
+    val latitud: Double? = null,
+    val longitud: Double? = null
 ) {
+    val tieneUbicacionEntrega: Boolean
+        get() = latitud != null && longitud != null
     companion object {
         /** Acepta coma o punto decimal, sin exponentes ni más de dos decimales. */
         fun leerMonto(texto: String): BigDecimal? {

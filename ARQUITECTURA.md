@@ -25,6 +25,7 @@ Documento de especificación y diseño de arquitectura para la aplicación móvi
 | **Capa de Red HTTP** | Square Retrofit 2 (v2.9.0) + Gson Converter | Cliente REST tipado para consumir la API de Firestore. |
 | **Base de Datos / Backend** | Google Cloud Firestore (**REST API v1 — sin SDK nativo**) | Almacenamiento NoSQL en la nube vía HTTP REST puro. |
 | **Persistencia Local** | `SharedPreferences` + `Gson` | Almacenamiento del carrito de compras local. |
+| **Mapas** | Google Maps SDK for Android + `maps-compose` (v7.0.0) | Mapa a pantalla completa con marcador de la dirección de entrega. |
 | **Gestor de Compilación** | Gradle con Kotlin DSL (`build.gradle.kts`) | Gestión modular de dependencias con version catalog. |
 
 ---
@@ -48,6 +49,7 @@ graph TD
             SAB_VM[SaboresViewModel]
             MAR_VM[MarcasViewModel]
             TAR_VM[TarjetaViewModel]
+            DIR_VM[DireccionesViewModel]
         end
 
         subgraph Screens ["Pantallas Composables"]
@@ -62,6 +64,11 @@ graph TD
             DES[DatosEntregaScreen - Boleta Incremental]
             MPS[MetodoPagoScreen]
             SDS[SeleccionDireccionScreen]
+            VUS[VerUbicacionScreen - Google Maps]
+            SUB[SeleccionarUbicacionScreen - punto exacto]
+            DIRS[DireccionesScreen - CRUD cliente]
+            ADIR[AgregarDireccionScreen]
+            EDIR[EditarDireccionScreen]
             STS[SeleccionTarjetaScreen]
             TSR[AgregarTarjeta - 4 Pasos con VisualTransformation]
             SAB_ADM[SaboresAdminScreen]
@@ -94,6 +101,7 @@ graph TD
         ENT_SAB[SaborItem]
         ENT_MAR[Marca]
         ENT_TAR[Tarjeta]
+        ENT_DIR[Direccion]
     end
 
     subgraph Data_Layer ["Capa de Red y Datos"]
@@ -104,6 +112,7 @@ graph TD
         SAB_S[SaborService]
         MAR_S[MarcaService]
         TAR_S[TarjetaService]
+        DIR_S[DireccionService]
 
         RC --> PS
         RC --> US
@@ -111,6 +120,7 @@ graph TD
         RC --> SAB_S
         RC --> MAR_S
         RC --> TAR_S
+        RC --> DIR_S
     end
 
     subgraph Backend ["Backend Cloud"]
@@ -134,6 +144,7 @@ graph TD
 | Carrito de Compras | ✅ | ❌ |
 | Checkout, Boleta Incremental y Registro de Tarjetas | ✅ | ❌ |
 | Historial de Compras | ✅ | ❌ |
+| Gestión de direcciones de entrega (CRUD) | ✅ | ❌ |
 | Agregar Producto (CRUD) | ❌ | ✅ |
 | Editar Producto (CRUD + `tieneSabor`) | ❌ | ✅ |
 | Eliminar Producto (CRUD) | ❌ | ✅ |
@@ -154,3 +165,11 @@ graph TD
 | **v1.3.0** | `2026-10-30` | Flujo de recuperación de contraseña de 3 pasos con notificación flotante, filtros flotantes por marca/precio (RF12/RF13), regla de stock por rol (RNE01), conmutador `tieneSabor` e indicadores de carga estandarizados. |
 | **v1.4.0** | `2026-11-04` | CRUD de marcas (`marcas`), siembra idempotente de la lista base y bloqueo de relaciones. Almacenamiento de imágenes de sabor en Base64. |
 | **v1.5.0** | `2026-11-04` | Flujo de tarjetas en 4 pasos con `VisualTransformation` (número y fecha `AA / MM`), boleta troquelada incremental (`BOLETA ELECTRONICA N° %04d`), resolvedor de imágenes por sabor/tipo (Kit Completo vs Recarga), barra de notificaciones negra global e inclusión de Marcas en el menú lateral de administración. |
+| **v1.6.0** | `2026-11-06` | HU-05: pronóstico de demanda con series reales de pedidos entregados, ajuste Holt, validación temporal MAE/RMSE y estado explícito de datos insuficientes. |
+| **v1.7.0** | `2026-11-06` | `VerUbicacionScreen`: mapa de Google Maps a pantalla completa desde "Ver Ubicación" en `SeleccionDireccionScreen`, con geocodificación, marcador y API key leída desde `local.properties`. |
+| **v1.8.0** | `2026-11-06` | CRUD de direcciones del cliente (`direcciones`): entidad, DTOs, servicio REST, `DireccionesViewModel`, pantallas de alta/edición, opción "Mis direcciones" en el menú y checkout conectado a las direcciones guardadas. |
+| **v1.8.1** | `2026-11-06` | `SeleccionarUbicacionScreen`: selección del punto exacto de entrega sobre Google Maps desde los formularios de dirección, con geocodificación previa del texto, marcador ajustable y persistencia de `latitud`/`longitud`. |
+| **v1.8.2** | `2026-11-06` | Geocodificación inversa del punto seleccionado: el nombre de la calle/lugar detectado se muestra en el selector y actualiza el campo "Dirección de entrega" al confirmar. |
+| **v1.8.3** | `2026-11-06` | `DetallePedidoScreen`: mapa embebido (modo lite) con el punto exacto de entrega y vista a pantalla completa. El checkout propaga `latitud`/`longitud` de la dirección al pedido y `PedidoDto` las persiste; los pedidos antiguos se geocodifican por texto. |
+| **v1.8.4** | `2026-11-06` | `PedidosAdminScreen`: filtros "Todos", "Registrados", "En camino" y "Completados" sobre los pedidos reales de Firestore, con la vista principal limitada a pedidos activos (los entregados solo aparecen en "Completados"). Se reutiliza `PedidoCard` para mostrar número, fecha, ítems, total y estado. |
+| **v1.8.5** | `2026-11-06` | `DetallePedidoScreen`: rediseño visual con encabezado VAPEON, datos reales del pedido, selector de estado R/EC/E, detalle de productos y resumen de compra; se conserva el mapa del punto exacto de entrega. |
