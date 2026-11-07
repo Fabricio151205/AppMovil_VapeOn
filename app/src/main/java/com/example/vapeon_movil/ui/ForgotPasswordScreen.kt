@@ -35,11 +35,12 @@ import com.example.vapeon_movil.viewmodels.correoRegistroValido
 @Composable
 fun ForgotPasswordScreen(
     usuarioViewModel: UsuarioViewModel? = null,
+    correoInicial: String = "",
     volverLogin: () -> Unit
 ) {
     // ─── ESTADO DEL FLUJO DE RECUPERACIÓN (3 PASOS) ─────────────────────────
     var pasoActual by remember { mutableIntStateOf(1) } // 1: Correo, 2: Código, 3: Nueva Contraseña
-    var correo by remember { mutableStateOf("") }
+    var correo by remember { mutableStateOf(correoInicial) }
     var codigoGenerado by remember { mutableStateOf("") }
     var codigoIngresado by remember { mutableStateOf("") }
     var nuevaContrasena by remember { mutableStateOf("") }
@@ -162,7 +163,6 @@ fun ForgotPasswordScreen(
 
                             cargando = true
                             mensajeError = ""
-                            correo = ""
 
                             // Validación contra base de datos en Firestore
                             usuarioViewModel?.verificarExisteUsuarioConCorreo(

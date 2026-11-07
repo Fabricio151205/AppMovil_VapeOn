@@ -43,7 +43,8 @@ fun HistorialComprasScreen(
     irHistorial: () -> Unit,
     cerrarSesion: () -> Unit,
     irTarjetas: () -> Unit = {},
-    irDirecciones: () -> Unit = {}
+    irDirecciones: () -> Unit = {},
+    onPerfilClick: () -> Unit = {}
 ) {
     val usuarioId = usuario?.takeIf { it.rol.equals("CLIENTE", true) }?.id.orEmpty()
     var filtroEstado by remember { mutableStateOf("Todos") }
@@ -64,7 +65,7 @@ fun HistorialComprasScreen(
         irTarjetas = irTarjetas,
         irDirecciones = irDirecciones,
         cerrarSesion = cerrarSesion,
-        onPerfilClick = { /* Perfil */ },
+        onPerfilClick = onPerfilClick,
         onTituloClick = { /* Titulo */ }
     ) { paddingValues ->
         Box(

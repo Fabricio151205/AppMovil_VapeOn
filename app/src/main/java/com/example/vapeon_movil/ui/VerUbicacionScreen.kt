@@ -187,7 +187,7 @@ private fun MapaUbicacion(
                 .padding(12.dp),
             shape = RoundedCornerShape(16.dp),
             colors = CardDefaults.cardColors(
-                containerColor = VapeOnCardBackground.copy(alpha = 0.95f)
+                containerColor = VapeOnCardBackground.copy(alpha = alfaAccesible(0.95f))
             )
         ) {
             Row(

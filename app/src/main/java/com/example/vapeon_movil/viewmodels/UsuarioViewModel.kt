@@ -6,6 +6,7 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.vapeon_movil.entities.Usuario
+import com.example.vapeon_movil.entities.edadDesde
 import com.example.vapeon_movil.services.UsuarioService
 import com.example.vapeon_movil.services.listarTodosUsuarios
 import com.example.vapeon_movil.services.dto.*
@@ -300,6 +301,82 @@ class UsuarioViewModel(
             }
         }
     }
+
+    /**
+     * Actualiza los datos personales del usuario en sesión.
+     *
+     * Se lee el documento actual para conservar la contraseña y el rol, de modo
+     * que editar el perfil nunca elimine credenciales ni cambie permisos.
+     */
+    fun actualizarPerfil(
+        nombre: String,
+        apellido: String,
+        telefono: String,
+        fechaNacimiento: String,
+        correo: String,
+        onExito: () -> Unit,
+        onError: (String) -> Unit = {}
+    ) {
+        val actual = usuarioActual
+        if (actual == null) {
+            onError("No hay una sesión activa.")
+            return
+        }
+        val error = validarPerfil(nombre, apellido, correo, telefono, fechaNacimiento)
+        if (error != null) {
+            onError(error)
+            return
+        }
+        viewModelScope.launch(dispatcher) {
+            try {
+                val lista = usuarioService.listarTodosUsuarios()
+                coroutineContext.ensureActive()
+                val documentos = lista.documents.orEmpty()
+                val doc = documentos.firstOrNull { it.name.substringAfterLast('/') == actual.id }
+                if (doc == null) {
+                    onError("No se encontró el usuario en el servidor.")
+                    return@launch
+                }
+                val correoLimpio = correo.trim()
+                val correoOcupado = documentos.any { otro ->
+                    otro.name.substringAfterLast('/') != actual.id &&
+                        otro.fields.correo?.stringValue?.trim()
+                            .equals(correoLimpio, ignoreCase = true)
+                }
+                if (correoOcupado) {
+                    onError("Ya existe una cuenta con ese correo.")
+                    return@launch
+                }
+                val campos = UsuarioContainer(
+                    UsuarioCampos(
+                        nombre = FirestoreStringValue(nombre.trim()),
+                        apellido = FirestoreStringValue(apellido.trim()),
+                        telefono = FirestoreStringValue(telefono),
+                        fechaNacimiento = FirestoreStringValue(fechaNacimiento.trim()),
+                        correo = FirestoreStringValue(correoLimpio),
+                        // Conserva exactamente la contraseña y el rol guardados.
+                        password = doc.fields.password,
+                        rol = doc.fields.rol ?: FirestoreStringValue(actual.rol)
+                    )
+                )
+                usuarioService.actualizarUsuario(actual.id, campos)
+                coroutineContext.ensureActive()
+                usuarioActual = actual.copy(
+                    nombre = nombre.trim(),
+                    apellido = apellido.trim(),
+                    telefono = telefono,
+                    fechaNacimiento = fechaNacimiento.trim(),
+                    correo = correoLimpio
+                )
+                esAdmin = usuarioActual?.rol?.equals("ADMIN", ignoreCase = true) == true
+                onExito()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                onError("No se pudo actualizar el perfil. Inténtalo de nuevo.")
+            }
+        }
+    }
 }
 
 internal fun telefonoRegistroValido(telefono: String): Boolean = Regex("9[0-9]{8}").matches(telefono)
@@ -329,5 +406,28 @@ internal fun validarRegistro(
     if (Period.between(fecha, hoy).years < 18)
         return "Debes tener 18 años cumplidos o más para registrarte."
     if (password != passwordConfirm) return "Las contraseñas no coinciden."
+    return null
+}
+
+/**
+ * Valida los datos editables del perfil. Mantiene las mismas reglas que el
+ * registro para no degradar la integridad de los datos del usuario.
+ */
+internal fun validarPerfil(
+    nombre: String,
+    apellido: String,
+    correo: String,
+    telefono: String,
+    fechaNacimiento: String,
+    hoy: LocalDate = LocalDate.now()
+): String? {
+    if (nombre.isBlank() || apellido.isBlank() || correo.isBlank() || telefono.isBlank())
+        return "Por favor completa todos los campos del perfil."
+    if (!telefonoRegistroValido(telefono))
+        return "El teléfono debe tener exactamente 9 dígitos y comenzar con 9."
+    if (!correoRegistroValido(correo)) return "Ingresa un correo electrónico válido."
+    val edad = edadDesde(fechaNacimiento, hoy)
+        ?: return "Ingresa una fecha de nacimiento válida en formato dd/mm/aaaa."
+    if (edad < 18) return "El perfil requiere ser mayor de 18 años."
     return null
 }

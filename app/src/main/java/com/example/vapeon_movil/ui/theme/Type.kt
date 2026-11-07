@@ -78,3 +78,25 @@ val Typography = Typography(
         letterSpacing = 0.5.sp
     )
 )
+
+/**
+ * Variante tipográfica usada por el modo "Texto en negrita". Eleva todos los
+ * pesos a negrita sin cambiar tamaños ni interlineados.
+ */
+fun Typography.enNegrita(): Typography = Typography(
+    displayLarge = displayLarge.copy(fontWeight = FontWeight.Bold),
+    displayMedium = displayMedium.copy(fontWeight = FontWeight.Bold),
+    displaySmall = displaySmall.copy(fontWeight = FontWeight.Bold),
+    headlineLarge = headlineLarge.copy(fontWeight = FontWeight.Bold),
+    headlineMedium = headlineMedium.copy(fontWeight = FontWeight.Bold),
+    headlineSmall = headlineSmall.copy(fontWeight = FontWeight.Bold),
+    titleLarge = titleLarge.copy(fontWeight = FontWeight.ExtraBold),
+    titleMedium = titleMedium.copy(fontWeight = FontWeight.Bold),
+    titleSmall = titleSmall.copy(fontWeight = FontWeight.Bold),
+    bodyLarge = bodyLarge.copy(fontWeight = FontWeight.Bold),
+    bodyMedium = bodyMedium.copy(fontWeight = FontWeight.Bold),
+    bodySmall = bodySmall.copy(fontWeight = FontWeight.Bold),
+    labelLarge = labelLarge.copy(fontWeight = FontWeight.Bold),
+    labelMedium = labelMedium.copy(fontWeight = FontWeight.Bold),
+    labelSmall = labelSmall.copy(fontWeight = FontWeight.Bold)
+)

@@ -48,7 +48,8 @@ fun SaboresAdminScreen(
     irEditarSabor: (SaborItem) -> Unit = {},
     irCatalogo: () -> Unit = {},
     irPedidos: () -> Unit = {},
-    cerrarSesion: () -> Unit = {}
+    cerrarSesion: () -> Unit = {},
+    onPerfilClick: () -> Unit = {}
 ) {
     val esAdmin = usuario?.rol?.equals("ADMIN", true) == true
     BackHandler(onBack = volver)
@@ -82,7 +83,7 @@ fun SaboresAdminScreen(
         irPedidos = irPedidos,
         cerrarSesion = cerrarSesion,
         esAdmin = esAdmin,
-        onPerfilClick = {},
+        onPerfilClick = onPerfilClick,
         onTituloClick = {}
     ) { paddingValues ->
         Box(

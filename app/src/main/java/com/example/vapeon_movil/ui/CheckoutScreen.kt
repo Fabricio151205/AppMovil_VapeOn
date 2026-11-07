@@ -114,13 +114,13 @@ fun CheckoutScreen(
                             Column(Modifier.weight(1f)) {
                                 Text("EFECTIVO", fontWeight = FontWeight.Bold, color = VapeOnTextPrimary)
                                 Text("Pago con entrega", style = MaterialTheme.typography.bodyMedium,
-                                    color = VapeOnTextPrimary.copy(alpha = 0.85f))
+                                    color = VapeOnTextPrimary.copy(alpha = alfaAccesible(0.85f)))
                             }
                             RadioButton(selected = efectivoSeleccionado, onClick = null, enabled = !bloqueado,
                                 colors = RadioButtonDefaults.colors(selectedColor = VapeOnGold,
                                     unselectedColor = VapeOnTextPrimary))
                         }
-                        HorizontalDivider(color = VapeOnGold.copy(alpha = 0.65f))
+                        HorizontalDivider(color = VapeOnGold.copy(alpha = alfaAccesible(0.65f)))
                         OutlinedTextField(value = montoTexto, onValueChange = { montoTexto = it },
                             enabled = !bloqueado, label = { Text("¿Con cuanto va a pagar?") },
                             prefix = { Text("S/") }, singleLine = true,
@@ -199,7 +199,7 @@ private fun OpcionPagoNoDisponible(titulo: String, subtitulo: String) {
         Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(titulo, color = VapeOnTextPrimary, fontWeight = FontWeight.Bold)
-                Text(subtitulo, color = VapeOnTextPrimary.copy(alpha = 0.85f),
+                Text(subtitulo, color = VapeOnTextPrimary.copy(alpha = alfaAccesible(0.85f)),
                     style = MaterialTheme.typography.bodyMedium)
                 Text("No disponible", color = VapeOnGold, style = MaterialTheme.typography.labelMedium)
             }
@@ -216,7 +216,7 @@ private fun FilaPago(titulo: String, valor: String, destacado: Boolean = false) 
     ) {
         Text(
             titulo, modifier = Modifier.weight(1f),
-            color = VapeOnTextPrimary.copy(alpha = if (destacado) 1f else 0.85f),
+            color = VapeOnTextPrimary.copy(alpha = alfaAccesible(if (destacado) 1f else 0.85f)),
             style = MaterialTheme.typography.bodyMedium,
             fontWeight = if (destacado) FontWeight.Bold else FontWeight.Normal
         )

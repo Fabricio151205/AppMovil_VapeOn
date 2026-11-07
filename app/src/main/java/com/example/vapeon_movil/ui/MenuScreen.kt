@@ -172,7 +172,7 @@ fun MenuScreen(
                                 .size(40.dp)
                                 .clip(CircleShape)
                                 .background(VapeOnRedDark)
-                                .clickable { scope.launch { snackbarHostState.showSnackbar("Perfil no disponible") } },
+                                .clickable { onPerfilClick() },
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(

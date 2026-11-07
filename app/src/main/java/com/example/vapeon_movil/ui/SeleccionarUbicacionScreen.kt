@@ -193,7 +193,7 @@ fun SeleccionarUbicacionScreen(
                         .padding(12.dp),
                     shape = RoundedCornerShape(16.dp),
                     colors = CardDefaults.cardColors(
-                        containerColor = VapeOnCardBackground.copy(alpha = 0.95f)
+                        containerColor = VapeOnCardBackground.copy(alpha = alfaAccesible(0.95f))
                     )
                 ) {
                     Row(
@@ -253,7 +253,7 @@ fun SeleccionarUbicacionScreen(
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(16.dp),
                             colors = CardDefaults.cardColors(
-                                containerColor = VapeOnCardBackground.copy(alpha = 0.95f)
+                                containerColor = VapeOnCardBackground.copy(alpha = alfaAccesible(0.95f))
                             )
                         ) {
                             Column(modifier = Modifier.padding(14.dp)) {

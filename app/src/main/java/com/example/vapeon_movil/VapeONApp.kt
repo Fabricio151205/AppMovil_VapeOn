@@ -22,11 +22,16 @@ import com.example.vapeon_movil.ui.VentasMarcaScreen
 import com.example.vapeon_movil.utils.moneda
 import com.example.vapeon_movil.entities.Usuario
 import com.example.vapeon_movil.ui.theme.*
+import com.example.vapeon_movil.ui.theme.AjustesAccesibilidadEstado
+import com.example.vapeon_movil.ui.theme.LocalControladorAccesibilidad
+import com.example.vapeon_movil.ui.theme.VapeONAccessibilityHost
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.vapeon_movil.entities.Producto
 import com.example.vapeon_movil.ui.PedidosAdminScreen
 import com.example.vapeon_movil.ui.AdminHomeScreen
+import com.example.vapeon_movil.ui.AccesibilidadScreen
+import com.example.vapeon_movil.ui.PerfilScreen
 import com.example.vapeon_movil.ui.AgregarProductoScreen
 import com.example.vapeon_movil.ui.DatosEntregaScreen
 import com.example.vapeon_movil.ui.SeleccionDireccionScreen
@@ -76,6 +81,7 @@ import com.example.vapeon_movil.viewmodels.PronosticoDemandaViewModel
 fun VapeONApp() {
 
     val context = LocalContext.current
+    val controladorAccesibilidad = remember(context) { AjustesAccesibilidadEstado(context) }
 
     // ── ViewModels con scope de Activity ──────────────────────────────────────
     // Al instanciarse aquí (nivel raíz), sobreviven rotaciones y se comparten
@@ -95,6 +101,7 @@ fun VapeONApp() {
 
     // Solo ruta, identificadores y propietario; nunca objetos de negocio ni credenciales.
     var pantallaActual by rememberSaveable { mutableStateOf("login") }
+    var perfilOrigen by rememberSaveable { mutableStateOf("home") }
     var productoSeleccionadoId by rememberSaveable { mutableStateOf("") }
     var productoEditarId by rememberSaveable { mutableStateOf("") }
     var pedidoSeleccionadoId by rememberSaveable { mutableStateOf("") }
@@ -230,6 +237,7 @@ fun VapeONApp() {
         pedidoViewModel.actualizarUsuarioAdmin(null)
         // Cargar sin usuario vacía solo la memoria; conserva el carrito y el intento de A.
         carritoViewModel.cargarCarrito(context, null)
+        perfilOrigen = "home"
         pantallaActual = "login"
     }
 
@@ -263,6 +271,12 @@ fun VapeONApp() {
             tarjetaMes, tarjetaAnio, pasoCvvCompletado)
     } else pantallaCompra
 
+    // Recuerda desde qué pantalla se abrió el perfil para volver al mismo lugar.
+    fun abrirPerfil() {
+        perfilOrigen = pantallaSegura
+        pantallaActual = "perfil"
+    }
+
     // El resultado observado navega con la composición vigente, incluso después de rotar.
     LaunchedEffect(pantallaSegura, tarjetaViewModel.registrando, tarjetaViewModel.mensaje,
         tarjetaViewModel.error, esperandoRegistroTarjeta) {
@@ -282,6 +296,8 @@ fun VapeONApp() {
                 pedidoViewModel.cargandoPago || pedidoViewModel.tieneIntentoDigital)) return@BackHandler
         when (pantallaSegura) {
             "registro", "recuperar" -> pantallaActual = "login"
+            "perfil" -> pantallaActual = perfilOrigen.ifBlank { if (esAdminUser) "admin" else "home" }
+            "accesibilidad", "cambiarContrasena" -> pantallaActual = "perfil"
             "catalogo" -> pantallaActual = if (esAdminUser) "admin" else "home"
             "carrito", "historialCompras", "tarjetas", "direcciones" -> pantallaActual = "home"
             "checkout", "datosEntrega" -> pantallaActual = "carrito"
@@ -309,6 +325,8 @@ fun VapeONApp() {
         }
     }
 
+    CompositionLocalProvider(LocalControladorAccesibilidad provides controladorAccesibilidad) {
+    VapeONAccessibilityHost(controladorAccesibilidad.ajustes) {
     key(claveSesion) {
     when (pantallaSegura) {
 
@@ -343,6 +361,29 @@ fun VapeONApp() {
             )
         }
 
+        // ── PERFIL Y ACCESIBILIDAD (CLIENTE Y ADMIN) ──────────────────────────
+        "perfil" -> {
+            PerfilScreen(
+                usuario = usuarioActual,
+                usuarioViewModel = usuarioViewModel,
+                volver = {
+                    pantallaActual = perfilOrigen.ifBlank { if (esAdminUser) "admin" else "home" }
+                },
+                cambiarContrasena = { pantallaActual = "cambiarContrasena" },
+                abrirAccesibilidad = { pantallaActual = "accesibilidad" }
+            )
+        }
+
+        "accesibilidad" -> AccesibilidadScreen(
+            volver = { pantallaActual = "perfil" }
+        )
+
+        "cambiarContrasena" -> ForgotPasswordScreen(
+            usuarioViewModel = usuarioViewModel,
+            correoInicial = usuarioActual?.correo.orEmpty(),
+            volverLogin = { pantallaActual = "perfil" }
+        )
+
         // ── HOME (CLIENTE) ────────────────────────────────────────────────────
         "home" -> {
             HomeScreen(
@@ -351,6 +392,7 @@ fun VapeONApp() {
                 irDetalleProducto = { producto ->
                     seleccionarProducto(producto)
                 },
+                onPerfilClick = ::abrirPerfil,
                 irCarrito = { pantallaActual = "carrito" },
                 irHistorial = { pantallaActual = "historialCompras" },
                 irTarjetas = { pantallaActual = "tarjetas" },
@@ -377,6 +419,7 @@ fun VapeONApp() {
                 irMarcas = { pantallaActual = "marcasAdmin" },
                 irSabores = { pantallaActual = "saboresAdmin" },
                 irCatalogo = { pantallaActual = "catalogo" },
+                onPerfilClick = ::abrirPerfil,
                 irEditarProducto = { producto ->
                     seleccionarProducto(producto, editar = true)
                 },
@@ -407,7 +450,8 @@ fun VapeONApp() {
                 irCarrito = { pantallaActual = "carrito" },
                 irHistorial = { pantallaActual = "historialCompras" },
                 irTarjetas = { pantallaActual = "tarjetas" },
-                irDirecciones = { pantallaActual = "direcciones" }
+                irDirecciones = { pantallaActual = "direcciones" },
+                onPerfilClick = ::abrirPerfil
             )
         }
 
@@ -548,6 +592,7 @@ fun VapeONApp() {
                 },
                 irCatalogo = { pantallaActual = "catalogo" },
                 irPedidos = { pantallaActual = "pedidosAdmin" },
+                onPerfilClick = ::abrirPerfil,
                 cerrarSesion = ::cerrarSesion
             )
         }
@@ -607,6 +652,7 @@ fun VapeONApp() {
                 cerrarSesion = ::cerrarSesion,
                 irTarjetas = { pantallaActual = "tarjetas" },
                 irDirecciones = { pantallaActual = "direcciones" },
+                onPerfilClick = ::abrirPerfil,
                 irDetallePedido = { id ->
                     pedidoSeleccionadoId = id
                     pantallaActual = "detallePedido"
@@ -826,6 +872,8 @@ fun VapeONApp() {
         }
     }
     }
+    }
+    }
 }
 
 private val RUTAS_PUBLICAS = setOf("login", "registro", "recuperar")
@@ -878,7 +926,9 @@ private val RUTAS_ADMIN = setOf(
     "agregarSabor", "editarSabor", "marcasAdmin", "agregarMarca", "editarMarca",
     "prediccionAdmin", "alertasStockAdmin", "sinMovimientoAdmin", "sugerenciasReabastecimientoAdmin"
 )
-private val RUTAS_COMPARTIDAS = setOf("catalogo", "detalle")
+private val RUTAS_COMPARTIDAS = setOf(
+    "catalogo", "detalle", "perfil", "accesibilidad", "cambiarContrasena"
+)
 
 internal fun claveSesionNavegacion(usuario: Usuario?): String? {
     if (usuario == null || usuario.id.isBlank()) return null

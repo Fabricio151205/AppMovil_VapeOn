@@ -138,7 +138,7 @@ fun MetodoPagoScreen(
                                     color = VapeOnCardBorder,
                                     shape = CircleShape
                                 )
-                                .background(if (esEfectivo) VapeOnCardBorder.copy(alpha = 0.3f) else androidx.compose.ui.graphics.Color.Transparent)
+                                .background(if (esEfectivo) VapeOnCardBorder.copy(alpha = alfaAccesible(0.3f)) else androidx.compose.ui.graphics.Color.Transparent)
                                 .clickable { metodoSeleccionado = "EFECTIVO" },
                             contentAlignment = Alignment.Center
                         ) {
@@ -264,7 +264,7 @@ fun MetodoPagoScreen(
                                     color = VapeOnCardBorder,
                                     shape = CircleShape
                                 )
-                                .background(if (esYape) VapeOnCardBorder.copy(alpha = 0.3f) else androidx.compose.ui.graphics.Color.Transparent)
+                                .background(if (esYape) VapeOnCardBorder.copy(alpha = alfaAccesible(0.3f)) else androidx.compose.ui.graphics.Color.Transparent)
                                 .clickable { metodoSeleccionado = "YAPE" },
                             contentAlignment = Alignment.Center
                         ) {
@@ -346,7 +346,7 @@ fun MetodoPagoScreen(
                                     color = VapeOnCardBorder,
                                     shape = CircleShape
                                 )
-                                .background(if (esTarjeta) VapeOnCardBorder.copy(alpha = 0.3f) else androidx.compose.ui.graphics.Color.Transparent)
+                                .background(if (esTarjeta) VapeOnCardBorder.copy(alpha = alfaAccesible(0.3f)) else androidx.compose.ui.graphics.Color.Transparent)
                                 .clickable { metodoSeleccionado = "TARJETA" },
                             contentAlignment = Alignment.Center
                         ) {
