@@ -94,11 +94,7 @@ fun MenuScreen(
                     NavigationDrawerItem(
                         label = {
                             Text(
-<<<<<<< HEAD
-                                text = if (opcion in listOf("Catálogo", "Carrito", "Pedidos", "Marcas", "Sabores", "Historial de compras", "Mis tarjetas", "Mis direcciones", "Cerrar sesión")) opcion else "$opcion (No disponible)",
-=======
-                                text = if (opcion in listOf("Catálogo", "Carrito", "Pedidos", "Marcas", "Sabores", "Roles", "Historial de compras", "Mis tarjetas", "Cerrar sesión")) opcion else "$opcion (No disponible)",
->>>>>>> 579c978e9b5746d72db824fcb6a5fe649682e7ca
+                                text = if (opcion in listOf("Catálogo", "Carrito", "Pedidos", "Marcas", "Sabores", "Roles", "Historial de compras", "Mis tarjetas", "Mis direcciones", "Cerrar sesión")) opcion else "$opcion (No disponible)",
                                 color = VapeOnTextPrimary,
                                 fontWeight = FontWeight.Medium
                             )

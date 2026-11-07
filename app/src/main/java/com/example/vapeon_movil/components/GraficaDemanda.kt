@@ -28,6 +28,7 @@ import com.example.vapeon_movil.ui.theme.VapeOnGold
 import com.example.vapeon_movil.ui.theme.VapeOnRed
 import com.example.vapeon_movil.ui.theme.VapeOnTextPrimary
 import com.example.vapeon_movil.ui.theme.VapeOnTextSecondary
+import com.example.vapeon_movil.ui.theme.alfaAccesible
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import kotlin.math.max
@@ -47,6 +48,8 @@ fun GraficaDemanda(
     val dias = max(1L, java.time.temporal.ChronoUnit.DAYS.between(inicio, fin))
     val maximo = max(1.0, (historico.map { it.unidades } + validacion.map { it.unidades } +
         pronostico.map { it.unidades }).maxOrNull() ?: 1.0)
+    val alfaEjes = alfaAccesible(0.45f)
+    val alfaCorte = alfaAccesible(0.55f)
 
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Canvas(
@@ -67,8 +70,8 @@ fun GraficaDemanda(
                 val y = margenY + alto - (valor.coerceAtLeast(0.0) / maximo).toFloat() * alto
                 return Offset(x, y)
             }
-            drawLine(VapeOnTextSecondary.copy(alpha = 0.45f), Offset(margenX, margenY), Offset(margenX, margenY + alto))
-            drawLine(VapeOnTextSecondary.copy(alpha = 0.45f), Offset(margenX, margenY + alto), Offset(margenX + ancho, margenY + alto))
+            drawLine(VapeOnTextSecondary.copy(alpha = alfaEjes), Offset(margenX, margenY), Offset(margenX, margenY + alto))
+            drawLine(VapeOnTextSecondary.copy(alpha = alfaEjes), Offset(margenX, margenY + alto), Offset(margenX + ancho, margenY + alto))
 
             fun dibujar(puntos: List<Pair<LocalDate, Double>>, color: Color) {
                 if (puntos.isEmpty()) return
@@ -86,7 +89,7 @@ fun GraficaDemanda(
 
             pronostico.firstOrNull()?.let {
                 val x = posicion(it.fecha, 0.0).x
-                drawLine(VapeOnTextPrimary.copy(alpha = 0.55f), Offset(x, margenY), Offset(x, margenY + alto),
+                drawLine(VapeOnTextPrimary.copy(alpha = alfaCorte), Offset(x, margenY), Offset(x, margenY + alto),
                     strokeWidth = 1.dp.toPx())
             }
         }

@@ -51,6 +51,7 @@ import com.example.vapeon_movil.ui.theme.VapeOnGold
 import com.example.vapeon_movil.ui.theme.VapeOnRed
 import com.example.vapeon_movil.ui.theme.VapeOnTextPrimary
 import com.example.vapeon_movil.ui.theme.VapeOnTextSecondary
+import com.example.vapeon_movil.ui.theme.alfaAccesible
 import com.example.vapeon_movil.viewmodels.PronosticoDemandaViewModel
 import java.time.format.DateTimeFormatter
 import java.util.Locale
@@ -155,7 +156,7 @@ fun PronosticoDemandaScreen(
                         }
 
                         if (resultado.estado == EstadoPronosticoDemanda.DATOS_INSUFICIENTES) {
-                            Card(colors = CardDefaults.cardColors(containerColor = VapeOnRed.copy(alpha = 0.25f))) {
+                            Card(colors = CardDefaults.cardColors(containerColor = VapeOnRed.copy(alpha = alfaAccesible(0.25f)))) {
                                 Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
                                     Text("Datos insuficientes para generar un pronóstico confiable.", color = VapeOnTextPrimary,
                                         fontWeight = FontWeight.Bold)

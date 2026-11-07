@@ -111,7 +111,7 @@ fun VapeON_MovilTheme(
     VapeONAccessibilityHost(ajustes) {
         MaterialTheme(
             colorScheme = colorScheme,
-            typography = if (ajustes.textoNegrita) Typography.enNegrita() else Typography,
+            typography = if (accessibility.textoNegrita) Typography.enNegrita() else Typography,
             content = content
         )
     }

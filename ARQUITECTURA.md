@@ -152,6 +152,8 @@ graph TD
 | Gestión de Marcas (CRUD + siembra inicial) | ❌ | ✅ |
 | Administración de Pedidos | ❌ | ✅ |
 | Panel Administrativo | ❌ | ✅ |
+| Perfil de Usuario (datos reales + +18 junto al rol) | ✅ | ✅ |
+| Módulo de Accesibilidad (persistente por dispositivo) | ✅ | ✅ |
 
 ---
 
@@ -173,3 +175,4 @@ graph TD
 | **v1.8.3** | `2026-11-06` | `DetallePedidoScreen`: mapa embebido (modo lite) con el punto exacto de entrega y vista a pantalla completa. El checkout propaga `latitud`/`longitud` de la dirección al pedido y `PedidoDto` las persiste; los pedidos antiguos se geocodifican por texto. |
 | **v1.8.4** | `2026-11-06` | `PedidosAdminScreen`: filtros "Todos", "Registrados", "En camino" y "Completados" sobre los pedidos reales de Firestore, con la vista principal limitada a pedidos activos (los entregados solo aparecen en "Completados"). Se reutiliza `PedidoCard` para mostrar número, fecha, ítems, total y estado. |
 | **v1.8.5** | `2026-11-06` | `DetallePedidoScreen`: rediseño visual con encabezado VAPEON, datos reales del pedido, selector de estado R/EC/E, detalle de productos y resumen de compra; se conserva el mapa del punto exacto de entrega. |
+| **v1.8.6** | `2026-11-07` | `PerfilScreen` y `AccesibilidadScreen`: perfil con datos reales del usuario en sesión, edición validada en Firestore conservando contraseña y rol, y apartado **+18 Mayor de 18 años** junto al rol; módulo de accesibilidad (tamaño de texto, negrita, contraste alto y reducción de transparencia) persistido en `SharedPreferences` y aplicado globalmente mediante `CompositionLocal`/`Density`. Ambas pantallas están disponibles para CLIENTE y ADMIN. |

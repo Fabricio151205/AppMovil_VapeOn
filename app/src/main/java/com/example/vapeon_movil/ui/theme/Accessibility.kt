@@ -19,6 +19,7 @@ import androidx.compose.ui.graphics.Paint
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.dp
 
 /**
  * Tamaños de texto disponibles en el módulo de accesibilidad.
@@ -122,10 +123,28 @@ fun VapeONAccessibilityHost(
             modifier = Modifier
                 .fillMaxSize()
                 .then(if (ajustes.altoContraste) Modifier.altoContraste() else Modifier)
+                .then(if (ajustes.textoNegrita) Modifier.negritaVisual() else Modifier)
         ) {
             content()
         }
     }
+}
+
+/**
+ * Refuerza el trazo de toda la interfaz dibujando el contenido dos veces con
+ * un desplazamiento subpíxel.
+ *
+ * Se usa porque `LocalTextStyle` no puede sobrescribir el `fontWeight` que cada
+ * `Text` declara explícitamente; este efecto sí engrosa cualquier texto (y los
+ * iconos) sin tener que modificar cada pantalla.
+ */
+private fun Modifier.negritaVisual(): Modifier = drawWithContent {
+    drawContent()
+    val desplazamiento = 0.35.dp.toPx()
+    drawContext.canvas.save()
+    drawContext.canvas.translate(desplazamiento, 0f)
+    drawContent()
+    drawContext.canvas.restore()
 }
 
 /**

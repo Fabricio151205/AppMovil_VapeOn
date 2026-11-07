@@ -4,9 +4,9 @@
 | :--- | :--- |
 | **Identificador** | `SPEC-VAPEON-001` |
 | **Proyecto** | VapeON - Aplicación Móvil Android |
-| **Versión** | `1.8.5` |
+| **Versión** | `1.8.6` |
 | **Estado** | `Aprobado` |
-| **Fecha de Publicación** | `2026-11-06` |
+| **Fecha de Publicación** | `2026-11-07` |
 | **Plataforma Objetivo** | Android (minSdk 31, targetSdk 37, compileSdk 37) |
 | **Ubicación del Documento** | `doc/spec.md` (Raíz del Repositorio) |
 
@@ -17,7 +17,7 @@
 ### 1.1 Declaración del Problema
 El mercado de dispositivos y accesorios de vapeo requiere plataformas digitales ágiles que permitan a los usuarios mayores de edad consultar catálogos actualizados por marca y stock en tiempo real, garantizando un control estricto de acceso (+18), veracidad en especificaciones de producto y herramientas administrativas para la gestión del inventario.
 
-### 1.2 Alcance del Sistema (Versión 1.8.5)
+### 1.2 Alcance del Sistema (Versión 1.8.6)
 - **Flujo Guiado de Recuperación de Contraseña (3 Pasos)**:
   - Paso 1: Solicitud de correo con validación de sintaxis y existencia en Firestore REST. Notificación flotante simulada sobre el tope de pantalla con código de 6 dígitos.
   - Paso 2: Verificación de código de 6 casilleros dorados/oscuros (`BasicTextField` con captura directa).
@@ -75,6 +75,17 @@ El mercado de dispositivos y accesorios de vapeo requiere plataformas digitales 
   - Mínimos centralizados: 14 observaciones diarias, 3 días con demanda y separación viable entre entrenamiento y validación.
   - Cuando no se cumplen los mínimos, la UI muestra el histórico real y `Datos insuficientes`, sin fabricar pronóstico.
   - Gráfica responsive con Canvas que diferencia histórico, validación y horizonte futuro.
+- **Perfil de Usuario (CLIENTE y ADMIN)**:
+  - Se abre desde el avatar del menú/barra superior en `HomeScreen`, `AdminHomeScreen`, `CatalogoScreen`, `HistorialComprasScreen` y `SaboresAdminScreen`.
+  - Muestra los datos reales del usuario en sesión: nombres, apellidos, correo electrónico, teléfono y fecha de nacimiento, más el rol legible (`Cliente` / `Administrador`).
+  - Junto al rol se muestra el apartado **+18 Mayor de 18 años**, calculado con la fecha de nacimiento real (`dd/MM/yyyy`) y la fecha actual; si no cumple, indica **-18 Menor de 18 años**.
+  - Cada campo editable abre un diálogo validado (correo, teléfono de 9 dígitos, fecha válida y mayoría de edad). Al guardar se actualiza Firestore conservando la contraseña y el rol existentes y se rechazan correos duplicados.
+  - **Cambiar Contraseña** reutiliza `ForgotPasswordScreen` con el correo del usuario precargado y vuelve al perfil; **Opciones de Accesibilidad** abre el módulo de accesibilidad.
+- **Módulo de Accesibilidad**:
+  - Tamaño de texto **Pequeño / Mediano / Grande** (85 %, 100 % y 120 %) con slider y botones **A- / A+**.
+  - Opciones **Texto en negrita**, **Contraste alto** y **Reducir transparencia**, con vista previa y **Restaurar Valores Predeterminados**.
+  - Los ajustes se guardan en `SharedPreferences` (`vapeon_accesibilidad`) y se aplican globalmente con `CompositionLocal`, `Density`, `LocalTextStyle` y una matriz de color para el contraste; la escala se multiplica por la del sistema.
+  - La configuración persiste entre sesiones y reinicios, y está disponible para ambos roles sin alterar filtros de pedidos, checkout ni RBAC.
 
 ---
 
@@ -96,6 +107,7 @@ El mercado de dispositivos y accesorios de vapeo requiere plataformas digitales 
 | `1.8.3` | `2026-11-06` | Equipo VapeON | Mapa del punto exacto de entrega en el detalle del pedido: el checkout copia `latitud`/`longitud` al pedido y el administrador ve el marcador en un mapa embebido y a pantalla completa; los pedidos antiguos se geocodifican por texto. |
 | `1.8.4` | `2026-11-06` | Equipo VapeON | Lista de pedidos del administrador con filtros por estado ("Todos", "Registrados", "En camino", "Completados"), tarjetas con datos reales de Firestore y vista principal sin pedidos entregados. |
 | `1.8.5` | `2026-11-06` | Equipo VapeON | Rediseño del detalle del pedido: encabezado VAPEON, datos reales del pedido, tarjeta de estado con pasos R/EC/E, productos con precio y subtotal, y resumen de compra con total, pago y vuelto. |
+| `1.8.6` | `2026-11-07` | Equipo VapeON | Perfil de usuario para CLIENTE y ADMIN con datos reales, edición validada en Firestore y apartado **+18 Mayor de 18 años** junto al rol; módulo de accesibilidad (tamaño de texto, negrita, contraste alto y reducción de transparencia) persistente en `SharedPreferences` y aplicado globalmente. |
 
 ---
 

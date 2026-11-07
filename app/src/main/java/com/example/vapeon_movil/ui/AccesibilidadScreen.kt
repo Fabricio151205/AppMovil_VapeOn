@@ -369,6 +369,21 @@ private fun VistaPreviaAccesibilidad(ajustes: AjustesAccesibilidad) {
                 fontSize = 13.sp,
                 lineHeight = 18.sp
             )
+            Spacer(modifier = Modifier.height(10.dp))
+            // Muestra que reacciona a "Reducir transparencia": 35 % de alfa por
+            // defecto y opaca cuando el ajuste está activo.
+            Surface(
+                shape = RoundedCornerShape(50),
+                color = VapeOnGold.copy(alpha = alfaAccesible(0.35f))
+            ) {
+                Text(
+                    text = "Muestra de transparencia",
+                    color = VapeOnTextPrimary,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                )
+            }
         }
     }
 }
