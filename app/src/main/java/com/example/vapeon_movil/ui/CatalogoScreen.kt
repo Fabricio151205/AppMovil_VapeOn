@@ -6,6 +6,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -13,16 +14,22 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.vapeon_movil.components.MarcaSection
 import com.example.vapeon_movil.entities.Producto
 import com.example.vapeon_movil.entities.SaborItem
 import com.example.vapeon_movil.ui.theme.*
+import com.example.vapeon_movil.utils.claveMarca
+import com.example.vapeon_movil.utils.marcasUnicas
+import com.example.vapeon_movil.utils.mismaMarca
 import com.example.vapeon_movil.viewmodels.ProductoViewModel
 
 @Composable
@@ -40,6 +47,7 @@ fun CatalogoScreen(
     irPedidos: () -> Unit = {},
     irMarcas: () -> Unit = {},
     irSabores: () -> Unit = {},
+    irRoles: () -> Unit = {},
     cerrarSesion: () -> Unit = {},
     irTarjetas: () -> Unit = {},
     irDirecciones: () -> Unit = {}
@@ -52,20 +60,23 @@ fun CatalogoScreen(
     val errorRed       = productoViewModel.error
 
     // Estado local de UI (RF12 / RF13)
-    var busqueda              by remember { mutableStateOf("") }
-    var categoriaSeleccionada by remember { mutableStateOf("Todos") } // Todos, Nuevos, Promociones
-    var marcaFiltro           by remember { mutableStateOf("Todas") }  // Filtro flotante por Marca
-    var ordenPrecio           by remember { mutableStateOf("Sin orden") } // Sin orden, Menor a Mayor, Mayor a Menor
-    var mostrarModalFiltros   by remember { mutableStateOf(false) }
+    var busqueda              by rememberSaveable { mutableStateOf("") }
+    var categoriaFiltro       by rememberSaveable { mutableStateOf("") }
+    var precioMinimo          by rememberSaveable { mutableStateOf("") }
+    var precioMaximo          by rememberSaveable { mutableStateOf("") }
+    var soloConStock          by rememberSaveable { mutableStateOf(false) }
+    var filtroVisual          by rememberSaveable { mutableStateOf("Todos") }
+    var marcaFiltro           by rememberSaveable { mutableStateOf("Todas") }
+    var ordenPrecio           by rememberSaveable { mutableStateOf("Sin orden") }
+    var mostrarModalFiltros   by rememberSaveable { mutableStateOf(false) }
     var productoAEliminar     by remember { mutableStateOf<Producto?>(null) }
 
-    // Regla RNE01: El cliente solo puede ver productos con stock > 0, mientras que el admin ve todos.
-    val productosPorRol = remember(productos, esAdmin) {
-        if (esAdmin) productos else productos.filter { it.stockTotal > 0 }
-    }
-
-    val tieneFiltrosFlotantesActivos = remember(marcaFiltro, ordenPrecio) {
-        marcaFiltro != "Todas" || ordenPrecio != "Sin orden"
+    val errorFiltros = productoViewModel.errorFiltros(precioMinimo, precioMaximo)
+    val tieneFiltrosFlotantesActivos = remember(
+        categoriaFiltro, precioMinimo, precioMaximo, soloConStock, marcaFiltro, ordenPrecio, filtroVisual
+    ) {
+        categoriaFiltro.isNotBlank() || precioMinimo.isNotBlank() || precioMaximo.isNotBlank() ||
+            soloConStock || marcaFiltro != "Todas" || ordenPrecio != "Sin orden" || filtroVisual != "Todos"
     }
 
     // Carga inicial de productos
@@ -90,6 +101,7 @@ fun CatalogoScreen(
         irPedidos = irPedidos,
         irMarcas = irMarcas,
         irSabores = irSabores,
+        irRoles = irRoles,
         cerrarSesion = cerrarSesion,
         esAdmin = esAdmin,
         onPerfilClick = onPerfilClick,
@@ -142,7 +154,7 @@ fun CatalogoScreen(
                         unfocusedTextColor = VapeOnTextPrimary,
                         cursorColor = VapeOnGold
                     ),
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth().testTag("busqueda_productos")
                 )
 
                 Spacer(modifier = Modifier.height(14.dp))
@@ -169,7 +181,7 @@ fun CatalogoScreen(
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(
                                 imageVector = Icons.Default.Tune,
-                                contentDescription = "Filtros de Marca y Precio",
+                            contentDescription = "Filtros de productos",
                                 tint = if (tieneFiltrosFlotantesActivos) VapeOnBackground else VapeOnTextPrimary,
                                 modifier = Modifier.size(18.dp)
                             )
@@ -185,20 +197,19 @@ fun CatalogoScreen(
                         }
                     }
 
-                    // Botones de categoría principales
-                    val categorias = listOf("Todos", "Nuevos", "Promociones")
-                    categorias.forEach { cat ->
-                        val seleccionada = cat.equals(categoriaSeleccionada, ignoreCase = true)
+                    // Filtros visuales independientes: no representan Producto.categoria.
+                    listOf("Todos", "Nuevos").forEach { opcion ->
+                        val seleccionada = opcion == filtroVisual
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(50))
                                 .background(if (seleccionada) VapeOnRed else VapeOnRedDark)
-                                .clickable { categoriaSeleccionada = cat }
+                                .clickable { filtroVisual = opcion }
                                 .padding(horizontal = 20.dp, vertical = 10.dp),
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                text = cat,
+                                text = opcion,
                                 color = VapeOnTextPrimary,
                                 fontWeight = if (seleccionada) FontWeight.Bold else FontWeight.Normal,
                                 fontSize = 14.sp
@@ -246,32 +257,22 @@ fun CatalogoScreen(
                         Text("Reintentar", fontWeight = FontWeight.Bold)
                     }
                 } else {
-                    // Filtrado reactivo completo
-                    val listaFiltrada = remember(productosPorRol, busqueda, categoriaSeleccionada, marcaFiltro, ordenPrecio) {
-                        var resultado = productosPorRol.filter { prod ->
-                            // 1. Filtro por texto de búsqueda
-                            val coincideTexto = busqueda.isBlank() ||
-                                    prod.nombre.contains(busqueda, ignoreCase = true) ||
-                                    prod.marca.contains(busqueda, ignoreCase = true) ||
-                                    prod.descripcion.contains(busqueda, ignoreCase = true)
-
-                            // 2. Filtro por categoría principal (Todos, Nuevos, Promociones)
-                            val coincideCategoria = when {
-                                categoriaSeleccionada.equals("Nuevos", ignoreCase = true) -> prod.esNuevo()
-                                categoriaSeleccionada.equals("Promociones", ignoreCase = true) -> prod.precio <= 60.0
-                                else -> true // "Todos"
-                            }
-
-                            // 3. Filtro por Marca seleccionada en la vista flotante
-                            val coincideMarca = when {
-                                marcaFiltro.equals("Todas", ignoreCase = true) -> true
-                                else -> prod.marca.equals(marcaFiltro, ignoreCase = true)
-                            }
-
-                            coincideTexto && coincideCategoria && coincideMarca
+                    // RF12/RF13 se aplican una sola vez en el ViewModel. Marca y orden son capas visuales posteriores.
+                    val listaFiltrada = remember(
+                        productos, busqueda, categoriaFiltro, precioMinimo, precioMaximo, soloConStock,
+                        marcaFiltro, filtroVisual, ordenPrecio
+                    ) {
+                        var resultado = productoViewModel.filtrarProductos(
+                            busqueda = busqueda,
+                            categoria = categoriaFiltro,
+                            precioMinimo = precioMinimo,
+                            precioMaximo = precioMaximo,
+                            soloConStock = soloConStock
+                        )
+                        if (marcaFiltro != "Todas") {
+                            resultado = resultado.filter { mismaMarca(it.marca, marcaFiltro) }
                         }
-
-                        // 4. Ordenamiento por Precio seleccionado en la vista flotante
+                        if (filtroVisual == "Nuevos") resultado = resultado.filter { it.esNuevo() }
                         when (ordenPrecio) {
                             "Menor a Mayor" -> resultado = resultado.sortedBy { it.precio }
                             "Mayor a Menor" -> resultado = resultado.sortedByDescending { it.precio }
@@ -280,7 +281,13 @@ fun CatalogoScreen(
                         resultado
                     }
 
-                    if (listaFiltrada.isEmpty()) {
+                    if (errorFiltros != null) {
+                        Text(
+                            text = errorFiltros,
+                            color = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.testTag("error_filtros")
+                        )
+                    } else if (listaFiltrada.isEmpty()) {
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -294,20 +301,21 @@ fun CatalogoScreen(
                             )
                         }
                     } else {
-                        // Agrupación por marca manteniendo el orden filtrado
-                        val marcasOrdenadas = listOf("LifePod", "Oxbar", "Nexa")
-                        val agrupados = listaFiltrada.groupBy { prod ->
-                            marcasOrdenadas.find { it.equals(prod.marca.trim(), ignoreCase = true) } ?: prod.marca.trim()
-                        }
-
-                        agrupados.forEach { (nombreMarca, prods) ->
+                        // Una sección por identidad de marca; conserva la primera etiqueta legible del inventario.
+                        val agrupados = listaFiltrada.groupBy { claveMarca(it.marca) }
+                        agrupados.values.forEach { prods ->
+                            val nombreMarca = marcasUnicas(prods.map { it.marca }).firstOrNull().orEmpty()
                             MarcaSection(
                                 nombreMarca = nombreMarca,
                                 productos = prods,
                                 irDetalleProducto = irDetalleProducto,
                                 esAdmin = esAdmin,
                                 sabores = sabores,
-                                onVerTodos = { busqueda = nombreMarca },
+                                onVerTodos = {
+                                    busqueda = ""
+                                    marcaFiltro = nombreMarca
+                                    filtroVisual = "Todos"
+                                },
                                 eliminarProducto = { productoAEliminar = it },
                                 editarProducto = { irEditarProducto(it) }
                             )
@@ -345,16 +353,11 @@ fun CatalogoScreen(
     }
 
     // ==========================================
-    // VISTA FLOTANTE DE FILTROS POR MARCA Y PRECIO (DIALOG)
+    // VISTA FLOTANTE DE FILTROS RF13
     // ==========================================
     if (mostrarModalFiltros) {
-        val marcasDisponibles = remember(productosPorRol) {
-            val conocidas = listOf("LifePod", "Oxbar", "Nexa")
-            val otras = productosPorRol
-                .map { it.marca.trim() }
-                .filter { m -> m.isNotBlank() && conocidas.none { c -> c.equals(m, ignoreCase = true) } }
-                .distinct()
-            listOf("Todas") + conocidas + otras
+        val marcasDisponibles = remember(productos) {
+            listOf("Todas") + marcasUnicas(productos.map { it.marca })
         }
 
         AlertDialog(
@@ -391,7 +394,8 @@ fun CatalogoScreen(
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         marcasDisponibles.forEach { m ->
-                            val seleccionada = m.equals(marcaFiltro, ignoreCase = true)
+                            val seleccionada = m == "Todas" && marcaFiltro == "Todas" ||
+                                m != "Todas" && marcaFiltro != "Todas" && mismaMarca(m, marcaFiltro)
                             Button(
                                 onClick = { marcaFiltro = m },
                                 shape = RoundedCornerShape(50),
@@ -411,6 +415,61 @@ fun CatalogoScreen(
                     }
 
                     HorizontalDivider(color = VapeOnInputBorder)
+
+                    Text("Categoría", fontWeight = FontWeight.Bold, color = VapeOnTextPrimary, fontSize = 14.sp)
+                    Row(
+                        modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        (listOf("") + productoViewModel.categoriasDisponibles).forEach { categoria ->
+                            val etiqueta = categoria.ifBlank { "Todas" }
+                            Button(
+                                onClick = { categoriaFiltro = categoria },
+                                shape = RoundedCornerShape(50),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = if (categoriaFiltro.equals(categoria, true)) VapeOnRed else VapeOnInputBackground,
+                                    contentColor = VapeOnTextPrimary
+                                ),
+                                modifier = Modifier.testTag("categoria_$etiqueta")
+                            ) { Text(etiqueta, fontSize = 12.sp) }
+                        }
+                    }
+
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        OutlinedTextField(
+                            value = precioMinimo,
+                            onValueChange = { precioMinimo = it },
+                            label = { Text("Precio mínimo") },
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                            modifier = Modifier.weight(1f).testTag("precio_minimo")
+                        )
+                        OutlinedTextField(
+                            value = precioMaximo,
+                            onValueChange = { precioMaximo = it },
+                            label = { Text("Precio máximo") },
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                            modifier = Modifier.weight(1f).testTag("precio_maximo")
+                        )
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth().clickable { soloConStock = !soloConStock },
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text("Solo con stock", color = VapeOnTextPrimary)
+                        Switch(
+                            checked = soloConStock,
+                            onCheckedChange = { soloConStock = it },
+                            modifier = Modifier.testTag("solo_con_stock")
+                        )
+                    }
+
+                    errorFiltros?.let {
+                        Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.testTag("error_filtros_dialogo"))
+                    }
 
                     // SECCIÓN: PRECIO
                     Text(
@@ -451,6 +510,7 @@ fun CatalogoScreen(
             confirmButton = {
                 Button(
                     onClick = { mostrarModalFiltros = false },
+                    enabled = errorFiltros == null,
                     colors = ButtonDefaults.buttonColors(containerColor = VapeOnRed)
                 ) {
                     Text("Aplicar Filtros", color = VapeOnTextPrimary, fontWeight = FontWeight.Bold)
@@ -459,8 +519,14 @@ fun CatalogoScreen(
             dismissButton = {
                 TextButton(
                     onClick = {
+                        busqueda = ""
+                        categoriaFiltro = ""
+                        precioMinimo = ""
+                        precioMaximo = ""
+                        soloConStock = false
                         marcaFiltro = "Todas"
                         ordenPrecio = "Sin orden"
+                        filtroVisual = "Todos"
                         mostrarModalFiltros = false
                     }
                 ) {

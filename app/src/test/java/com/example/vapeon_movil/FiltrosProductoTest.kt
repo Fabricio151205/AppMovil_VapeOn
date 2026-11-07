@@ -4,7 +4,9 @@ import com.example.vapeon_movil.entities.Producto
 import com.example.vapeon_movil.services.ProductoService
 import com.example.vapeon_movil.services.dto.*
 import com.example.vapeon_movil.viewmodels.ProductoViewModel
+import com.example.vapeon_movil.utils.claveMarca
 import com.example.vapeon_movil.utils.marcasUnicas
+import com.example.vapeon_movil.utils.mismaMarca
 import com.google.gson.Gson
 import kotlinx.coroutines.Dispatchers
 import org.junit.Assert.*
@@ -221,5 +223,61 @@ class FiltrosProductoTest {
         val (servicio, vm) = editar("Accesorios", " ")
         assertNotNull(vm.errorEdicion)
         assertNull(servicio.edicion)
+    }
+
+    @Test fun pipelineCatalogoCombinaBusquedaCategoriaPrecioStockYMarcaUnaSolaVez() {
+        val vm = inventario()
+        val resultado = vm.filtrarProductos(
+            busqueda = "kit",
+            categoria = "Dispositivos",
+            precioMinimo = "10",
+            precioMaximo = "20",
+            soloConStock = true
+        ).filter { mismaMarca(it.marca, " marca ") }
+        assertEquals(listOf("1"), ids(resultado))
+        assertEquals(5, vm.productos.size)
+    }
+
+    @Test fun marcaDelCatalogoUsaAliasExplicitoEspaciosYMayusculas() {
+        assertTrue(mismaMarca(" LifePood ", "LIFEPOD"))
+        assertTrue(mismaMarca(" oxBAR ", "Oxbar"))
+        assertEquals(claveMarca("LifePod"), claveMarca(" lifepood "))
+        assertFalse(mismaMarca("LifePod Plus", "LifePod"))
+    }
+
+    @Test fun marcaNuevaPuedeFiltrarseSinListaFija() {
+        val productos = listOf(
+            Producto("1", "Uno", "MarcaNueva", 20.0, 2, ""),
+            Producto("2", "Dos", "Otra", 20.0, 2, "")
+        )
+        assertEquals(listOf("1"), ids(productos.filter { mismaMarca(it.marca, " marcanueva ") }))
+    }
+
+    @Test fun ordenSeAplicaDespuesDeTodosLosFiltros() {
+        val resultado = inventario().filtrarProductos(
+            categoria = "Dispositivos", precioMinimo = "10", precioMaximo = "20"
+        ).sortedByDescending { it.precio }
+        assertEquals(listOf("2", "1"), ids(resultado))
+    }
+
+    @Test fun criterioSoloConStockDelCatalogoEsElStockGeneralDelViewModel() {
+        val servicio = Servicio().apply {
+            documentos["sabores"] = ProductoDocumento(
+                "productos/sabores",
+                ProductoCampos(
+                    nombre = FirestoreValue(stringValue = "Con sabores"),
+                    marca = FirestoreValue(stringValue = "LifePod"),
+                    precio = FirestoreValue(doubleValue = 20.0),
+                    stock = FirestoreValue(integerValue = "0"),
+                    descripcion = FirestoreValue(stringValue = "Descripción"),
+                    categoria = FirestoreValue(stringValue = "Dispositivos"),
+                    stockPorSabor = mapOf("Menta" to 5).aFirestoreMapa()
+                ),
+                "2026-10-30T10:00:00Z"
+            )
+        }
+        val vm = ProductoViewModel(servicio, Dispatchers.Unconfined).also { it.cargarProductos() }
+        assertEquals(5, vm.productos.single().stockTotal)
+        assertTrue(vm.filtrarProductos(soloConStock = true).isEmpty())
     }
 }

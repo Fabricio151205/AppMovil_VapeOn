@@ -385,16 +385,11 @@ internal fun correoRegistroValido(correo: String): Boolean =
     Regex("[^\\s@]+@[^\\s@.]+(?:\\.[^\\s@.]+)+").matches(correo.trim()) &&
         !correo.trim().substringBefore('@').let { it.startsWith('.') || it.endsWith('.') || ".." in it }
 
-internal fun validarRegistro(
-    nombre: String, apellidos: String, correo: String, telefono: String,
-    fechaNacimiento: String, password: String, passwordConfirm: String,
+/** Regla única de RNO01 para registro y acceso al flujo de compra. */
+internal fun validarMayoriaEdad(
+    fechaNacimiento: String,
     hoy: LocalDate = LocalDate.now()
 ): String? {
-    if (nombre.isBlank() || apellidos.isBlank() || correo.isBlank() || password.isBlank())
-        return "Por favor completa todos los campos requeridos."
-    if (!telefonoRegistroValido(telefono))
-        return "El teléfono debe tener exactamente 9 dígitos y comenzar con 9, sin espacios ni otros caracteres."
-    if (!correoRegistroValido(correo)) return "Ingresa un correo electrónico válido."
     val fecha = runCatching {
         val texto = fechaNacimiento.trim()
         require(Regex("[0-9]{2}/[0-9]{2}/[0-9]{4}").matches(texto))
@@ -405,6 +400,20 @@ internal fun validarRegistro(
         return "Ingresa una fecha de nacimiento válida en formato dd/mm/aaaa."
     if (Period.between(fecha, hoy).years < 18)
         return "Debes tener 18 años cumplidos o más para registrarte."
+    return null
+}
+
+internal fun validarRegistro(
+    nombre: String, apellidos: String, correo: String, telefono: String,
+    fechaNacimiento: String, password: String, passwordConfirm: String,
+    hoy: LocalDate = LocalDate.now()
+): String? {
+    if (nombre.isBlank() || apellidos.isBlank() || correo.isBlank() || password.isBlank())
+        return "Por favor completa todos los campos requeridos."
+    if (!telefonoRegistroValido(telefono))
+        return "El teléfono debe tener exactamente 9 dígitos y comenzar con 9, sin espacios ni otros caracteres."
+    if (!correoRegistroValido(correo)) return "Ingresa un correo electrónico válido."
+    validarMayoriaEdad(fechaNacimiento, hoy)?.let { return it }
     if (password != passwordConfirm) return "Las contraseñas no coinciden."
     return null
 }

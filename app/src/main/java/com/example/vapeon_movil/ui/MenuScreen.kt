@@ -34,6 +34,7 @@ fun MenuScreen(
     irMarcas: () -> Unit = {},
     mostrarMarcas: Boolean = true,
     irSabores: () -> Unit = {},
+    irRoles: () -> Unit = {},
     cerrarSesion: () -> Unit = {},
     irTarjetas: () -> Unit = {},
     irDirecciones: () -> Unit = {},
@@ -93,7 +94,11 @@ fun MenuScreen(
                     NavigationDrawerItem(
                         label = {
                             Text(
+<<<<<<< HEAD
                                 text = if (opcion in listOf("Catálogo", "Carrito", "Pedidos", "Marcas", "Sabores", "Historial de compras", "Mis tarjetas", "Mis direcciones", "Cerrar sesión")) opcion else "$opcion (No disponible)",
+=======
+                                text = if (opcion in listOf("Catálogo", "Carrito", "Pedidos", "Marcas", "Sabores", "Roles", "Historial de compras", "Mis tarjetas", "Cerrar sesión")) opcion else "$opcion (No disponible)",
+>>>>>>> 579c978e9b5746d72db824fcb6a5fe649682e7ca
                                 color = VapeOnTextPrimary,
                                 fontWeight = FontWeight.Medium
                             )
@@ -110,6 +115,7 @@ fun MenuScreen(
                                 "Pedidos" -> if (esAdmin) irPedidos()
                                 "Marcas" -> if (esAdmin) irMarcas()
                                 "Sabores" -> if (esAdmin) irSabores()
+                                "Roles" -> if (esAdmin) irRoles()
                                 "Cerrar sesión" -> cerrarSesion()
                                 else -> {
                                     onOpcionMenuClick(opcion)

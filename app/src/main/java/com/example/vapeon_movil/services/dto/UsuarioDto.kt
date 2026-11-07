@@ -17,7 +17,8 @@ data class UsuarioCampos(
     val fechaNacimiento: FirestoreStringValue? = null,
     val correo: FirestoreStringValue? = null,
     val password: FirestoreStringValue? = null,
-    val rol: FirestoreStringValue? = null
+    val rol: FirestoreStringValue? = null,
+    val dni: FirestoreStringValue? = null
 )
 
 /** Respuesta de listado: array de documentos de usuario */
@@ -29,5 +30,8 @@ data class UsuarioListResponse(
 /** Documento individual de usuario tal como lo devuelve Firestore REST */
 data class UsuarioDocumento(
     val name: String,       // Path completo: "projects/.../documents/usuarios/{id}"
-    val fields: UsuarioCampos
+    val fields: UsuarioCampos,
+    // Metadatos REST de Firestore: no pertenecen a fields y nunca se escriben.
+    val createTime: String? = null,
+    val updateTime: String? = null
 )

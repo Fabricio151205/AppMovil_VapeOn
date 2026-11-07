@@ -6,10 +6,11 @@ import com.example.vapeon_movil.ui.numeroTarjetaSimuladoValido
 import com.example.vapeon_movil.ui.vencimientoTarjetaSimuladaValido
 import org.junit.Assert.*
 import org.junit.Test
+import java.time.LocalDate
 import java.time.YearMonth
 
 class FlujoCheckoutTest {
-    private val cliente = Usuario(id = "A", rol = "CLIENTE")
+    private val cliente = Usuario(id = "A", fechaNacimiento = "01/01/2000", rol = "CLIENTE")
     private fun compra(ruta: String, entrega: Boolean = true, direccion: Boolean = true,
         confirmado: Boolean = false, pendiente: Boolean = false) =
         rutaCompraSegura(ruta, entrega, direccion, confirmado, pendiente)
@@ -34,6 +35,26 @@ class FlujoCheckoutTest {
 
     @Test fun entradaAnteriorCheckoutConduceADatosEntrega() {
         assertEquals("datosEntrega", compra("checkout"))
+    }
+    @Test fun adultoPuedeIniciarYRestaurarElCheckout() {
+        RUTAS_COMPRA.forEach { assertEquals(it, rutaCompraMayorEdadSegura(it, cliente)) }
+    }
+    @Test fun menorNoPuedeIniciarNiRestaurarElCheckout() {
+        val menor = cliente.copy(fechaNacimiento = LocalDate.now().minusYears(18).plusDays(1)
+            .format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/uuuu")))
+        RUTAS_COMPRA.forEach { assertEquals("home", rutaCompraMayorEdadSegura(it, menor)) }
+    }
+    @Test fun fechaAusenteOInvalidaBloqueaTodasLasRutasDeCompra() {
+        listOf("", "31/02/2000", "01/01/2999").forEach { fecha ->
+            RUTAS_COMPRA.forEach {
+                assertEquals("home", rutaCompraMayorEdadSegura(it, cliente.copy(fechaNacimiento = fecha)))
+            }
+        }
+    }
+    @Test fun guardiaDeEdadNoInterfiereConRutasFueraDeCompra() {
+        listOf("home", "catalogo", "historialCompras").forEach {
+            assertEquals(it, rutaCompraMayorEdadSegura(it, cliente.copy(fechaNacimiento = "")))
+        }
     }
     @Test fun rutaRestauradaNoOmiteDatosEntrega() {
         (RUTAS_COMPRA - "datosEntrega").forEach {

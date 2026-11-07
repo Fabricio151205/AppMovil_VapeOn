@@ -34,6 +34,13 @@ fun CajaTotalScreen(
     advertencias: Int,
     cargandoMarcas: Boolean,
     errorMarcas: String?,
+    desde: String,
+    hasta: String,
+    errorRango: String?,
+    cambiarDesde: (String) -> Unit,
+    cambiarHasta: (String) -> Unit,
+    aplicarRango: () -> Unit,
+    restablecerRango: () -> Unit,
     seleccionarMarca: (String) -> Unit,
     verDetalleMarca: (String) -> Unit,
     verDetallePedido: (String) -> Unit,
@@ -49,6 +56,8 @@ fun CajaTotalScreen(
         caja.ventas(marcaSeleccionada)
             .sortedWith(compareByDescending<com.example.vapeon_movil.entities.VentaCaja> { Instant.parse(it.pedido.fecha) }.thenBy { it.pedido.id })
     }
+    val reporteProductos = remember(caja, marcaSeleccionada) { caja.reporteProductos(marcaSeleccionada) }
+    val reporteCategorias = remember(caja, marcaSeleccionada) { caja.reporteCategorias(marcaSeleccionada) }
 
     Surface(
         color = VapeOnBackground,
@@ -102,6 +111,74 @@ fun CajaTotalScreen(
                 fontWeight = FontWeight.Bold,
                 textAlign = TextAlign.Center
             )
+
+            Spacer(modifier = Modifier.height(18.dp))
+
+            Card(
+                shape = RoundedCornerShape(18.dp),
+                colors = CardDefaults.cardColors(containerColor = VapeOnCardBackground),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text("Rango de fechas", color = VapeOnGold, fontWeight = FontWeight.Bold)
+                    Text("Formato: dd/mm/aaaa", color = VapeOnTextSecondary, fontSize = 12.sp)
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        OutlinedTextField(
+                            value = desde,
+                            onValueChange = cambiarDesde,
+                            label = { Text("Desde") },
+                            placeholder = { Text("dd/mm/aaaa") },
+                            singleLine = true,
+                            isError = errorRango != null,
+                            modifier = Modifier.weight(1f)
+                        )
+                        OutlinedTextField(
+                            value = hasta,
+                            onValueChange = cambiarHasta,
+                            label = { Text("Hasta") },
+                            placeholder = { Text("dd/mm/aaaa") },
+                            singleLine = true,
+                            isError = errorRango != null,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                    errorRango?.let { Text(it, color = MaterialTheme.colorScheme.error, fontSize = 13.sp) }
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        OutlinedButton(onClick = restablecerRango, modifier = Modifier.weight(1f)) {
+                            Text("Restablecer")
+                        }
+                        Button(onClick = aplicarRango, modifier = Modifier.weight(1f),
+                            colors = ButtonDefaults.buttonColors(containerColor = VapeOnRed)) {
+                            Text("Aplicar")
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Card(
+                shape = RoundedCornerShape(18.dp),
+                colors = CardDefaults.cardColors(containerColor = VapeOnCardBackground),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    ResumenCajaFila("Ingresos por productos", moneda(caja.productos.toDouble()))
+                    ResumenCajaFila("Delivery", moneda(caja.delivery.toDouble()))
+                    HorizontalDivider(color = VapeOnGold)
+                    ResumenCajaFila("Total", moneda(caja.total.toDouble()), destacado = true)
+                    ResumenCajaFila("Unidades vendidas", caja.unidadesVendidas.toString())
+                }
+            }
+
+            if (advertencias > 0) {
+                Spacer(modifier = Modifier.height(10.dp))
+                Text(
+                    "$advertencias pedido(s) con datos inválidos fueron excluidos del reporte.",
+                    color = MaterialTheme.colorScheme.error,
+                    fontSize = 13.sp
+                )
+            }
 
             Spacer(modifier = Modifier.height(24.dp))
 
@@ -157,6 +234,46 @@ fun CajaTotalScreen(
             if (error != null || errorMarcas != null) {
                 Spacer(modifier = Modifier.height(10.dp))
                 Text(text = error ?: errorMarcas.orEmpty(), color = MaterialTheme.colorScheme.error, fontSize = 13.sp)
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            Text(
+                text = if (marcaSeleccionada.isBlank()) "INGRESOS POR PRODUCTO"
+                    else "INGRESOS POR PRODUCTO — $marcaSeleccionada",
+                color = VapeOnTextPrimary,
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.fillMaxWidth()
+            )
+            Spacer(modifier = Modifier.height(10.dp))
+            if (reporteProductos.isEmpty()) {
+                Text("Sin productos vendidos en la selección.", color = VapeOnTextSecondary,
+                    modifier = Modifier.fillMaxWidth())
+            } else {
+                reporteProductos.forEach { producto ->
+                    ReporteCajaFila(producto.nombre, producto.marca, producto.unidades, producto.ingreso.toDouble())
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                text = "INGRESOS POR CATEGORÍA",
+                color = VapeOnTextPrimary,
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.fillMaxWidth()
+            )
+            Spacer(modifier = Modifier.height(10.dp))
+            if (reporteCategorias.isEmpty()) {
+                Text("Sin categorías vendidas en la selección.", color = VapeOnTextSecondary,
+                    modifier = Modifier.fillMaxWidth())
+            } else {
+                reporteCategorias.forEach { categoria ->
+                    ReporteCajaFila(categoria.categoria, null, categoria.unidades, categoria.ingreso.toDouble())
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
             }
 
             Spacer(modifier = Modifier.height(24.dp))
@@ -281,6 +398,46 @@ fun CajaTotalScreen(
             }
 
             Spacer(modifier = Modifier.height(24.dp))
+        }
+    }
+}
+
+@Composable
+private fun ResumenCajaFila(etiqueta: String, valor: String, destacado: Boolean = false) {
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+        Text(etiqueta, color = if (destacado) VapeOnTextPrimary else VapeOnTextSecondary,
+            fontWeight = if (destacado) FontWeight.Bold else FontWeight.Normal)
+        Text(valor, color = if (destacado) VapeOnGold else VapeOnTextPrimary,
+            fontWeight = FontWeight.Bold)
+    }
+}
+
+@Composable
+private fun ReporteCajaFila(
+    titulo: String,
+    detalle: String?,
+    unidades: Int,
+    ingreso: Double
+) {
+    Card(
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(containerColor = VapeOnCardBackground),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            Modifier.fillMaxWidth().padding(14.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text(titulo, color = VapeOnTextPrimary, fontWeight = FontWeight.Bold)
+                detalle?.takeIf { it.isNotBlank() }?.let {
+                    Text(it, color = VapeOnTextSecondary, fontSize = 12.sp)
+                }
+                Text("$unidades ${if (unidades == 1) "unidad" else "unidades"}",
+                    color = VapeOnTextSecondary, fontSize = 13.sp)
+            }
+            Text(moneda(ingreso), color = VapeOnGold, fontWeight = FontWeight.Bold)
         }
     }
 }

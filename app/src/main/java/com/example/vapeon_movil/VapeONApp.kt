@@ -57,6 +57,7 @@ import com.example.vapeon_movil.ui.DetallePedidoScreen
 import com.example.vapeon_movil.ui.HomeScreen
 import com.example.vapeon_movil.ui.LoginScreen
 import com.example.vapeon_movil.ui.RegisterScreen
+import com.example.vapeon_movil.ui.RolesScreen
 import com.example.vapeon_movil.ui.SaboresAdminScreen
 import com.example.vapeon_movil.ui.AgregarSaborScreen
 import com.example.vapeon_movil.ui.EditarSaborScreen
@@ -69,6 +70,8 @@ import com.example.vapeon_movil.viewmodels.ProductoViewModel
 import com.example.vapeon_movil.viewmodels.SaboresViewModel
 import com.example.vapeon_movil.viewmodels.MarcasViewModel
 import com.example.vapeon_movil.viewmodels.UsuarioViewModel
+import com.example.vapeon_movil.viewmodels.RolesViewModel
+import com.example.vapeon_movil.viewmodels.validarMayoriaEdad
 import com.example.vapeon_movil.ui.TarjetasScreen
 import com.example.vapeon_movil.ui.DireccionesScreen
 import com.example.vapeon_movil.ui.AgregarDireccionScreen
@@ -95,6 +98,7 @@ fun VapeONApp() {
     val tarjetaViewModel: TarjetaViewModel = viewModel()
     val direccionesViewModel: DireccionesViewModel = viewModel()
     val pronosticoDemandaViewModel: PronosticoDemandaViewModel = viewModel()
+    val rolesViewModel: RolesViewModel = viewModel()
 
     val usuarioActual = usuarioViewModel.usuarioActual
     val claveSesion = claveSesionNavegacion(usuarioActual)
@@ -131,7 +135,14 @@ fun VapeONApp() {
 
     var marcaCaja by rememberSaveable(claveSesion) { mutableStateOf("") }
     var detalleDesdeCaja by rememberSaveable(claveSesion) { mutableStateOf(false) }
-    val caja = remember(pedidoViewModel.pedidosCaja) { calcularCaja(pedidoViewModel.pedidosCaja) }
+    var cajaDesde by rememberSaveable(claveSesion) { mutableStateOf("") }
+    var cajaHasta by rememberSaveable(claveSesion) { mutableStateOf("") }
+    var cajaDesdeAplicado by rememberSaveable(claveSesion) { mutableStateOf("") }
+    var cajaHastaAplicado by rememberSaveable(claveSesion) { mutableStateOf("") }
+    var errorRangoCaja by rememberSaveable(claveSesion) { mutableStateOf<String?>(null) }
+    val caja = remember(pedidoViewModel.pedidosCaja, cajaDesdeAplicado, cajaHastaAplicado) {
+        calcularCaja(pedidoViewModel.pedidosCaja, cajaDesdeAplicado, cajaHastaAplicado)
+    }
     val marcasCaja = remember(productoViewModel.productos) {
         marcasDeCaja(productoViewModel.productos.map { it.marca })
     }
@@ -252,7 +263,10 @@ fun VapeONApp() {
     val esAdminUser = usuarioActual?.rol?.equals("ADMIN", ignoreCase = true) == true
 
     // La guardia se aplica antes de componer una pantalla, no después de mostrarla.
-    val pantallaPermitida = pantallaRestauradaSegura(pantallaActual, usuarioActual, propietarioNavegacion)
+    val pantallaPermitida = rutaCompraMayorEdadSegura(
+        pantallaRestauradaSegura(pantallaActual, usuarioActual, propietarioNavegacion),
+        usuarioActual
+    )
     val confirmadoPropio = pedidoViewModel.pedidoConfirmado?.takeIf {
         it.usuarioId == usuarioActual?.id && usuarioActual?.rol.equals("CLIENTE", true)
     }
@@ -418,6 +432,7 @@ fun VapeONApp() {
                 irPedidos = { pantallaActual = "pedidosAdmin" },
                 irMarcas = { pantallaActual = "marcasAdmin" },
                 irSabores = { pantallaActual = "saboresAdmin" },
+                irRoles = { pantallaActual = "roles" },
                 irCatalogo = { pantallaActual = "catalogo" },
                 onPerfilClick = ::abrirPerfil,
                 irEditarProducto = { producto ->
@@ -427,6 +442,20 @@ fun VapeONApp() {
                     seleccionarProducto(producto)
                 }
             )
+        }
+
+        // ── GESTIÓN DE ROLES (solo ADMIN) ────────────────────────────────────
+        "roles" -> {
+            val admin = usuarioActual
+            if (admin != null && admin.rol.equals("ADMIN", true)) {
+                RolesScreen(
+                    adminActual = admin,
+                    rolesViewModel = rolesViewModel,
+                    volver = { pantallaActual = "admin" }
+                )
+            } else {
+                LaunchedEffect(Unit) { pantallaActual = if (admin == null) "login" else "home" }
+            }
         }
 
         // ── CATÁLOGO ──────────────────────────────────────────────────────────
@@ -447,6 +476,7 @@ fun VapeONApp() {
                 irPedidos = { pantallaActual = "pedidosAdmin" },
                 irMarcas  = { pantallaActual = "marcasAdmin" },
                 irSabores = { pantallaActual = "saboresAdmin" },
+                irRoles = { pantallaActual = "roles" },
                 irCarrito = { pantallaActual = "carrito" },
                 irHistorial = { pantallaActual = "historialCompras" },
                 irTarjetas = { pantallaActual = "tarjetas" },
@@ -488,6 +518,10 @@ fun VapeONApp() {
                     sabores          = saboresViewModel.listaSabores,
                     volver           = { pantallaActual = "home" },
                     irCheckout = {
+                        if (rutaCompraMayorEdadSegura("datosEntrega", usuarioActual) != "datosEntrega") {
+                            pantallaActual = "home"
+                            return@CarritoScreen
+                        }
                         if (pedidoViewModel.requiereComprobacion || pedidoViewModel.cargando) {
                             pantallaActual = "checkout"
                         } else {
@@ -515,6 +549,26 @@ fun VapeONApp() {
                 advertencias = pedidoViewModel.invalidosCaja + caja.invalidos,
                 cargandoMarcas = productoViewModel.cargando,
                 errorMarcas = productoViewModel.error,
+                desde = cajaDesde,
+                hasta = cajaHasta,
+                errorRango = errorRangoCaja,
+                cambiarDesde = { cajaDesde = it; errorRangoCaja = null },
+                cambiarHasta = { cajaHasta = it; errorRangoCaja = null },
+                aplicarRango = {
+                    try {
+                        calcularCaja(pedidoViewModel.pedidosCaja, cajaDesde, cajaHasta)
+                        cajaDesdeAplicado = cajaDesde.trim()
+                        cajaHastaAplicado = cajaHasta.trim()
+                        errorRangoCaja = null
+                    } catch (e: IllegalArgumentException) {
+                        errorRangoCaja = e.message ?: "Rango de fechas inválido."
+                    }
+                },
+                restablecerRango = {
+                    cajaDesde = ""; cajaHasta = ""
+                    cajaDesdeAplicado = ""; cajaHastaAplicado = ""
+                    errorRangoCaja = null
+                },
                 seleccionarMarca = { marca -> marcaCaja = marca },
                 verDetalleMarca = { marca -> marcaCaja = marca },
                 verDetallePedido = { id -> pedidoSeleccionadoId = id; detalleDesdeCaja = true; pantallaActual = "detallePedidoAdmin" },
@@ -886,6 +940,14 @@ private val RUTAS_CLIENTE = setOf(
     "direcciones", "agregarDireccion", "editarDireccion"
 ) + RUTAS_COMPRA + RUTAS_REGISTRO_TARJETA
 
+/** RNO01: una ruta restaurada tampoco puede omitir la comprobación de edad. */
+internal fun rutaCompraMayorEdadSegura(ruta: String, usuario: Usuario?): String {
+    if (ruta !in RUTAS_COMPRA) return ruta
+    val clienteValido = usuario?.rol.equals("CLIENTE", ignoreCase = true) &&
+        validarMayoriaEdad(usuario?.fechaNacimiento.orEmpty()) == null
+    return if (clienteValido) ruta else if (usuario?.rol.equals("ADMIN", true)) "admin" else "home"
+}
+
 /** Navegar o restaurar una ruta nunca omite los pasos previos ni fabrica una confirmación. */
 internal fun rutaCompraSegura(ruta: String, entregaRevisada: Boolean, direccionConfirmada: Boolean,
     pedidoConfirmado: Boolean, compraPendiente: Boolean, digitalActivo: Boolean = false): String {
@@ -921,7 +983,7 @@ internal fun rutaRegistroTarjetaSegura(ruta: String, ultimos4: String, marca: St
     return ruta
 }
 private val RUTAS_ADMIN = setOf(
-    "cajaTotal", "ventasMarca", "pronosticoDemanda", "admin", "agregarProducto",
+    "cajaTotal", "ventasMarca", "pronosticoDemanda", "admin", "roles", "agregarProducto",
     "editarProducto", "pedidosAdmin", "detallePedidoAdmin", "saboresAdmin",
     "agregarSabor", "editarSabor", "marcasAdmin", "agregarMarca", "editarMarca",
     "prediccionAdmin", "alertasStockAdmin", "sinMovimientoAdmin", "sugerenciasReabastecimientoAdmin"

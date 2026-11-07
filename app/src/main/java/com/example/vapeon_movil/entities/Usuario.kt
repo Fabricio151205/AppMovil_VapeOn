@@ -14,6 +14,7 @@ data class Usuario(
     val fechaNacimiento: String = "",
     val correo: String = "",
     val password: String = "",
+<<<<<<< HEAD
     val rol: String = "CLIENTE"
 )
 
@@ -44,3 +45,10 @@ fun rolLegible(rol: String): String = when (rol.trim().uppercase(Locale.ROOT)) {
     "CLIENTE" -> "Cliente"
     else -> rol.trim().ifBlank { "Usuario" }
 }
+=======
+    val rol: String = "CLIENTE",
+    val dni: String? = null,
+    val createTime: String? = null,
+    val updateTime: String? = null
+)
+>>>>>>> 579c978e9b5746d72db824fcb6a5fe649682e7ca
