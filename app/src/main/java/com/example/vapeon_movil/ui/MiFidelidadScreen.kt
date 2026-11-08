@@ -94,6 +94,14 @@ fun MiFidelidadScreen(
                         if (puntos == MAX_PUNTOS_FIDELIDAD) {
                             Spacer(Modifier.height(10.dp))
                             Text(
+                                "Has completado tus $MAX_PUNTOS_FIDELIDAD puntos.",
+                                color = VapeOnTextPrimary,
+                                textAlign = TextAlign.Center
+                            )
+                            Spacer(Modifier.height(14.dp))
+                            DetalleRecompensaCliente(fidelidadViewModel)
+                            Spacer(Modifier.height(14.dp))
+                            Text(
                                 "Espera la entrega de tu recompensa por parte del administrador.",
                                 color = VapeOnTextSecondary,
                                 textAlign = TextAlign.Center
@@ -101,8 +109,76 @@ fun MiFidelidadScreen(
                         } else if (puntos == 0 && (fidelidadViewModel.miFidelidad?.numeroCiclo ?: 1) > 1) {
                             Spacer(Modifier.height(10.dp))
                             Text("Nuevo ciclo de fidelidad.", color = VapeOnTextSecondary)
+                        } else if (puntos == 0 && !fidelidadViewModel.fidelidadRegistrada) {
+                            Spacer(Modifier.height(10.dp))
+                            Text(
+                                "Aún no tienes puntos de fidelidad.",
+                                color = VapeOnTextPrimary,
+                                fontWeight = FontWeight.Bold,
+                                textAlign = TextAlign.Center
+                            )
+                            Spacer(Modifier.height(6.dp))
+                            Text(
+                                "Completa pedidos entregados para comenzar a acumular puntos.",
+                                color = VapeOnTextSecondary,
+                                textAlign = TextAlign.Center
+                            )
                         }
                     }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun DetalleRecompensaCliente(fidelidadViewModel: FidelidadViewModel) {
+    val recompensa = fidelidadViewModel.miRecompensa
+    when {
+        fidelidadViewModel.cargandoRecompensa -> CircularProgressIndicator(
+            color = VapeOnGold,
+            modifier = Modifier.size(28.dp),
+            strokeWidth = 3.dp
+        )
+        fidelidadViewModel.errorRecompensa != null -> Column(
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                fidelidadViewModel.errorRecompensa.orEmpty(),
+                color = MaterialTheme.colorScheme.error,
+                textAlign = TextAlign.Center
+            )
+            Spacer(Modifier.height(8.dp))
+            TextButton(onClick = fidelidadViewModel::reintentarRecompensaPendiente) {
+                Text("Reintentar")
+            }
+        }
+        recompensa?.productoId.isNullOrBlank() -> Text(
+            "El administrador todavía debe configurar el producto de la recompensa.",
+            color = VapeOnTextSecondary,
+            textAlign = TextAlign.Center
+        )
+        else -> Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(18.dp),
+            colors = CardDefaults.cardColors(containerColor = VapeOnInputBackground)
+        ) {
+            Column(Modifier.fillMaxWidth().padding(16.dp)) {
+                Text(
+                    "Recompensa de fidelidad",
+                    color = VapeOnGold,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 17.sp
+                )
+                recompensa?.nombreProducto?.takeIf { it.isNotBlank() }?.let {
+                    Spacer(Modifier.height(8.dp))
+                    Text("Producto: $it", color = VapeOnTextPrimary)
+                }
+                recompensa?.marcaProducto?.takeIf { it.isNotBlank() }?.let {
+                    Text("Marca: $it", color = VapeOnTextSecondary)
+                }
+                recompensa?.categoriaProducto?.takeIf { it.isNotBlank() }?.let {
+                    Text("Categoría: $it", color = VapeOnTextSecondary)
                 }
             }
         }

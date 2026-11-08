@@ -193,6 +193,7 @@ flowchart TD
 ```
 
 - La pantalla `Mi fidelidad` exige sesión CLIENTE y solo solicita el documento cuyo ID coincide con la sesión.
+- Cuando `recompensaPendienteId` existe, `Mi fidelidad` consulta únicamente esa recompensa y muestra el snapshot histórico del producto. Si todavía no tiene producto configurado, informa que requiere configuración administrativa sin inventar nombre, marca, categoría, precio ni imagen.
 - La pantalla `Cupones de fidelidad` exige sesión ADMIN, excluye usuarios ADMIN del ranking y no muestra contraseñas, teléfonos ni datos financieros.
 - Las rutas restauradas se vuelven a validar contra rol y propietario de sesión.
 

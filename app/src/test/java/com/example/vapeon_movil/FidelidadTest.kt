@@ -308,6 +308,81 @@ class FidelidadTest {
         assertEquals(listOf("clienteA"), fake.idsFidelidad)
     }
 
+    @Test fun clienteCargaSnapshotDeSuRecompensaPendiente() {
+        val estado = FidelidadCliente("clienteA", 6, 1, "r1", instante)
+        val recompensa = RecompensaFidelidad(
+            "r1", "clienteA", 1, EstadoRecompensaFidelidad.PENDIENTE,
+            productoId = "p1", nombreProducto = "Producto A", marcaProducto = "Marca A",
+            categoriaProducto = "Kit", precioReferencia = BigDecimal("50.00"),
+            fechaGeneracion = instante
+        )
+        val fake = FidelidadFake(
+            fidelidadDoc = estado.aDocumento(ruta),
+            recompensaDoc = recompensa.aDocumento(ruta)
+        )
+        val vm = FidelidadViewModel(fake, UsuariosFake(), Dispatchers.Unconfined)
+
+        vm.cargarMiFidelidad(Usuario(id = "clienteA", rol = "CLIENTE"))
+
+        assertEquals(6, vm.miFidelidad?.puntosActuales)
+        assertEquals("Producto A", vm.miRecompensa?.nombreProducto)
+        assertEquals("Marca A", vm.miRecompensa?.marcaProducto)
+        assertEquals(listOf("r1"), fake.idsRecompensa)
+    }
+
+    @Test fun recompensaSinProductoSeConservaSinInventarSnapshot() {
+        val estado = FidelidadCliente("clienteA", 6, 1, "r1", instante)
+        val recompensa = RecompensaFidelidad(
+            "r1", "clienteA", 1, EstadoRecompensaFidelidad.PENDIENTE,
+            fechaGeneracion = instante
+        )
+        val vm = FidelidadViewModel(
+            FidelidadFake(
+                fidelidadDoc = estado.aDocumento(ruta),
+                recompensaDoc = recompensa.aDocumento(ruta)
+            ),
+            UsuariosFake(),
+            Dispatchers.Unconfined
+        )
+
+        vm.cargarMiFidelidad(Usuario(id = "clienteA", rol = "CLIENTE"))
+
+        assertEquals(6, vm.miFidelidad?.puntosActuales)
+        assertNotNull(vm.miRecompensa)
+        assertNull(vm.miRecompensa?.productoId)
+        assertNull(vm.miRecompensa?.nombreProducto)
+        assertNull(vm.miRecompensa?.marcaProducto)
+    }
+
+    @Test fun nuevoCicloSinPendienteNoConsultaNiConservaRecompensa() {
+        val estado = FidelidadCliente("clienteA", 0, 2, null, instante)
+        val fake = FidelidadFake(fidelidadDoc = estado.aDocumento(ruta))
+        val vm = FidelidadViewModel(fake, UsuariosFake(), Dispatchers.Unconfined)
+
+        vm.cargarMiFidelidad(Usuario(id = "clienteA", rol = "CLIENTE"))
+
+        assertEquals(0, vm.miFidelidad?.puntosActuales)
+        assertEquals(2, vm.miFidelidad?.numeroCiclo)
+        assertNull(vm.miRecompensa)
+        assertTrue(fake.idsRecompensa.isEmpty())
+    }
+
+    @Test fun errorDeRecompensaConservaElProgresoSeisDeSeis() {
+        val estado = FidelidadCliente("clienteA", 6, 1, "r1", instante)
+        val fake = FidelidadFake(
+            fidelidadDoc = estado.aDocumento(ruta),
+            fallarRecompensa = true
+        )
+        val vm = FidelidadViewModel(fake, UsuariosFake(), Dispatchers.Unconfined)
+
+        vm.cargarMiFidelidad(Usuario(id = "clienteA", rol = "CLIENTE"))
+
+        assertEquals(6, vm.miFidelidad?.puntosActuales)
+        assertNull(vm.miRecompensa)
+        assertNotNull(vm.errorRecompensa)
+        assertNull(vm.error)
+    }
+
     @Test fun administracionCargaSoloClientesYOrdenaPorPuntos() {
         val estado = FidelidadCliente("clienteA", 5, fechaActualizacion = instante)
         val usuarios = UsuariosFake(listOf(
@@ -340,13 +415,15 @@ class FidelidadTest {
         var recompensaDoc: FidelidadDocumento? = null,
         var eventoDoc: FidelidadDocumento? = null,
         val rechazarSegundoCommit: Boolean = false,
-        var versionConfiguracionActual: String? = null
+        var versionConfiguracionActual: String? = null,
+        val fallarRecompensa: Boolean = false
     ) : FidelidadService {
         var ultimoCommit: FidelidadCommit? = null
         val commits = mutableListOf<FidelidadCommit>()
         val commitsAceptados = mutableListOf<FidelidadCommit>()
         var llamadasCommit = 0
         val idsFidelidad = mutableListOf<String>()
+        val idsRecompensa = mutableListOf<String>()
         private fun respuesta(doc: FidelidadDocumento?): Response<FidelidadDocumento> =
             doc?.let { Response.success(it) }
                 ?: Response.error(404, ResponseBody.create(null, ""))
@@ -356,7 +433,12 @@ class FidelidadTest {
             return respuesta(fidelidadDoc?.takeIf { it.name.endsWith("/$usuarioId") })
         }
         override suspend fun evento(pedidoId: String) = respuesta(eventoDoc?.takeIf { it.name.endsWith("/$pedidoId") })
-        override suspend fun recompensa(id: String) = respuesta(recompensaDoc?.takeIf { it.name.endsWith("/$id") })
+        override suspend fun recompensa(id: String): Response<FidelidadDocumento> {
+            idsRecompensa += id
+            return if (fallarRecompensa) {
+                Response.error(500, ResponseBody.create(null, ""))
+            } else respuesta(recompensaDoc?.takeIf { it.name.endsWith("/$id") })
+        }
         override suspend fun listarFidelidades(pageToken: String?) = FidelidadLista(listOfNotNull(fidelidadDoc))
         override suspend fun commit(body: FidelidadCommit): FidelidadCommitRespuesta {
             llamadasCommit++

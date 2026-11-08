@@ -38,6 +38,14 @@ class FidelidadViewModel(
 ) : ViewModel() {
     var miFidelidad by mutableStateOf<FidelidadCliente?>(null)
         private set
+    var miRecompensa by mutableStateOf<RecompensaFidelidad?>(null)
+        private set
+    var fidelidadRegistrada by mutableStateOf(false)
+        private set
+    var cargandoRecompensa by mutableStateOf(false)
+        private set
+    var errorRecompensa by mutableStateOf<String?>(null)
+        private set
     var clientes by mutableStateOf<List<ClienteFidelidad>>(emptyList())
         private set
     var configuracion by mutableStateOf<ConfiguracionFidelidad?>(null)
@@ -67,11 +75,19 @@ class FidelidadViewModel(
         propietario = cliente.id
         cargando = true
         error = null
+        miRecompensa = null
+        errorRecompensa = null
+        cargandoRecompensa = false
         viewModelScope.launch(dispatcher) {
             try {
-                val leida = fidelidadService.fidelidad(cliente.id).cuerpoOpcional()?.aFidelidad()
+                val documento = fidelidadService.fidelidad(cliente.id).cuerpoOpcional()
+                val leida = documento?.aFidelidad()
                     ?: FidelidadCliente(cliente.id, fechaActualizacion = "")
-                if (propietario == cliente.id) miFidelidad = leida
+                if (propietario == cliente.id) {
+                    fidelidadRegistrada = documento != null
+                    miFidelidad = leida
+                }
+                cargarRecompensaDelCliente(cliente.id, leida)
             } catch (e: CancellationException) {
                 throw e
             } catch (_: Exception) {
@@ -79,6 +95,51 @@ class FidelidadViewModel(
             } finally {
                 if (propietario == cliente.id) cargando = false
             }
+        }
+    }
+
+    private suspend fun cargarRecompensaDelCliente(clienteId: String, fidelidad: FidelidadCliente) {
+        val recompensaId = fidelidad.recompensaPendienteId
+        if (recompensaId == null) {
+            if (propietario == clienteId) {
+                miRecompensa = null
+                errorRecompensa = null
+                cargandoRecompensa = false
+            }
+            return
+        }
+        if (propietario == clienteId) cargandoRecompensa = true
+        try {
+            val recompensa = fidelidadService.recompensa(recompensaId).cuerpoOpcional()?.aRecompensa()
+                ?: throw IllegalStateException("La recompensa pendiente no está disponible.")
+            require(recompensa.id == recompensaId && recompensa.usuarioId == clienteId) {
+                "La recompensa pendiente no pertenece al cliente."
+            }
+            if (propietario == clienteId) {
+                miRecompensa = recompensa
+                errorRecompensa = null
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            if (propietario == clienteId) {
+                miRecompensa = null
+                errorRecompensa = "No se pudieron cargar los detalles de tu recompensa."
+            }
+        } finally {
+            if (propietario == clienteId) cargandoRecompensa = false
+        }
+    }
+
+    fun reintentarRecompensaPendiente() {
+        val clienteId = propietario ?: return
+        val fidelidad = miFidelidad?.takeIf {
+            it.usuarioId == clienteId && it.recompensaPendienteId != null
+        } ?: return
+        if (cargandoRecompensa) return
+        errorRecompensa = null
+        viewModelScope.launch(dispatcher) {
+            cargarRecompensaDelCliente(clienteId, fidelidad)
         }
     }
 
@@ -237,6 +298,10 @@ class FidelidadViewModel(
     fun limpiar() {
         propietario = null
         miFidelidad = null
+        miRecompensa = null
+        fidelidadRegistrada = false
+        cargandoRecompensa = false
+        errorRecompensa = null
         clientes = emptyList()
         configuracion = null
         cargando = false

@@ -5,46 +5,111 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.vapeon_movil.ui.theme.*
+import com.example.vapeon_movil.entities.Pedido
+import com.example.vapeon_movil.ui.theme.VapeOnBackground
+import com.example.vapeon_movil.ui.theme.VapeOnCardBorder
+import com.example.vapeon_movil.ui.theme.VapeOnCardNotSelected
+import com.example.vapeon_movil.ui.theme.VapeOnError
+import com.example.vapeon_movil.ui.theme.VapeOnGold
+import com.example.vapeon_movil.ui.theme.VapeOnInputBackground
+import com.example.vapeon_movil.ui.theme.VapeOnRed
+import com.example.vapeon_movil.ui.theme.VapeOnSelected
+import com.example.vapeon_movil.ui.theme.VapeOnTextPrimary
+import com.example.vapeon_movil.ui.theme.VapeOnTextSecondary
+import com.example.vapeon_movil.ui.theme.alfaAccesible
 import com.example.vapeon_movil.utils.moneda
 import com.example.vapeon_movil.viewmodels.CarritoViewModel
+import java.math.BigDecimal
+import java.math.RoundingMode
+import java.util.Locale
 
+/**
+ * Selección del método de pago.
+ *
+ * El monto de efectivo se ingresa aquí mismo. Al pulsar PAGAR con efectivo se
+ * registra el pedido directamente: ya no se repite el formulario en otra vista.
+ */
 @Composable
 fun MetodoPagoScreen(
     carritoViewModel: CarritoViewModel? = null,
+    montoEfectivo: String,
+    cambiarMonto: (String) -> Unit,
+    error: String? = null,
     volver: () -> Unit,
-    efectivo: () -> Unit,
-    tarjeta: () -> Unit,
-    yape: () -> Unit
+    pagarEfectivo: (String) -> Unit,
+    yape: () -> Unit,
+    tarjeta: () -> Unit
 ) {
-    var metodoSeleccionado by remember { mutableStateOf("TARJETA") }
+    var metodoSeleccionado by rememberSaveable { mutableStateOf("") }
     val resumen = carritoViewModel?.resumen
 
-    val subTotalVal = resumen?.subTotal ?: 150.0
-    val deliveryVal = resumen?.delivery ?: 5.0
-    val igvVal = resumen?.igv ?: 0.0
-    val totalVal = resumen?.total ?: (subTotalVal + deliveryVal + igvVal)
+    val subTotalVal = resumen?.subTotal ?: 0.0
+    val deliveryVal = resumen?.delivery ?: 0.0
+    val totalVal = resumen?.total ?: (subTotalVal + deliveryVal)
 
-    var montoEfectivo by remember(totalVal) { mutableStateOf(String.format(java.util.Locale.ROOT, "%.2f", totalVal + 50.0)) }
-    val montoNum = montoEfectivo.toDoubleOrNull() ?: totalVal
-    val vueltoVal = (montoNum - totalVal).coerceAtLeast(0.0)
+    // Sugerir el total exacto la primera vez, sin pisar lo que escriba el cliente.
+    LaunchedEffect(totalVal) {
+        if (montoEfectivo.isBlank() && totalVal > 0) {
+            cambiarMonto(String.format(Locale.ROOT, "%.2f", totalVal))
+        }
+    }
+
+    val montoNum = Pedido.leerMonto(montoEfectivo)?.setScale(2, RoundingMode.HALF_UP)
+    val totalRedondeado = BigDecimal.valueOf(totalVal).setScale(2, RoundingMode.HALF_UP)
+    val montoValido = montoNum != null && montoNum >= totalRedondeado
+    val vueltoVal = if (montoValido) montoNum!!.subtract(totalRedondeado) else null
+    val esEfectivo = metodoSeleccionado == "EFECTIVO"
+    val puedePagar = metodoSeleccionado.isNotBlank() && (!esEfectivo || montoValido)
 
     BackHandler(onBack = volver)
 
@@ -59,14 +124,13 @@ fun MetodoPagoScreen(
                 .fillMaxSize()
                 .imePadding()
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 24.dp, vertical = 16.dp),
+                .padding(horizontal = 20.dp, vertical = 12.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // ENCABEZADO SUPERIOR CON FLECHA Y TÍTULO
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 8.dp),
+                    .padding(vertical = 4.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 IconButton(onClick = volver) {
@@ -86,301 +150,118 @@ fun MetodoPagoScreen(
                 )
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
-            // ==========================================
-            // OPCIÓN 1: EFECTIVO
-            // ==========================================
-            val esEfectivo = metodoSeleccionado == "EFECTIVO"
-            Card(
-                shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = if (esEfectivo) VapeOnSelected else VapeOnCardNotSelected
-                ),
-                border = BorderStroke(1.dp, VapeOnCardBorder),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { metodoSeleccionado = "EFECTIVO" }
+            OpcionPago(
+                titulo = "EFECTIVO",
+                subtitulo = "Pago con entrega",
+                seleccionado = esEfectivo,
+                onClick = { metodoSeleccionado = "EFECTIVO" }
             ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(20.dp)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = "EFECTIVO",
-                                color = VapeOnTextPrimary,
-                                fontSize = 15.sp,
-                                fontWeight = FontWeight.Bold,
-                                letterSpacing = 0.5.sp
-                            )
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Text(
-                                text = "Pago con entrega",
-                                color = VapeOnTextSecondary,
-                                fontSize = 13.sp
-                            )
-                        }
+                    Text(
+                        text = "¿Con cuánto va a pagar?",
+                        color = VapeOnTextPrimary,
+                        fontSize = 13.sp,
+                        modifier = Modifier.weight(1f)
+                    )
+                    OutlinedTextField(
+                        value = montoEfectivo,
+                        onValueChange = { nuevo ->
+                            val limpio = nuevo.filter { it.isDigit() || it == '.' || it == ',' }.take(9)
+                            cambiarMonto(limpio)
+                        },
+                        singleLine = true,
+                        prefix = { Text("S/", color = VapeOnTextSecondary, fontSize = 12.sp) },
+                        textStyle = TextStyle(
+                            color = VapeOnTextPrimary,
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Bold
+                        ),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                        shape = RoundedCornerShape(10.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedContainerColor = VapeOnInputBackground,
+                            unfocusedContainerColor = VapeOnInputBackground,
+                            focusedBorderColor = VapeOnGold,
+                            unfocusedBorderColor = VapeOnCardBorder,
+                            focusedTextColor = VapeOnTextPrimary,
+                            unfocusedTextColor = VapeOnTextPrimary,
+                            cursorColor = VapeOnGold
+                        ),
+                        modifier = Modifier.width(150.dp)
+                    )
+                }
 
-                        // Botón Selector / Radio Indicator
-                        Box(
-                            modifier = Modifier
-                                .size(24.dp)
-                                .clip(CircleShape)
-                                .border(
-                                    width = 2.dp,
-                                    color = VapeOnCardBorder,
-                                    shape = CircleShape
-                                )
-                                .background(if (esEfectivo) VapeOnCardBorder.copy(alpha = alfaAccesible(0.3f)) else androidx.compose.ui.graphics.Color.Transparent)
-                                .clickable { metodoSeleccionado = "EFECTIVO" },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            if (esEfectivo) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(12.dp)
-                                        .clip(CircleShape)
-                                        .background(VapeOnCardBorder)
-                                )
-                            }
-                        }
-                    }
+                Spacer(modifier = Modifier.height(10.dp))
 
-                    if (esEfectivo) {
-                        Spacer(modifier = Modifier.height(14.dp))
-                        HorizontalDivider(color = VapeOnGold, thickness = 1.dp)
-                        Spacer(modifier = Modifier.height(14.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Vuelto:",
+                        color = VapeOnTextPrimary,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Text(
+                        text = vueltoVal?.let { moneda(it) } ?: "—",
+                        color = VapeOnGold,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
 
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = "¿Con cuánto va a pagar?",
-                                color = VapeOnTextPrimary,
-                                fontSize = 13.sp
-                            )
-
-                            OutlinedTextField(
-                                value = montoEfectivo,
-                                onValueChange = { montoEfectivo = it },
-                                singleLine = true,
-                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                                shape = RoundedCornerShape(8.dp),
-                                colors = OutlinedTextFieldDefaults.colors(
-                                    focusedContainerColor = VapeOnInputBackground,
-                                    unfocusedContainerColor = VapeOnInputBackground,
-                                    focusedBorderColor = VapeOnCardBorder,
-                                    unfocusedBorderColor = VapeOnCardBorder,
-                                    focusedTextColor = VapeOnTextPrimary,
-                                    unfocusedTextColor = VapeOnTextPrimary,
-                                    cursorColor = VapeOnCardBorder
-                                ),
-                                modifier = Modifier.width(120.dp)
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.height(10.dp))
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = "Vuelto:",
-                                color = VapeOnTextPrimary,
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                            Text(
-                                text = moneda(vueltoVal),
-                                color = VapeOnTextPrimary,
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                    }
+                if (montoEfectivo.isNotBlank() && !montoValido) {
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        text = "El monto ingresado es insuficiente.",
+                        color = VapeOnError,
+                        fontSize = 11.sp
+                    )
                 }
             }
 
-            Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
-            // ==========================================
-            // OPCIÓN 2: YAPE QR
-            // ==========================================
-            val esYape = metodoSeleccionado == "YAPE"
-            Card(
-                shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = if (esYape) VapeOnSelected else VapeOnCardNotSelected
-                ),
-                border = BorderStroke(1.dp, VapeOnCardBorder),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { metodoSeleccionado = "YAPE" }
+            OpcionPago(
+                titulo = "YAPE QR",
+                subtitulo = "Escanea y paga al instante",
+                seleccionado = metodoSeleccionado == "YAPE",
+                onClick = { metodoSeleccionado = "YAPE" }
             ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(20.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = "YAPE QR",
-                                color = VapeOnTextPrimary,
-                                fontSize = 15.sp,
-                                fontWeight = FontWeight.Bold,
-                                letterSpacing = 0.5.sp
-                            )
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Text(
-                                text = "Escanea y paga al instante",
-                                color = VapeOnTextSecondary,
-                                fontSize = 13.sp
-                            )
-                        }
-
-                        // Botón Selector / Radio Indicator
-                        Box(
-                            modifier = Modifier
-                                .size(24.dp)
-                                .clip(CircleShape)
-                                .border(
-                                    width = 2.dp,
-                                    color = VapeOnCardBorder,
-                                    shape = CircleShape
-                                )
-                                .background(if (esYape) VapeOnCardBorder.copy(alpha = alfaAccesible(0.3f)) else androidx.compose.ui.graphics.Color.Transparent)
-                                .clickable { metodoSeleccionado = "YAPE" },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            if (esYape) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(12.dp)
-                                        .clip(CircleShape)
-                                        .background(VapeOnCardBorder)
-                                )
-                            }
-                        }
-                    }
-
-                    if (esYape) {
-                        Spacer(modifier = Modifier.height(12.dp))
-                        HorizontalDivider(color = VapeOnGold, thickness = 1.dp)
-                        Spacer(modifier = Modifier.height(12.dp))
-
-                        Text(
-                            text = "Con esta opcion debera contar con un la app YAPE y poder escanear el QR.",
-                            color = VapeOnTextSecondary,
-                            fontSize = 12.sp,
-                            lineHeight = 16.sp
-                        )
-                    }
-                }
+                Text(
+                    text = "Con esta opción deberá contar con la app YAPE y poder escanear el QR.",
+                    color = VapeOnTextSecondary,
+                    fontSize = 12.sp,
+                    lineHeight = 16.sp
+                )
             }
 
-            Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
-            // ==========================================
-            // OPCIÓN 3: TARJETA
-            // ==========================================
-            val esTarjeta = metodoSeleccionado == "TARJETA"
-            Card(
-                shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = if (esTarjeta) VapeOnSelected else VapeOnCardNotSelected
-                ),
-                border = BorderStroke(1.dp, VapeOnCardBorder),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { metodoSeleccionado = "TARJETA" }
+            OpcionPago(
+                titulo = "TARJETA",
+                subtitulo = "Crédito o Débito",
+                seleccionado = metodoSeleccionado == "TARJETA",
+                onClick = { metodoSeleccionado = "TARJETA" }
             ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(20.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = "TARJETA",
-                                color = VapeOnTextPrimary,
-                                fontSize = 15.sp,
-                                fontWeight = FontWeight.Bold,
-                                letterSpacing = 0.5.sp
-                            )
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Text(
-                                text = "Credito o Debito",
-                                color = VapeOnTextSecondary,
-                                fontSize = 13.sp
-                            )
-                        }
-
-                        // Botón Selector / Radio Indicator
-                        Box(
-                            modifier = Modifier
-                                .size(24.dp)
-                                .clip(CircleShape)
-                                .border(
-                                    width = 2.dp,
-                                    color = VapeOnCardBorder,
-                                    shape = CircleShape
-                                )
-                                .background(if (esTarjeta) VapeOnCardBorder.copy(alpha = alfaAccesible(0.3f)) else androidx.compose.ui.graphics.Color.Transparent)
-                                .clickable { metodoSeleccionado = "TARJETA" },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            if (esTarjeta) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(12.dp)
-                                        .clip(CircleShape)
-                                        .background(VapeOnCardBorder)
-                                )
-                            }
-                        }
-                    }
-
-                    if (esTarjeta) {
-                        Spacer(modifier = Modifier.height(12.dp))
-                        HorizontalDivider(color = VapeOnGold, thickness = 1.dp)
-                        Spacer(modifier = Modifier.height(12.dp))
-
-                        Text(
-                            text = "Con esta opcion debera verificar si es propietario de la tarjeta",
-                            color = VapeOnTextSecondary,
-                            fontSize = 12.sp,
-                            lineHeight = 16.sp
-                        )
-                    }
-                }
+                Text(
+                    text = "Con esta opción deberá verificar si es propietario de la tarjeta.",
+                    color = VapeOnTextSecondary,
+                    fontSize = 12.sp,
+                    lineHeight = 16.sp
+                )
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(20.dp))
 
-            // ==========================================
-            // RESUMEN DEL PAGO Y BOTÓN PAGAR
-            // ==========================================
             Card(
                 shape = RoundedCornerShape(24.dp),
                 colors = CardDefaults.cardColors(containerColor = VapeOnCardNotSelected),
@@ -401,50 +282,56 @@ fun MetodoPagoScreen(
 
                     Spacer(modifier = Modifier.height(14.dp))
 
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text(text = "Sub Total", color = VapeOnTextSecondary, fontSize = 14.sp)
-                        Text(text = moneda(subTotalVal), color = VapeOnTextPrimary, fontSize = 14.sp)
-                    }
-
+                    FilaResumen("Sub Total", moneda(subTotalVal))
                     Spacer(modifier = Modifier.height(8.dp))
-
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text(text = "Delivery", color = VapeOnTextSecondary, fontSize = 14.sp)
-                        Text(text = moneda(deliveryVal), color = VapeOnTextPrimary, fontSize = 14.sp)
-                    }
-
+                    FilaResumen("Delivery", moneda(deliveryVal))
                     Spacer(modifier = Modifier.height(8.dp))
-
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text(text = "IGV (18%)", color = VapeOnTextSecondary, fontSize = 14.sp)
-                        Text(text = moneda(igvVal), color = VapeOnTextPrimary, fontSize = 14.sp)
-                    }
+                    FilaResumen("IGV (18%)", "Incluido")
 
                     Spacer(modifier = Modifier.height(12.dp))
-
                     HorizontalDivider(color = VapeOnRed, thickness = 2.dp)
-
                     Spacer(modifier = Modifier.height(12.dp))
 
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text(text = "TOTAL A PAGAR", color = VapeOnTextPrimary, fontSize = 15.sp, fontWeight = FontWeight.Bold)
-                        Text(text = moneda(totalVal), color = VapeOnTextPrimary, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = "TOTAL A PAGAR",
+                            color = VapeOnTextPrimary,
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = moneda(totalVal),
+                            color = VapeOnTextPrimary,
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Bold
+                        )
                     }
 
-                    Spacer(modifier = Modifier.height(20.dp))
+                    error?.takeIf { it.isNotBlank() }?.let {
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Text(text = it, color = VapeOnError, fontSize = 12.sp, lineHeight = 16.sp)
+                    }
+
+                    Spacer(modifier = Modifier.height(18.dp))
 
                     Button(
                         onClick = {
                             when (metodoSeleccionado) {
-                                "EFECTIVO" -> efectivo()
+                                "EFECTIVO" -> pagarEfectivo(montoEfectivo)
                                 "YAPE" -> yape()
                                 "TARJETA" -> tarjeta()
                             }
                         },
+                        enabled = puedePagar,
                         shape = RoundedCornerShape(50),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = VapeOnRed,
-                            contentColor = VapeOnTextPrimary
+                            contentColor = VapeOnTextPrimary,
+                            disabledContainerColor = VapeOnRed.copy(alpha = 0.45f),
+                            disabledContentColor = VapeOnTextPrimary.copy(alpha = 0.7f)
                         ),
                         modifier = Modifier
                             .fillMaxWidth()
@@ -457,10 +344,114 @@ fun MetodoPagoScreen(
                             letterSpacing = 0.5.sp
                         )
                     }
+
+                    if (metodoSeleccionado.isBlank()) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "Selecciona un método de pago para continuar.",
+                            color = VapeOnTextSecondary,
+                            fontSize = 11.sp
+                        )
+                    }
                 }
             }
 
             Spacer(modifier = Modifier.height(16.dp))
+        }
+    }
+}
+
+@Composable
+private fun FilaResumen(etiqueta: String, valor: String) {
+    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+        Text(text = etiqueta, color = VapeOnTextSecondary, fontSize = 14.sp)
+        Text(text = valor, color = VapeOnTextPrimary, fontSize = 14.sp)
+    }
+}
+
+/** Tarjeta de método de pago con selector circular y contenido desplegable. */
+@Composable
+private fun OpcionPago(
+    titulo: String,
+    subtitulo: String,
+    seleccionado: Boolean,
+    onClick: () -> Unit,
+    contenido: @Composable ColumnScope.() -> Unit = {}
+) {
+    Card(
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = if (seleccionado) VapeOnSelected else VapeOnCardNotSelected
+        ),
+        border = BorderStroke(1.dp, if (seleccionado) VapeOnGold else VapeOnCardBorder),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(modifier = Modifier.fillMaxWidth()) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .selectable(
+                        selected = seleccionado,
+                        onClick = onClick,
+                        role = Role.RadioButton
+                    )
+                    .padding(18.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = titulo,
+                        color = VapeOnTextPrimary,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 0.5.sp
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = subtitulo,
+                        color = VapeOnTextSecondary,
+                        fontSize = 13.sp
+                    )
+                }
+
+                Box(
+                    modifier = Modifier
+                        .size(24.dp)
+                        .clip(CircleShape)
+                        .border(
+                            width = 2.dp,
+                            color = if (seleccionado) VapeOnGold else VapeOnCardBorder,
+                            shape = CircleShape
+                        )
+                        .background(
+                            if (seleccionado) VapeOnGold.copy(alpha = alfaAccesible(0.18f))
+                            else Color.Transparent
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (seleccionado) {
+                        Box(
+                            modifier = Modifier
+                                .size(12.dp)
+                                .clip(CircleShape)
+                                .background(VapeOnGold)
+                        )
+                    }
+                }
+            }
+
+            if (seleccionado) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(start = 18.dp, end = 18.dp, bottom = 18.dp)
+                ) {
+                    HorizontalDivider(color = VapeOnGold.copy(alpha = 0.45f), thickness = 1.dp)
+                    Spacer(modifier = Modifier.height(12.dp))
+                    contenido()
+                }
+            }
         }
     }
 }

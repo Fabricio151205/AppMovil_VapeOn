@@ -1,6 +1,7 @@
 package com.example.vapeon_movil
 
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertDoesNotExist
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
@@ -42,6 +43,84 @@ class FidelidadUiTest {
         compose.onNodeWithText("4 / 6 puntos").assertIsDisplayed()
         compose.onNodeWithText("Te faltan 2 compras para obtener tu recompensa.").assertIsDisplayed()
         assertEquals(listOf("cliente1"), servicio.consultasFidelidad)
+    }
+
+    @Test fun clienteSinRegistroVeEstadoInicialCeroDeSeis() {
+        val cliente = Usuario(id = "cliente1", nombre = "Ana", rol = "CLIENTE")
+        val vm = FidelidadViewModel(FidelidadFake(), UsuariosFake(emptyList()), Dispatchers.Unconfined)
+        compose.setContent { VapeON_MovilTheme { MiFidelidadScreen(cliente, vm, {}) } }
+
+        compose.onNodeWithText("0 / 6 puntos").assertIsDisplayed()
+        compose.onNodeWithText("Aún no tienes puntos de fidelidad.").assertIsDisplayed()
+        compose.onNodeWithText(
+            "Completa pedidos entregados para comenzar a acumular puntos."
+        ).assertIsDisplayed()
+    }
+
+    @Test fun clienteSeisDeSeisVeSnapshotDeRecompensa() {
+        val cliente = Usuario(id = "cliente1", nombre = "Ana", rol = "CLIENTE")
+        val estado = FidelidadCliente("cliente1", 6, 1, "r1", instante)
+        val recompensa = RecompensaFidelidad(
+            "r1", "cliente1", 1, EstadoRecompensaFidelidad.PENDIENTE,
+            productoId = "p1", nombreProducto = "Producto A", marcaProducto = "Marca A",
+            categoriaProducto = "Kit", precioReferencia = BigDecimal("50.00"),
+            fechaGeneracion = instante
+        )
+        val servicio = FidelidadFake(
+            fidelidades = mapOf("cliente1" to estado.aDocumento(RUTA_DOCUMENTOS_FIRESTORE)),
+            recompensas = mapOf("r1" to recompensa.aDocumento(RUTA_DOCUMENTOS_FIRESTORE))
+        )
+        val vm = FidelidadViewModel(servicio, UsuariosFake(emptyList()), Dispatchers.Unconfined)
+        compose.setContent { VapeON_MovilTheme { MiFidelidadScreen(cliente, vm, {}) } }
+
+        compose.onNodeWithText("6 / 6 puntos").assertIsDisplayed()
+        compose.onNodeWithText("Recompensa de fidelidad").assertIsDisplayed()
+        compose.onNodeWithText("Producto: Producto A").assertIsDisplayed()
+        compose.onNodeWithText("Marca: Marca A").assertIsDisplayed()
+        compose.onNodeWithText("Categoría: Kit").assertIsDisplayed()
+    }
+
+    @Test fun clienteSeisDeSeisSinProductoVeConfiguracionPendiente() {
+        val cliente = Usuario(id = "cliente1", nombre = "Ana", rol = "CLIENTE")
+        val estado = FidelidadCliente("cliente1", 6, 1, "r1", instante)
+        val recompensa = RecompensaFidelidad(
+            "r1", "cliente1", 1, EstadoRecompensaFidelidad.PENDIENTE,
+            fechaGeneracion = instante
+        )
+        val servicio = FidelidadFake(
+            fidelidades = mapOf("cliente1" to estado.aDocumento(RUTA_DOCUMENTOS_FIRESTORE)),
+            recompensas = mapOf("r1" to recompensa.aDocumento(RUTA_DOCUMENTOS_FIRESTORE))
+        )
+        val vm = FidelidadViewModel(servicio, UsuariosFake(emptyList()), Dispatchers.Unconfined)
+        compose.setContent { VapeON_MovilTheme { MiFidelidadScreen(cliente, vm, {}) } }
+
+        compose.onNodeWithText("6 / 6 puntos").assertIsDisplayed()
+        compose.onNodeWithText(
+            "El administrador todavía debe configurar el producto de la recompensa."
+        ).assertIsDisplayed()
+        compose.onNodeWithText("Producto: Producto A").assertDoesNotExist()
+    }
+
+    @Test fun clienteNuevoCicloNoVeRecompensaAnterior() {
+        val cliente = Usuario(id = "cliente1", nombre = "Ana", rol = "CLIENTE")
+        val estado = FidelidadCliente("cliente1", 0, 2, null, instante)
+        val recompensaAnterior = RecompensaFidelidad(
+            "r-anterior", "cliente1", 1, EstadoRecompensaFidelidad.ENTREGADA,
+            productoId = "p1", nombreProducto = "Producto anterior", marcaProducto = "Marca A",
+            categoriaProducto = "Kit", precioReferencia = BigDecimal("50.00"),
+            fechaGeneracion = instante, fechaEntrega = instante, entregadaPor = "admin"
+        )
+        val servicio = FidelidadFake(
+            fidelidades = mapOf("cliente1" to estado.aDocumento(RUTA_DOCUMENTOS_FIRESTORE)),
+            recompensas = mapOf("r-anterior" to recompensaAnterior.aDocumento(RUTA_DOCUMENTOS_FIRESTORE))
+        )
+        val vm = FidelidadViewModel(servicio, UsuariosFake(emptyList()), Dispatchers.Unconfined)
+        compose.setContent { VapeON_MovilTheme { MiFidelidadScreen(cliente, vm, {}) } }
+
+        compose.onNodeWithText("0 / 6 puntos").assertIsDisplayed()
+        compose.onNodeWithText("Nuevo ciclo de fidelidad.").assertIsDisplayed()
+        compose.onNodeWithText("Producto: Producto anterior").assertDoesNotExist()
+        assertEquals(emptyList<String>(), servicio.consultasRecompensa)
     }
 
     @Test fun adminVeConfiguracionYRankingSinFirebaseReal() {
@@ -100,6 +179,7 @@ class FidelidadUiTest {
         private val recompensas: Map<String, FidelidadDocumento> = emptyMap()
     ) : FidelidadService {
         val consultasFidelidad = mutableListOf<String>()
+        val consultasRecompensa = mutableListOf<String>()
         private fun respuesta(documento: FidelidadDocumento?): Response<FidelidadDocumento> =
             documento?.let { Response.success(it) }
                 ?: Response.error(404, ResponseBody.create(null, ""))
@@ -109,7 +189,10 @@ class FidelidadUiTest {
             return respuesta(fidelidades[usuarioId])
         }
         override suspend fun evento(pedidoId: String) = respuesta(null)
-        override suspend fun recompensa(id: String) = respuesta(recompensas[id])
+        override suspend fun recompensa(id: String): Response<FidelidadDocumento> {
+            consultasRecompensa += id
+            return respuesta(recompensas[id])
+        }
         override suspend fun listarFidelidades(pageToken: String?) = FidelidadLista(fidelidades.values.toList())
         override suspend fun commit(body: FidelidadCommit) = FidelidadCommitRespuesta(
             "2026-11-08T00:00:00Z",
