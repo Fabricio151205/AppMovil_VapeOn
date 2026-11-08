@@ -58,6 +58,8 @@ import com.example.vapeon_movil.ui.HomeScreen
 import com.example.vapeon_movil.ui.LoginScreen
 import com.example.vapeon_movil.ui.RegisterScreen
 import com.example.vapeon_movil.ui.RolesScreen
+import com.example.vapeon_movil.ui.FidelidadAdminScreen
+import com.example.vapeon_movil.ui.MiFidelidadScreen
 import com.example.vapeon_movil.ui.SaboresAdminScreen
 import com.example.vapeon_movil.ui.AgregarSaborScreen
 import com.example.vapeon_movil.ui.EditarSaborScreen
@@ -71,6 +73,7 @@ import com.example.vapeon_movil.viewmodels.SaboresViewModel
 import com.example.vapeon_movil.viewmodels.MarcasViewModel
 import com.example.vapeon_movil.viewmodels.UsuarioViewModel
 import com.example.vapeon_movil.viewmodels.RolesViewModel
+import com.example.vapeon_movil.viewmodels.FidelidadViewModel
 import com.example.vapeon_movil.viewmodels.validarMayoriaEdad
 import com.example.vapeon_movil.ui.TarjetasScreen
 import com.example.vapeon_movil.ui.DireccionesScreen
@@ -99,6 +102,7 @@ fun VapeONApp() {
     val direccionesViewModel: DireccionesViewModel = viewModel()
     val pronosticoDemandaViewModel: PronosticoDemandaViewModel = viewModel()
     val rolesViewModel: RolesViewModel = viewModel()
+    val fidelidadViewModel: FidelidadViewModel = viewModel()
 
     val usuarioActual = usuarioViewModel.usuarioActual
     val claveSesion = claveSesionNavegacion(usuarioActual)
@@ -200,6 +204,7 @@ fun VapeONApp() {
         carritoViewModel.cargarCarrito(context, usuarioActual?.id)
         pedidoViewModel.actualizarUsuarioHistorial(usuarioActual)
         pedidoViewModel.actualizarUsuarioAdmin(usuarioActual)
+        fidelidadViewModel.limpiar()
         productoViewModel.actualizarSesionProducto(claveSesion)
         if (propietarioNavegacion != claveSesion) {
             productoSeleccionadoId = ""
@@ -246,6 +251,7 @@ fun VapeONApp() {
         pedidoViewModel.actualizarUsuarioCheckout(null)
         pedidoViewModel.actualizarUsuarioHistorial(null)
         pedidoViewModel.actualizarUsuarioAdmin(null)
+        fidelidadViewModel.limpiar()
         // Cargar sin usuario vacía solo la memoria; conserva el carrito y el intento de A.
         carritoViewModel.cargarCarrito(context, null)
         perfilOrigen = "home"
@@ -313,7 +319,7 @@ fun VapeONApp() {
             "perfil" -> pantallaActual = perfilOrigen.ifBlank { if (esAdminUser) "admin" else "home" }
             "accesibilidad", "cambiarContrasena" -> pantallaActual = "perfil"
             "catalogo" -> pantallaActual = if (esAdminUser) "admin" else "home"
-            "carrito", "historialCompras", "tarjetas", "direcciones" -> pantallaActual = "home"
+            "carrito", "historialCompras", "tarjetas", "direcciones", "miFidelidad" -> pantallaActual = "home"
             "checkout", "datosEntrega" -> pantallaActual = "carrito"
             "seleccionDireccion" -> pantallaActual = "datosEntrega"
             "metodoPago" -> pantallaActual = "seleccionDireccion"
@@ -326,7 +332,7 @@ fun VapeONApp() {
             "tarjetaTitular" -> pantallaActual = "tarjetaCvv"
             "agregarDireccion", "editarDireccion" -> volverDeFormularioDireccion()
             "detallePedido" -> pantallaActual = "historialCompras"
-            "saboresAdmin", "marcasAdmin", "pedidosAdmin" -> pantallaActual = "admin"
+            "saboresAdmin", "marcasAdmin", "pedidosAdmin", "cupones" -> pantallaActual = "admin"
             "agregarSabor", "editarSabor" -> pantallaActual = "saboresAdmin"
             "agregarMarca", "editarMarca" -> pantallaActual = "marcasAdmin"
             "cajaTotal" -> pantallaActual = "admin"
@@ -410,7 +416,8 @@ fun VapeONApp() {
                 irCarrito = { pantallaActual = "carrito" },
                 irHistorial = { pantallaActual = "historialCompras" },
                 irTarjetas = { pantallaActual = "tarjetas" },
-                irDirecciones = { pantallaActual = "direcciones" }
+                irDirecciones = { pantallaActual = "direcciones" },
+                irFidelidad = { pantallaActual = "miFidelidad" }
             )
         }
 
@@ -420,6 +427,7 @@ fun VapeONApp() {
             AdminHomeScreen(
                 onCajaTotalClick = { marcaCaja = ""; pantallaActual = "cajaTotal" },
                 onPrediccionClick = { pantallaActual = "prediccionAdmin" },
+                onCuponesClick = { pantallaActual = "cupones" },
                 textoCaja = when {
                     pedidoViewModel.cargandoCaja -> "Cargando…"
                     pedidoViewModel.errorCaja != null -> "Error al cargar"
@@ -458,6 +466,34 @@ fun VapeONApp() {
             }
         }
 
+        "cupones" -> {
+            val admin = usuarioActual
+            if (admin != null && admin.rol.equals("ADMIN", true)) {
+                FidelidadAdminScreen(
+                    admin = admin,
+                    fidelidadViewModel = fidelidadViewModel,
+                    productos = productoViewModel.productos,
+                    cargarProductos = productoViewModel::cargarProductos,
+                    volver = { pantallaActual = "admin" }
+                )
+            } else {
+                LaunchedEffect(Unit) { pantallaActual = if (admin == null) "login" else "home" }
+            }
+        }
+
+        "miFidelidad" -> {
+            val cliente = usuarioActual
+            if (cliente != null && cliente.rol.equals("CLIENTE", true)) {
+                MiFidelidadScreen(
+                    usuario = cliente,
+                    fidelidadViewModel = fidelidadViewModel,
+                    volver = { pantallaActual = "home" }
+                )
+            } else {
+                LaunchedEffect(Unit) { pantallaActual = if (cliente == null) "login" else "admin" }
+            }
+        }
+
         // ── CATÁLOGO ──────────────────────────────────────────────────────────
         "catalogo" -> {
             CatalogoScreen(
@@ -481,6 +517,7 @@ fun VapeONApp() {
                 irHistorial = { pantallaActual = "historialCompras" },
                 irTarjetas = { pantallaActual = "tarjetas" },
                 irDirecciones = { pantallaActual = "direcciones" },
+                irFidelidad = { pantallaActual = "miFidelidad" },
                 onPerfilClick = ::abrirPerfil
             )
         }
@@ -706,6 +743,7 @@ fun VapeONApp() {
                 cerrarSesion = ::cerrarSesion,
                 irTarjetas = { pantallaActual = "tarjetas" },
                 irDirecciones = { pantallaActual = "direcciones" },
+                irFidelidad = { pantallaActual = "miFidelidad" },
                 onPerfilClick = ::abrirPerfil,
                 irDetallePedido = { id ->
                     pedidoSeleccionadoId = id
@@ -937,7 +975,7 @@ internal val RUTAS_COMPRA = setOf("checkout", "datosEntrega", "seleccionDireccio
 internal val RUTAS_REGISTRO_TARJETA = setOf("tarjetaNumero", "tarjetaExpiracion", "tarjetaCvv", "tarjetaTitular")
 private val RUTAS_CLIENTE = setOf(
     "home", "carrito", "historialCompras", "detallePedido", "tarjetas",
-    "direcciones", "agregarDireccion", "editarDireccion"
+    "direcciones", "agregarDireccion", "editarDireccion", "miFidelidad"
 ) + RUTAS_COMPRA + RUTAS_REGISTRO_TARJETA
 
 /** RNO01: una ruta restaurada tampoco puede omitir la comprobación de edad. */
@@ -983,7 +1021,7 @@ internal fun rutaRegistroTarjetaSegura(ruta: String, ultimos4: String, marca: St
     return ruta
 }
 private val RUTAS_ADMIN = setOf(
-    "cajaTotal", "ventasMarca", "pronosticoDemanda", "admin", "roles", "agregarProducto",
+    "cajaTotal", "ventasMarca", "pronosticoDemanda", "admin", "roles", "cupones", "agregarProducto",
     "editarProducto", "pedidosAdmin", "detallePedidoAdmin", "saboresAdmin",
     "agregarSabor", "editarSabor", "marcasAdmin", "agregarMarca", "editarMarca",
     "prediccionAdmin", "alertasStockAdmin", "sinMovimientoAdmin", "sugerenciasReabastecimientoAdmin"

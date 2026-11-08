@@ -4,9 +4,9 @@
 | :--- | :--- |
 | **Identificador** | `SPEC-VAPEON-001` |
 | **Proyecto** | VapeON - Aplicación Móvil Android |
-| **Versión** | `1.8.6` |
+| **Versión** | `1.9.0` |
 | **Estado** | `Aprobado` |
-| **Fecha de Publicación** | `2026-11-07` |
+| **Fecha de Publicación** | `2026-11-08` |
 | **Plataforma Objetivo** | Android (minSdk 31, targetSdk 37, compileSdk 37) |
 | **Ubicación del Documento** | `doc/spec.md` (Raíz del Repositorio) |
 
@@ -17,7 +17,14 @@
 ### 1.1 Declaración del Problema
 El mercado de dispositivos y accesorios de vapeo requiere plataformas digitales ágiles que permitan a los usuarios mayores de edad consultar catálogos actualizados por marca y stock en tiempo real, garantizando un control estricto de acceso (+18), veracidad en especificaciones de producto y herramientas administrativas para la gestión del inventario.
 
-### 1.2 Alcance del Sistema (Versión 1.8.6)
+### 1.2 Alcance del Sistema (Versión 1.9.0)
+- **Programa de fidelidad por pedidos entregados**:
+  - Cada pedido real que cambia a `ENTREGADO` y contiene productos acredita exactamente un punto al propietario identificado por `Pedido.usuarioId`, sin multiplicarlo por líneas ni unidades.
+  - El progreso se limita a `0..6`; al llegar a seis se crea una recompensa pendiente y los pedidos entregados posteriores no acumulan puntos ocultos mientras continúe pendiente.
+  - La entrega administrativa reinicia el progreso a cero e incrementa `numeroCiclo`; no crea pedidos, compras o pagos ni descuenta inventario.
+  - `eventosFidelidad/{pedidoId}` es la clave de idempotencia. El cambio de estado, el evento, el progreso y la recompensa se envían mediante un único commit REST de Firestore con precondiciones optimistas.
+  - La recompensa conserva el snapshot del producto configurado al generarse. Si no había configuración al alcanzar seis puntos, el snapshot se completa al entregar, después de que un administrador configure un producto real.
+  - El cliente consulta únicamente `fidelidades/{usuarioActual.id}`; el administrador accede a configuración, ranking exclusivo de clientes y entrega mediante rutas protegidas por rol.
 - **Flujo Guiado de Recuperación de Contraseña (3 Pasos)**:
   - Paso 1: Solicitud de correo con validación de sintaxis y existencia en Firestore REST. Notificación flotante simulada sobre el tope de pantalla con código de 6 dígitos.
   - Paso 2: Verificación de código de 6 casilleros dorados/oscuros (`BasicTextField` con captura directa).
@@ -108,6 +115,7 @@ El mercado de dispositivos y accesorios de vapeo requiere plataformas digitales 
 | `1.8.4` | `2026-11-06` | Equipo VapeON | Lista de pedidos del administrador con filtros por estado ("Todos", "Registrados", "En camino", "Completados"), tarjetas con datos reales de Firestore y vista principal sin pedidos entregados. |
 | `1.8.5` | `2026-11-06` | Equipo VapeON | Rediseño del detalle del pedido: encabezado VAPEON, datos reales del pedido, tarjeta de estado con pasos R/EC/E, productos con precio y subtotal, y resumen de compra con total, pago y vuelto. |
 | `1.8.6` | `2026-11-07` | Equipo VapeON | Perfil de usuario para CLIENTE y ADMIN con datos reales, edición validada en Firestore y apartado **+18 Mayor de 18 años** junto al rol; módulo de accesibilidad (tamaño de texto, negrita, contraste alto y reducción de transparencia) persistente en `SharedPreferences` y aplicado globalmente. |
+| `1.9.0` | `2026-11-08` | Equipo VapeON | Programa de fidelidad con un punto por pedido entregado, idempotencia por pedido, ciclo 0→6→0, snapshot histórico de recompensa, ranking ADMIN y consulta privada del CLIENTE. |
 
 ---
 
@@ -144,3 +152,56 @@ flowchart TD
 - **Dado** un historial suficiente, **cuando** se entrena el modelo, **entonces** `alpha` y `beta` proceden del ajuste sobre los datos reales y el tramo final se reserva para MAE/RMSE.
 - **Dado** un producto eliminado del catálogo, **cuando** conserva ventas históricas, **entonces** continúa disponible mediante el snapshot del pedido.
 - **Dado** un usuario CLIENTE, **cuando** intenta restaurar la ruta de pronóstico, **entonces** la guardia de navegación lo devuelve a su pantalla autorizada.
+
+---
+
+## 4. Especificación técnica y ética del programa de fidelidad
+
+### 4.1 Regla de negocio y ciclo
+
+- Solo un pedido con `estado = ENTREGADO` y al menos un producto puede generar el evento.
+- Un pedido genera exactamente un punto, sin depender de cantidades ni número de líneas.
+- El evento acreditado es histórico: un cambio posterior del estado del pedido no revoca el punto.
+- El progreso se mantiene entre cero y seis. En `6/6`, una recompensa permanece pendiente y nuevos pedidos entregados se registran como omitidos sin sumar puntos.
+- Una entrega válida cambia la recompensa de `PENDIENTE` a `ENTREGADA`, reinicia a cero e incrementa el ciclo. No afecta inventario ni crea transacciones comerciales.
+
+### 4.2 Modelo persistente
+
+| Documento | Identificador | Responsabilidad |
+| :--- | :--- | :--- |
+| `configuracionFidelidad/actual` | fijo `actual` | Snapshot del producto vigente configurado por ADMIN. |
+| `fidelidades/{usuarioId}` | ID del usuario | Puntos `0..6`, ciclo, recompensa pendiente y fecha de actualización. |
+| `eventosFidelidad/{pedidoId}` | ID del pedido | Marcador único e histórico de acreditación u omisión. |
+| `recompensasFidelidad/{recompensaId}` | usuario + ciclo | Estado y snapshot inmutable del producto de recompensa. |
+
+La acreditación utiliza un commit REST con `exists=false` para el evento y la recompensa nueva, y `currentDocument.updateTime` para pedido y fidelidad existentes. La entrega usa las versiones leídas de fidelidad y recompensa; un segundo administrador con una versión obsoleta recibe conflicto y no produce una segunda entrega.
+
+Si una recompensa alcanzó seis puntos sin producto configurado, su entrega incluye la configuración seleccionada en el mismo commit, protegida por `currentDocument.updateTime`. La escritura conserva exactamente sus valores y Firestore rechaza atómicamente el commit si otro administrador cambió la versión. Así, el producto confirmado visualmente no puede cambiar silenciosamente. Las recompensas que ya contienen snapshot no dependen de la configuración vigente.
+
+### 4.3 Flujo y control de acceso
+
+```mermaid
+flowchart TD
+    A[ADMIN cambia pedido a ENTREGADO] --> B[Commit REST con precondiciones]
+    B --> C[eventosFidelidad/pedidoId]
+    B --> D[fidelidades/usuarioId]
+    D --> E{¿Llegó a 6?}
+    E -- Sí --> F[Recompensa PENDIENTE con snapshot]
+    E -- No --> G[Continúa el ciclo]
+    F --> H[ADMIN registra entrega]
+    H --> I[ENTREGADA + puntos 0 + ciclo siguiente]
+```
+
+- La pantalla `Mi fidelidad` exige sesión CLIENTE y solo solicita el documento cuyo ID coincide con la sesión.
+- La pantalla `Cupones de fidelidad` exige sesión ADMIN, excluye usuarios ADMIN del ranking y no muestra contraseñas, teléfonos ni datos financieros.
+- Las rutas restauradas se vuelven a validar contra rol y propietario de sesión.
+
+### 4.4 Criterios de aceptación y limitaciones
+
+- **Dado** el mismo pedido procesado repetidamente, **cuando** ya existe su evento, **entonces** el total permanece sin duplicados.
+- **Dado** un progreso de cinco, **cuando** se entrega un pedido válido, **entonces** pasa a seis y se genera como máximo una recompensa.
+- **Dado** un progreso de seis pendiente, **cuando** llegan otros pedidos entregados, **entonces** no supera seis ni acumula puntos ocultos.
+- **Dado** un cambio de producto configurado, **cuando** se consulta una recompensa anterior, **entonces** conserva el snapshot original.
+- **Dado** dos entregas concurrentes, **cuando** ambas usan la misma versión, **entonces** Firestore acepta como máximo una y la otra entra en conflicto.
+- La autorización remota definitiva depende de reglas de Firestore fuera del alcance de esta versión; las guardias cliente y ViewModel reducen exposición, pero no sustituyen controles de servidor.
+- No existe retroacreditación automática: los pedidos que ya estaban `ENTREGADO` antes de incorporar este módulo no generan eventos históricos ni puntos por sí solos. La fidelidad comienza con las transiciones a `ENTREGADO` procesadas por la nueva lógica; no se migran ni modifican pedidos antiguos.

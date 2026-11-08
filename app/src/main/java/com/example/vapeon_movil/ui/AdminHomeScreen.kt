@@ -388,12 +388,7 @@ fun AdminHomeScreen(
                 horizontalArrangement = Arrangement.spacedBy(14.dp)
             ) {
                 Button(
-                    onClick = {
-                        onCuponesClick()
-                        scope.launch {
-                            snackbarHostState.showSnackbar("Módulo de Cupones no disponible")
-                        }
-                    },
+                    onClick = onCuponesClick,
                     shape = RoundedCornerShape(50),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = VapeOnRed,

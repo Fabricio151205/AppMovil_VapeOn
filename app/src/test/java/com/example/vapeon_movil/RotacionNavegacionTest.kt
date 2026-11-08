@@ -10,9 +10,10 @@ class RotacionNavegacionTest {
     private val cliente = Usuario(id = "cliente1", rol = "CLIENTE")
     private val admin = Usuario(id = "admin1", rol = "ADMIN")
     private val rutasCliente = listOf("home", "catalogo", "detalle", "carrito", "checkout",
-        "historialCompras", "detallePedido", "tarjetas") + RUTAS_COMPRA + RUTAS_REGISTRO_TARJETA
+        "historialCompras", "detallePedido", "tarjetas", "miFidelidad") +
+        RUTAS_COMPRA + RUTAS_REGISTRO_TARJETA
     private val rutasAdmin = listOf("admin", "catalogo", "detalle", "agregarProducto",
-        "editarProducto", "pedidosAdmin", "detallePedidoAdmin", "pronosticoDemanda", "roles")
+        "editarProducto", "pedidosAdmin", "detallePedidoAdmin", "pronosticoDemanda", "roles", "cupones")
 
     @Test fun conservaTodasLasRutasDelClienteConLaMismaSesion() {
         rutasCliente.forEach { ruta ->
@@ -34,12 +35,22 @@ class RotacionNavegacionTest {
     }
 
     @Test fun noRestauraPantallasDeOtroRol() {
-        listOf("admin", "agregarProducto", "editarProducto", "pedidosAdmin", "detallePedidoAdmin", "pronosticoDemanda", "roles").forEach {
+        listOf("admin", "agregarProducto", "editarProducto", "pedidosAdmin", "detallePedidoAdmin", "pronosticoDemanda", "roles", "cupones").forEach {
             assertEquals("home", pantallaRestauradaSegura(it, cliente, claveSesionNavegacion(cliente)))
         }
         rutasCliente.filter { it !in setOf("catalogo", "detalle") }.forEach {
             assertEquals("admin", pantallaRestauradaSegura(it, admin, claveSesionNavegacion(admin)))
         }
+    }
+
+    @Test fun rutasDeFidelidadRespetanRolYSesionPropietaria() {
+        assertEquals("cupones", pantallaRestauradaSegura("cupones", admin, claveSesionNavegacion(admin)))
+        assertEquals("miFidelidad", pantallaRestauradaSegura("miFidelidad", cliente, claveSesionNavegacion(cliente)))
+        assertEquals("home", pantallaRestauradaSegura("cupones", cliente, claveSesionNavegacion(cliente)))
+        assertEquals("admin", pantallaRestauradaSegura("miFidelidad", admin, claveSesionNavegacion(admin)))
+        assertEquals("login", pantallaRestauradaSegura("cupones", null, claveSesionNavegacion(admin)))
+        assertEquals("login", pantallaRestauradaSegura("miFidelidad", null, claveSesionNavegacion(cliente)))
+        assertEquals("home", pantallaRestauradaSegura("miFidelidad", cliente.copy(id = "otro"), claveSesionNavegacion(cliente)))
     }
 
     @Test fun seleccionDeOtraSesionNoAbreDetalleNiEdicion() {

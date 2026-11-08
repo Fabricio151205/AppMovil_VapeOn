@@ -10,6 +10,8 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.vapeon_movil.entities.*
 import com.example.vapeon_movil.services.PedidoService
+import com.example.vapeon_movil.services.FidelidadService
+import com.example.vapeon_movil.services.acreditarEntregaAtomica
 import com.example.vapeon_movil.services.PagoService
 import com.example.vapeon_movil.services.TarjetaService
 import com.example.vapeon_movil.services.dto.*
@@ -40,6 +42,7 @@ class PedidoViewModel(application: Application) : AndroidViewModel(application) 
     )
     private var operacionCheckout: Job? = null
     private val service = RetrofitClient.retrofit.create(PedidoService::class.java)
+    private val fidelidadService = RetrofitClient.retrofit.create(FidelidadService::class.java)
     private val pagoService = RetrofitClient.retrofit.create(PagoService::class.java)
     private val tarjetaService = RetrofitClient.retrofit.create(TarjetaService::class.java)
     private val prefsPago = application.getSharedPreferences("vapeon_pagos_simulados", Context.MODE_PRIVATE)
@@ -353,9 +356,31 @@ class PedidoViewModel(application: Application) : AndroidViewModel(application) 
         guardandoEstado = true
         guardadoEstado = viewModelScope.launch {
             try {
-                val documento = service.actualizarEstadoPedido(pedidoId, PedidoEstadoActualizacion(
-                    mapOf("estado" to FirestoreValor(stringValue = nuevoEstado))),
-                    requireNotNull(detalleAdminUpdateTime))
+                val documento = if (nuevoEstado == "ENTREGADO") {
+                    val original = service.mostrarPedido(pedidoId)
+                    require(original.updateTime == detalleAdminUpdateTime) {
+                        "El pedido cambió en el servidor. Actualiza antes de continuar."
+                    }
+                    val pedidoEntregado = original.aPedido().copy(estado = "ENTREGADO")
+                    val acreditacion = acreditarEntregaAtomica(
+                        fidelidadService,
+                        original,
+                        pedidoEntregado
+                    )
+                    if (acreditacion.yaProcesado) {
+                        service.actualizarEstadoPedido(
+                            pedidoId,
+                            PedidoEstadoActualizacion(mapOf("estado" to FirestoreValor(stringValue = nuevoEstado))),
+                            requireNotNull(original.updateTime)
+                        )
+                    } else {
+                        service.mostrarPedido(pedidoId)
+                    }
+                } else {
+                    service.actualizarEstadoPedido(pedidoId, PedidoEstadoActualizacion(
+                        mapOf("estado" to FirestoreValor(stringValue = nuevoEstado))),
+                        requireNotNull(detalleAdminUpdateTime))
+                }
                 val actualizado = documento.aPedido()
                 require(actualizado.id == pedidoId && actualizado.estado == nuevoEstado &&
                     !documento.updateTime.isNullOrBlank()) {
