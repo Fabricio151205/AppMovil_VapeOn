@@ -25,6 +25,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.example.vapeon_movil.entities.Pedido
 import com.example.vapeon_movil.entities.Usuario
+import com.example.vapeon_movil.entities.calcularNumeroSecuencialPedido
 import com.example.vapeon_movil.ui.theme.*
 import com.example.vapeon_movil.viewmodels.*
 import java.math.BigDecimal
@@ -87,6 +88,7 @@ fun CheckoutScreen(
             if (confirmado != null) {
                 ConfirmacionPedidoScreen(
                     pedido = confirmado,
+                    numeroPedido = calcularNumeroSecuencialPedido(confirmado.id, pedidoViewModel.historial + confirmado),
                     requiereComprobacion = pedidoViewModel.requiereComprobacion,
                     cargando = pedidoViewModel.cargando,
                     error = pedidoViewModel.error,

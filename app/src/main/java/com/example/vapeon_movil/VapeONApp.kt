@@ -11,6 +11,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.vapeon_movil.entities.calcularCaja
+import com.example.vapeon_movil.entities.calcularNumeroSecuencialPedido
 import com.example.vapeon_movil.entities.marcasDeCaja
 import com.example.vapeon_movil.ui.CajaTotalScreen
 import com.example.vapeon_movil.ui.PronosticoDemandaScreen
@@ -132,6 +133,8 @@ fun VapeONApp() {
     var tarjetaTitular by rememberSaveable(claveSesion) { mutableStateOf("") }
     var pasoCvvCompletado by rememberSaveable(claveSesion) { mutableStateOf(false) }
     var esperandoRegistroTarjeta by rememberSaveable(claveSesion) { mutableStateOf(false) }
+    // Se activa cuando el cliente elige "Volver al catálogo" en las pantallas de pago.
+    var volverCatalogoPendiente by rememberSaveable(claveSesion) { mutableStateOf(false) }
 
     var marcaCaja by rememberSaveable(claveSesion) { mutableStateOf("") }
     var detalleDesdeCaja by rememberSaveable(claveSesion) { mutableStateOf(false) }
@@ -284,6 +287,16 @@ fun VapeONApp() {
         else rutaRegistroTarjetaSegura(pantallaCompra, tarjetaUltimos4, tarjetaMarca,
             tarjetaMes, tarjetaAnio, pasoCvvCompletado)
     } else pantallaCompra
+
+    // "Volver al catálogo" en el resultado del pago: en éxito registra el pedido y
+    // en rechazo descarta el intento; al quedar el pago resuelto se navega al inicio.
+    LaunchedEffect(volverCatalogoPendiente, confirmadoPropio?.id, pagoPropio?.estadoPago) {
+        if (volverCatalogoPendiente && (confirmadoPropio != null || pagoPropio == null)) {
+            volverCatalogoPendiente = false
+            limpiarBorradores()
+            pantallaActual = "home"
+        }
+    }
 
     // Recuerda desde qué pantalla se abrió el perfil para volver al mismo lugar.
     fun abrirPerfil() {
@@ -802,24 +815,42 @@ fun VapeONApp() {
             }
         )
 
-        "metodoPago" -> MetodoPagoScreen(carritoViewModel = carritoViewModel, volver = { pantallaActual = "seleccionDireccion" },
-            efectivo = { pantallaActual = "efectivo" }, tarjeta = { pantallaActual = "seleccionTarjeta" },
-            yape = { pantallaActual = "yape" })
+        "metodoPago" -> MetodoPagoScreen(
+            carritoViewModel = carritoViewModel,
+            montoEfectivo = montoEfectivo,
+            cambiarMonto = { montoEfectivo = it },
+            error = pedidoViewModel.error,
+            volver = { pantallaActual = "seleccionDireccion" },
+            pagarEfectivo = { monto ->
+                pedidoViewModel.confirmar(usuarioActual, carritoViewModel, productoViewModel, direccionEntrega,
+                    monto, latitud = direccionEntregaLat, longitud = direccionEntregaLng)
+            },
+            yape = { pantallaActual = "yape" },
+            tarjeta = { pantallaActual = "seleccionTarjeta" })
 
-        "efectivo" -> EfectivoScreen(usuarioActual, carritoViewModel, productoViewModel, pedidoViewModel,
-            direccionEntrega, montoEfectivo, cambiarMonto = { montoEfectivo = it },
-            volver = { pantallaActual = "metodoPago" },
-            latitud = direccionEntregaLat, longitud = direccionEntregaLng)
+        "efectivo" -> EfectivoScreen(
+            pedidoViewModel = pedidoViewModel,
+            reintentar = {
+                pedidoViewModel.confirmar(usuarioActual, carritoViewModel, productoViewModel, direccionEntrega,
+                    montoEfectivo, latitud = direccionEntregaLat, longitud = direccionEntregaLng)
+            },
+            volver = { pantallaActual = "metodoPago" })
 
         "confirmacionPedido" -> confirmadoPropio?.let { pedido ->
+            LaunchedEffect(pedido.id) { pedidoViewModel.cargarHistorial(pedido.usuarioId) }
             val digital = pedido.pagoId != null
-            ConfirmacionPedidoScreen(pedido,
-                if (digital) pedidoViewModel.tieneIntentoDigital else pedidoViewModel.requiereComprobacion,
-                if (digital) pedidoViewModel.cargandoPago else pedidoViewModel.cargando,
-                if (digital) pedidoViewModel.errorPago else pedidoViewModel.error, reintentarLimpieza = {
+            ConfirmacionPedidoScreen(
+                pedido = pedido,
+                numeroPedido = calcularNumeroSecuencialPedido(pedido.id, pedidoViewModel.historial + pedido),
+                requiereComprobacion = if (digital) pedidoViewModel.tieneIntentoDigital else pedidoViewModel.requiereComprobacion,
+                cargando = if (digital) pedidoViewModel.cargandoPago else pedidoViewModel.cargando,
+                error = if (digital) pedidoViewModel.errorPago else pedidoViewModel.error,
+                reintentarLimpieza = {
                     if (digital) pedidoViewModel.registrarPedidoDigital(usuarioActual, carritoViewModel, productoViewModel)
-                    else pedidoViewModel.confirmar(usuarioActual, carritoViewModel, productoViewModel, "", "")
-                }, volverAlCatalogo = { limpiarBorradores(); pantallaActual = "home" })
+                    else pedidoViewModel.confirmar(usuarioActual, carritoViewModel, productoViewModel, direccionEntrega,
+                        montoEfectivo, latitud = direccionEntregaLat, longitud = direccionEntregaLng)
+                },
+                volverAlCatalogo = { limpiarBorradores(); pantallaActual = "home" })
         }
 
         "yape" -> YapeScreen(volver = { pantallaActual = "metodoPago" }, iniciarPago = {
@@ -841,13 +872,26 @@ fun VapeONApp() {
             comprobar = { pedidoViewModel.comprobarPagoDigital(usuarioActual) },
             aprobar = { pedidoViewModel.simularResultadoPago(usuarioActual, "CONFIRMADO") },
             rechazar = { pedidoViewModel.simularResultadoPago(usuarioActual, "RECHAZADO") },
-            nuevoIntento = { pedidoViewModel.descartarPagoRechazado(usuarioActual) },
-            volver = { pantallaActual = "metodoPago" })
+            nuevoIntento = {
+                volverCatalogoPendiente = false
+                pedidoViewModel.descartarPagoRechazado(usuarioActual)
+            },
+            volver = { pantallaActual = "metodoPago" },
+            volverAlCatalogo = {
+                volverCatalogoPendiente = true
+                pedidoViewModel.descartarPagoRechazado(usuarioActual)
+            })
 
         "confirmacionPago" -> pagoPropio?.let { pago ->
             ConfirmacionPagoScreen(pago, pedidoViewModel.cargandoPago, pedidoViewModel.errorPago,
-                registrarPedido = { pedidoViewModel.registrarPedidoDigital(usuarioActual, carritoViewModel, productoViewModel) },
-                comprobar = { pedidoViewModel.comprobarPagoDigital(usuarioActual) })
+                registrarPedido = {
+                    volverCatalogoPendiente = false
+                    pedidoViewModel.registrarPedidoDigital(usuarioActual, carritoViewModel, productoViewModel)
+                },
+                volverAlCatalogo = {
+                    volverCatalogoPendiente = true
+                    pedidoViewModel.registrarPedidoDigital(usuarioActual, carritoViewModel, productoViewModel)
+                })
         }
 
         "tarjetaNumero" -> AgregarTarjetaNumeroScreen(tarjetaMarca, cambiarMarca = { tarjetaMarca = it },
