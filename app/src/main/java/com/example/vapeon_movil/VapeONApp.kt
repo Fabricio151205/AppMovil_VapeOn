@@ -349,6 +349,7 @@ fun VapeONApp() {
             "agregarProducto" -> pantallaActual = "catalogo"
             "editarProducto" -> pantallaActual = if (esAdminUser) "admin" else "catalogo"
             "detalle" -> pantallaActual = if (esAdminUser) "catalogo" else "home"
+
         }
     }
 
@@ -437,7 +438,7 @@ fun VapeONApp() {
                     pedidoViewModel.cargandoCaja -> "Cargando…"
                     pedidoViewModel.errorCaja != null -> "Error al cargar"
                     !pedidoViewModel.cajaCargada -> "Sin datos"
-                    else -> moneda(calcularCaja(pedidoViewModel.pedidosCaja).productos)
+                    else -> moneda(calcularCaja(pedidoViewModel.pedidosCaja).total.toDouble())
                 },
                 productoViewModel = productoViewModel,
                 sabores = saboresViewModel.listaSabores,
@@ -497,6 +498,8 @@ fun VapeONApp() {
                 onPerfilClick = ::abrirPerfil
             )
         }
+
+
 
         // ── DETALLE PRODUCTO ──────────────────────────────────────────────────
         "detalle" -> {
@@ -1033,7 +1036,7 @@ private val RUTAS_ADMIN = setOf(
     "prediccionAdmin", "alertasStockAdmin", "sinMovimientoAdmin", "sugerenciasReabastecimientoAdmin"
 )
 private val RUTAS_COMPARTIDAS = setOf(
-    "catalogo", "detalle", "perfil", "accesibilidad", "cambiarContrasena"
+    "catalogo", "detalle", "perfil", "accesibilidad", "cambiarContrasena", "soporteEstudiante"
 )
 
 internal fun claveSesionNavegacion(usuario: Usuario?): String? {

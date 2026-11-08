@@ -33,7 +33,7 @@
         <!-- API key del SDK de Google Maps, inyectada desde local.properties -->
         <meta-data
             android:name="com.google.android.geo.API_KEY"
-            android:value="AIzaSyBRsQFjFx4wd0XRBMCnLqz2aA5BMJp3fTw" />
+            android:value="${MAPS_API_KEY}" />
 
         <provider
             android:name="androidx.core.content.FileProvider"
