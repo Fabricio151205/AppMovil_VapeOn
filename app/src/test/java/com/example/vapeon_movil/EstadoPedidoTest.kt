@@ -11,6 +11,7 @@ import com.google.gson.Gson
 import org.junit.Assert.*
 import org.junit.Test
 import retrofit2.http.PATCH
+import retrofit2.http.POST
 import retrofit2.http.Query
 import java.math.BigDecimal
 
@@ -33,6 +34,25 @@ class EstadoPedidoTest {
         val documento = PedidoDocumento("pedidos/p1", emptyMap(), updateTime = "version-1")
         assertEquals("version-1", documento.updateTime)
         assertNotEquals("version-2", documento.updateTime)
+    }
+
+    @Test fun entregaConFidelidadUsaCommitYPrecondicionesOptimistas() {
+        val metodo = com.example.vapeon_movil.services.FidelidadService::class.java.methods
+            .first { it.name == "commit" }
+        assertEquals("../documents:commit", metodo.getAnnotation(POST::class.java)!!.value)
+
+        val evento = com.example.vapeon_movil.entities.EventoFidelidad(
+            "pedido1", "cliente1", 1, "2026-11-07T00:00:00Z",
+            "2026-11-07T01:00:00Z", "ACREDITADO"
+        )
+        val escritura = FidelidadEscritura(
+            evento.aDocumento(RUTA_DOCUMENTOS_FIRESTORE),
+            FidelidadPrecondicion(exists = false)
+        )
+        assertEquals(false, escritura.currentDocument.exists)
+        assertTrue(escritura.update.name.endsWith("/eventosFidelidad/pedido1"))
+        assertEquals(setOf("pedidoId", "usuarioId", "numeroCiclo", "fechaPedido", "fechaAcreditacion", "resultado"),
+            escritura.update.fields.keys)
     }
 
     @Test fun soloAdminPuedeGuardarEstadosPermitidos() {
