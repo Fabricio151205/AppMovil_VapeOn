@@ -39,6 +39,7 @@ fun MenuScreen(
     irTarjetas: () -> Unit = {},
     irDirecciones: () -> Unit = {},
     irFidelidad: () -> Unit = {},
+    irFavoritos: () -> Unit = {},
     content: @Composable (PaddingValues) -> Unit
 ) {
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
@@ -51,7 +52,6 @@ fun MenuScreen(
         "Marcas",
         "Sabores",
         "Roles",
-        "Pagos",
         "Clientes",
         "Proveedores",
         "Cerrar sesión"
@@ -59,6 +59,7 @@ fun MenuScreen(
         "Catálogo",
         "Carrito",
         "Historial de compras",
+        "Mis favoritos",
         "Mis tarjetas",
         "Mis direcciones",
         "Mi fidelidad",
@@ -96,7 +97,7 @@ fun MenuScreen(
                     NavigationDrawerItem(
                         label = {
                             Text(
-                                text = if (opcion in listOf("Catálogo", "Carrito", "Pedidos", "Marcas", "Sabores", "Roles", "Historial de compras", "Mis tarjetas", "Mis direcciones", "Mi fidelidad", "Cerrar sesión")) opcion else "$opcion (No disponible)",
+                                text = if (opcion in listOf("Catálogo", "Carrito", "Pedidos", "Marcas", "Sabores", "Roles", "Historial de compras", "Mis favoritos", "Mis tarjetas", "Mis direcciones", "Mi fidelidad", "Cerrar sesión")) opcion else "$opcion (No disponible)",
                                 color = VapeOnTextPrimary,
                                 fontWeight = FontWeight.Medium
                             )
@@ -108,6 +109,7 @@ fun MenuScreen(
                                 "Catálogo" -> irCatalogo()
                                 "Carrito"  -> irCarrito()
                                 "Historial de compras" -> if (!esAdmin) irHistorial()
+                                "Mis favoritos" -> if (!esAdmin) irFavoritos()
                                 "Mis tarjetas" -> if (!esAdmin) irTarjetas()
                                 "Mis direcciones" -> if (!esAdmin) irDirecciones()
                                 "Mi fidelidad" -> if (!esAdmin) irFidelidad()

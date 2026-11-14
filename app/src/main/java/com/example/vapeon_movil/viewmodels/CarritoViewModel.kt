@@ -209,6 +209,11 @@ class CarritoViewModel(private val eliminarLocal: ((String) -> Boolean)? = null)
         guardarCarrito(context)
     }
 
+    /** Limpia el aviso pendiente para que la próxima acción muestre su propio resultado. */
+    fun consumirAviso() {
+        aviso = null
+    }
+
     /**
      * Incrementa en 1 la cantidad del ítem con el [productoId] dado.
      */

@@ -45,6 +45,7 @@ fun HistorialComprasScreen(
     irTarjetas: () -> Unit = {},
     irDirecciones: () -> Unit = {},
     irFidelidad: () -> Unit = {},
+    irFavoritos: () -> Unit = {},
     onPerfilClick: () -> Unit = {}
 ) {
     val usuarioId = usuario?.takeIf { it.rol.equals("CLIENTE", true) }?.id.orEmpty()
@@ -66,6 +67,7 @@ fun HistorialComprasScreen(
         irTarjetas = irTarjetas,
         irDirecciones = irDirecciones,
         irFidelidad = irFidelidad,
+        irFavoritos = irFavoritos,
         cerrarSesion = cerrarSesion,
         onPerfilClick = onPerfilClick,
         onTituloClick = { /* Titulo */ }

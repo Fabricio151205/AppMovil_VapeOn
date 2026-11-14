@@ -14,7 +14,8 @@ fun HomeScreen(
     cerrarSesion: () -> Unit = {},
     irTarjetas: () -> Unit = {},
     irDirecciones: () -> Unit = {},
-    irFidelidad: () -> Unit = {}
+    irFidelidad: () -> Unit = {},
+    irFavoritos: () -> Unit = {}
 ) {
     // Reutiliza la interfaz del catálogo en modo CLIENTE (esAdmin = false)
     // El ViewModel se recibe desde VapeONApp para mantener un único estado compartido
@@ -28,6 +29,7 @@ fun HomeScreen(
         irTarjetas = irTarjetas,
         irDirecciones = irDirecciones,
         irFidelidad = irFidelidad,
+        irFavoritos = irFavoritos,
         cerrarSesion = cerrarSesion
     )
 }

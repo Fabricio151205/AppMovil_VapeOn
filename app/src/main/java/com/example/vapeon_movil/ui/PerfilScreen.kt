@@ -93,6 +93,14 @@ fun PerfilScreen(
         val telefono = if (campo == CampoPerfil.TELEFONO) nuevoValor else actual.telefono
         val fecha = if (campo == CampoPerfil.FECHA_NACIMIENTO) nuevoValor else actual.fechaNacimiento
 
+        val nombreCampo = when (campo) {
+            CampoPerfil.NOMBRES -> "nombre"
+            CampoPerfil.APELLIDOS -> "apellido"
+            CampoPerfil.CORREO -> "correo"
+            CampoPerfil.TELEFONO -> "telefono"
+            CampoPerfil.FECHA_NACIMIENTO -> "fechaNacimiento"
+        }
+
         guardando = true
         errorDialogo = ""
         usuarioViewModel.actualizarPerfil(
@@ -101,6 +109,7 @@ fun PerfilScreen(
             telefono = telefono,
             fechaNacimiento = fecha,
             correo = correo,
+            campoEditado = nombreCampo,
             onExito = {
                 guardando = false
                 campoEditando = null

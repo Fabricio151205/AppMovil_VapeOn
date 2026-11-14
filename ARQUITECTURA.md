@@ -7,7 +7,7 @@ Documento de especificación y diseño de arquitectura para la aplicación móvi
 ## 1. Resumen Ejecutivo y Propósito
 
 **VapeON Móvil** es una aplicación nativa para Android orientada al comercio electrónico y gestión de catálogo de productos de vapeo. Proporciona una experiencia de usuario fluida con soporte para dos perfiles de usuario principales:
-- **Cliente**: Exploración de catálogo por marcas y filtros flotantes (RF12 / RF13), visualización exclusiva de productos con stock disponible (RNE01), ficha técnica con imágenes dinámicas por sabor, carrito de compras persistente localmente y proceso de checkout/pedidos con boleta electrónica troquelada e incremental.
+- **Cliente**: Exploración de catálogo por marcas y filtros flotantes (RF12 / RF13), visualización exclusiva de productos con stock disponible (RNE01), ficha técnica con imágenes dinámicas por sabor, favoritos por producto, carrito de compras persistente localmente y proceso de checkout/pedidos con boleta electrónica troquelada e incremental.
 - **Administrador**: Gestión completa del inventario (CRUD de productos: crear, listar, editar con conmutador de sabores `tieneSabor` y eliminar), supervisión de pedidos, gestión de la colección máster de sabores y marcas, y acceso al panel administrativo desde el menú lateral. **Sin acceso al carrito.**
 
 ---
@@ -50,6 +50,7 @@ graph TD
             MAR_VM[MarcasViewModel]
             TAR_VM[TarjetaViewModel]
             DIR_VM[DireccionesViewModel]
+            FAV_VM[FavoritosViewModel]
         end
 
         subgraph Screens ["Pantallas Composables"]
@@ -69,11 +70,13 @@ graph TD
             DIRS[DireccionesScreen - CRUD cliente]
             ADIR[AgregarDireccionScreen]
             EDIR[EditarDireccionScreen]
+            FAVS[FavoritosScreen - Mis favoritos]
             STS[SeleccionTarjetaScreen]
             TSR[AgregarTarjeta - 4 Pasos con VisualTransformation]
             SAB_ADM[SaboresAdminScreen]
             MAR_ADM[MarcasAdminScreen]
             PED_ADM[PedidosAdminScreen]
+            EST[EstadisticasScreen - día, mes y año]
         end
 
         subgraph Components ["Componentes Reutilizables"]
@@ -102,6 +105,8 @@ graph TD
         ENT_MAR[Marca]
         ENT_TAR[Tarjeta]
         ENT_DIR[Direccion]
+        ENT_FAV[Favorito]
+        ENT_EST[EstadisticasPeriodo]
     end
 
     subgraph Data_Layer ["Capa de Red y Datos"]
@@ -113,6 +118,7 @@ graph TD
         MAR_S[MarcaService]
         TAR_S[TarjetaService]
         DIR_S[DireccionService]
+        FAV_S[FavoritoService]
 
         RC --> PS
         RC --> US
@@ -121,6 +127,7 @@ graph TD
         RC --> MAR_S
         RC --> TAR_S
         RC --> DIR_S
+        RC --> FAV_S
     end
 
     subgraph Backend ["Backend Cloud"]
@@ -145,12 +152,14 @@ graph TD
 | Checkout, Boleta Incremental y Registro de Tarjetas | ✅ | ❌ |
 | Historial de Compras | ✅ | ❌ |
 | Gestión de direcciones de entrega (CRUD) | ✅ | ❌ |
+| Favoritos del cliente (alta/baja y "Mis favoritos") | ✅ | ❌ |
 | Agregar Producto (CRUD) | ❌ | ✅ |
 | Editar Producto (CRUD + `tieneSabor`) | ❌ | ✅ |
 | Eliminar Producto (CRUD) | ❌ | ✅ |
 | Gestión de Sabores Máster e Imágenes Base64 | ❌ | ✅ |
 | Gestión de Marcas (CRUD + siembra inicial) | ❌ | ✅ |
 | Administración de Pedidos | ❌ | ✅ |
+| Estadísticas por día, mes y año | ❌ | ✅ |
 | Panel Administrativo | ❌ | ✅ |
 | Perfil de Usuario (datos reales + +18 junto al rol) | ✅ | ✅ |
 | Módulo de Accesibilidad (persistente por dispositivo) | ✅ | ✅ |
@@ -176,3 +185,6 @@ graph TD
 | **v1.8.4** | `2026-11-06` | `PedidosAdminScreen`: filtros "Todos", "Registrados", "En camino" y "Completados" sobre los pedidos reales de Firestore, con la vista principal limitada a pedidos activos (los entregados solo aparecen en "Completados"). Se reutiliza `PedidoCard` para mostrar número, fecha, ítems, total y estado. |
 | **v1.8.5** | `2026-11-06` | `DetallePedidoScreen`: rediseño visual con encabezado VAPEON, datos reales del pedido, selector de estado R/EC/E, detalle de productos y resumen de compra; se conserva el mapa del punto exacto de entrega. |
 | **v1.8.6** | `2026-11-07` | `PerfilScreen` y `AccesibilidadScreen`: perfil con datos reales del usuario en sesión, edición validada en Firestore conservando contraseña y rol, y apartado **+18 Mayor de 18 años** junto al rol; módulo de accesibilidad (tamaño de texto, negrita, contraste alto y reducción de transparencia) persistido en `SharedPreferences` y aplicado globalmente mediante `CompositionLocal`/`Density`. Ambas pantallas están disponibles para CLIENTE y ADMIN. |
+| **v1.9.0** | `2026-11-08` | `FidelidadViewModel` y pantallas `MiFidelidadScreen`/`FidelidadAdminScreen`: un punto por pedido entregado con idempotencia por `eventosFidelidad/{pedidoId}`, ciclo 0→6→0, recompensa con snapshot y ranking administrativo. |
+| **v1.10.0** | `2026-11-14` | `FavoritosViewModel`, `FavoritoService` y `FavoritosScreen`: colección `favoritos` con alta/baja desde el corazón de `DetalleProductoScreen`, opción "Mis favoritos" en el menú y tarjetas resueltas contra el catálogo vigente. `DetallePedidoScreen` usa el fondo `arreglo_pedido` y tipografías de boleta. |
+| **v1.11.0** | `2026-11-14` | `entities/Estadisticas.kt` y `EstadisticasScreen`: reportes ADMIN por día, mes y año sobre pedidos `ENTREGADO` con zona `America/Lima`, KPIs, evolución Canvas, rankings de productos/marcas/categorías, métodos de pago y comparación contra el periodo anterior. Ruta `estadisticas` incluida en `RUTAS_ADMIN`. |

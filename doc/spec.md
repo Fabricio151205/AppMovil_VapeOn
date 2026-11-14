@@ -4,9 +4,9 @@
 | :--- | :--- |
 | **Identificador** | `SPEC-VAPEON-001` |
 | **Proyecto** | VapeON - Aplicación Móvil Android |
-| **Versión** | `1.9.0` |
+| **Versión** | `1.11.0` |
 | **Estado** | `Aprobado` |
-| **Fecha de Publicación** | `2026-11-08` |
+| **Fecha de Publicación** | `2026-11-14` |
 | **Plataforma Objetivo** | Android (minSdk 31, targetSdk 37, compileSdk 37) |
 | **Ubicación del Documento** | `doc/spec.md` (Raíz del Repositorio) |
 
@@ -17,7 +17,7 @@
 ### 1.1 Declaración del Problema
 El mercado de dispositivos y accesorios de vapeo requiere plataformas digitales ágiles que permitan a los usuarios mayores de edad consultar catálogos actualizados por marca y stock en tiempo real, garantizando un control estricto de acceso (+18), veracidad en especificaciones de producto y herramientas administrativas para la gestión del inventario.
 
-### 1.2 Alcance del Sistema (Versión 1.9.0)
+### 1.2 Alcance del Sistema (Versión 1.10.0)
 - **Programa de fidelidad por pedidos entregados**:
   - Cada pedido real que cambia a `ENTREGADO` y contiene productos acredita exactamente un punto al propietario identificado por `Pedido.usuarioId`, sin multiplicarlo por líneas ni unidades.
   - El progreso se limita a `0..6`; al llegar a seis se crea una recompensa pendiente y los pedidos entregados posteriores no acumulan puntos ocultos mientras continúe pendiente.
@@ -57,6 +57,12 @@ El mercado de dispositivos y accesorios de vapeo requiere plataformas digitales 
   - Las rutas `direcciones`, `agregarDireccion` y `editarDireccion` son exclusivas de CLIENTE. Especificación detallada en `doc/specs/direcciones_spec.md`.
   - **Mapa del punto de entrega en el detalle del pedido**: el checkout copia las coordenadas de la dirección elegida al pedido; el detalle muestra un mapa de solo lectura con el marcador exacto y un botón para abrirlo a pantalla completa, tanto para el cliente como para el administrador.
   - Los pedidos históricos sin coordenadas siguen funcionando: el mapa se resuelve geocodificando el texto de `direccionEntrega`.
+- **Favoritos del Cliente (colección `favoritos`)**:
+  - El corazón de la ficha del producto agrega o elimina el favorito del cliente autenticado; para ADMIN permanece deshabilitado.
+  - Cada documento guarda únicamente `id`, `usuarioId`, `productoId` y `fechaCreacion`; nombre, marca, precio, stock e imagen se resuelven contra el catálogo vigente.
+  - La opción **"Mis favoritos"** del menú lateral abre `FavoritosScreen` con una grilla de tarjetas reales: imagen, stock, marca, nombre, precio y **"Añadir al Carrito"**.
+  - El corazón de cada tarjeta elimina el favorito y el botón de compra elige el primer sabor con stock disponible.
+  - Solo se consultan y eliminan documentos cuyo `usuarioId` coincide con la sesión; las rutas `favoritos` son exclusivas de CLIENTE. Especificación detallada en `doc/specs/favoritos_spec.md`.
 - **Lista de Pedidos del Administrador con filtros**:
   - Filtros **"Todos"**, **"Registrados"**, **"En camino"** y **"Completados"** aplicados sobre los pedidos reales de Firestore.
   - La vista **"Todos"** oculta los pedidos entregados; estos solo se consultan en **"Completados"**, de modo que el trabajo diario muestre únicamente los pedidos registrados y en camino.
@@ -68,6 +74,7 @@ El mercado de dispositivos y accesorios de vapeo requiere plataformas digitales 
   - Tarjeta **"Estado del Pedido"** con pasos **R → EC → E** (Registrado, En camino, Entregado); el administrador puede tocar un paso para actualizar el estado real.
   - Listado de productos con marca, cantidad, precio unitario y subtotal reales.
   - Tarjeta **"Resumen de la Compra"** con Sub Total, Delivery, TOTAL A PAGAR, monto pagado, vuelto y método de pago.
+  - El contenido se presenta sobre el fondo troquelado `arreglo_pedido`, con tipografías equivalentes a la boleta: título 14sp, etiquetas 10sp, valores 12sp y total 14sp.
   - Se conserva el mapa del punto exacto de entrega con acceso a pantalla completa.
 - **Barra de Notificaciones y Menú de Administración**:
   - Configuración global en `Theme.kt` (`window.statusBarColor = VapeOnBackground` con `isAppearanceLightStatusBars = false`) para garantizar la barra de estado negra con íconos blancos y espaciado consistente.
@@ -82,6 +89,14 @@ El mercado de dispositivos y accesorios de vapeo requiere plataformas digitales 
   - Mínimos centralizados: 14 observaciones diarias, 3 días con demanda y separación viable entre entrenamiento y validación.
   - Cuando no se cumplen los mínimos, la UI muestra el histórico real y `Datos insuficientes`, sin fabricar pronóstico.
   - Gráfica responsive con Canvas que diferencia histórico, validación y horizonte futuro.
+- **Estadísticas del Administrador (día, mes y año)**:
+  - Acceso exclusivo ADMIN desde el botón **"ESTADISTICAS"** de `AdminHomeScreen`.
+  - Reutiliza los pedidos reales ya cargados para Caja y solo contabiliza `estado = ENTREGADO` con snapshots válidos.
+  - Selector **Día / Mes / Año**, navegación al periodo anterior/siguiente y acceso directo a **"Ir a hoy"**.
+  - KPIs: total vendido, pedidos entregados, unidades, ticket promedio, clientes atendidos, delivery y promedio por día/mes con ventas.
+  - Evolución por franja horaria (día), por día (mes) y por mes (año), con gráfica Canvas y mejor punto del periodo.
+  - Rankings de productos, marcas, categorías y métodos de pago, más comparación porcentual contra el periodo anterior.
+  - Los pedidos inválidos se excluyen y se informan; no se fabrican ventas ni se modifica Caja, Pronóstico, Favoritos u otros módulos.
 - **Perfil de Usuario (CLIENTE y ADMIN)**:
   - Se abre desde el avatar del menú/barra superior en `HomeScreen`, `AdminHomeScreen`, `CatalogoScreen`, `HistorialComprasScreen` y `SaboresAdminScreen`.
   - Muestra los datos reales del usuario en sesión: nombres, apellidos, correo electrónico, teléfono y fecha de nacimiento, más el rol legible (`Cliente` / `Administrador`).
@@ -116,6 +131,8 @@ El mercado de dispositivos y accesorios de vapeo requiere plataformas digitales 
 | `1.8.5` | `2026-11-06` | Equipo VapeON | Rediseño del detalle del pedido: encabezado VAPEON, datos reales del pedido, tarjeta de estado con pasos R/EC/E, productos con precio y subtotal, y resumen de compra con total, pago y vuelto. |
 | `1.8.6` | `2026-11-07` | Equipo VapeON | Perfil de usuario para CLIENTE y ADMIN con datos reales, edición validada en Firestore y apartado **+18 Mayor de 18 años** junto al rol; módulo de accesibilidad (tamaño de texto, negrita, contraste alto y reducción de transparencia) persistente en `SharedPreferences` y aplicado globalmente. |
 | `1.9.0` | `2026-11-08` | Equipo VapeON | Programa de fidelidad con un punto por pedido entregado, idempotencia por pedido, ciclo 0→6→0, snapshot histórico de recompensa, ranking ADMIN y consulta privada del CLIENTE. |
+| `1.10.0` | `2026-11-14` | Equipo VapeON | Favoritos del cliente (`favoritos`) con alta/baja desde el corazón del detalle, pantalla "Mis favoritos" con datos reales del catálogo y opción en el menú lateral; `DetallePedidoScreen` usa el fondo `arreglo_pedido` y tipografías de boleta. |
+| `1.11.0` | `2026-11-14` | Equipo VapeON | `EstadisticasScreen` y `entities/Estadisticas.kt`: reportes ADMIN por día, mes y año sobre pedidos entregados, con KPIs, evolución Canvas, rankings de productos/marcas/categorías, métodos de pago y comparación contra el periodo anterior. |
 
 ---
 
@@ -206,3 +223,33 @@ flowchart TD
 - **Dado** dos entregas concurrentes, **cuando** ambas usan la misma versión, **entonces** Firestore acepta como máximo una y la otra entra en conflicto.
 - La autorización remota definitiva depende de reglas de Firestore fuera del alcance de esta versión; las guardias cliente y ViewModel reducen exposición, pero no sustituyen controles de servidor.
 - No existe retroacreditación automática: los pedidos que ya estaban `ENTREGADO` antes de incorporar este módulo no generan eventos históricos ni puntos por sí solos. La fidelidad comienza con las transiciones a `ENTREGADO` procesadas por la nueva lógica; no se migran ni modifican pedidos antiguos.
+
+---
+
+## 5. Especificación técnica del módulo de estadísticas
+
+### 5.1 Fuente y alcance
+
+- La vista `EstadisticasScreen` es exclusiva del rol ADMIN y se abre desde `AdminHomeScreen`.
+- La fuente es la misma consulta real de pedidos usada por Caja; no se crea una colección nueva.
+- Solo se contabilizan pedidos con `estado = ENTREGADO`, deduplicados por `id` y con snapshots financieros válidos.
+- Los días se agrupan en la zona horaria `America/Lima`, igual que Caja y Pronóstico.
+- La vista no modifica pedidos, inventario, precios, fidelidad, favoritos ni pronósticos.
+
+### 5.2 Periodos y métricas
+
+| Periodo | Rango | Evolución | Métricas específicas |
+| :--- | :--- | :--- | :--- |
+| **Día** | Fecha local seleccionada | Franjas `00–05`, `06–11`, `12–17`, `18–23` | Total, pedidos, unidades, ticket, clientes, delivery, mejor franja |
+| **Mes** | Primer y último día del mes | Días `1..longitudDelMes` | Promedio por día con ventas y mejor día |
+| **Año** | 1 de enero a 31 de diciembre | Meses `Ene..Dic` | Promedio por mes con ventas y mejor mes |
+
+Métricas comunes: total vendido (productos + delivery), ingresos por productos, delivery, pedidos entregados, unidades vendidas, ticket promedio, clientes únicos, top 5 productos por unidades, ventas por marca, ventas por categoría y métodos de pago.
+
+### 5.3 Comparación y límites
+
+- La comparación usa el periodo inmediatamente anterior (día anterior, mes anterior o año anterior) y calcula la variación porcentual solo si el total anterior es mayor que cero.
+- No se calculan márgenes, conversión, tiempos de entrega, vistas de producto ni favoritos: esos datos no existen en los pedidos actuales.
+- La fecha disponible es la de creación del pedido; no existe un timestamp de entrega, por lo que la evolución se agrupa por fecha de registro.
+- Los pedidos inválidos se excluyen del cálculo y se muestran como advertencia; nunca se interpretan como ventas cero.
+- Las rutas restauradas se validan contra el rol ADMIN y el propietario de la sesión.

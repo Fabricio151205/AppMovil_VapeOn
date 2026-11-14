@@ -314,6 +314,7 @@ class UsuarioViewModel(
         telefono: String,
         fechaNacimiento: String,
         correo: String,
+        campoEditado: String? = null,
         onExito: () -> Unit,
         onError: (String) -> Unit = {}
     ) {
@@ -322,7 +323,19 @@ class UsuarioViewModel(
             onError("No hay una sesión activa.")
             return
         }
-        val error = validarPerfil(nombre, apellido, correo, telefono, fechaNacimiento)
+        val error = if (campoEditado != null) {
+            val valorCampo = when (campoEditado.lowercase(Locale.ROOT)) {
+                "nombre", "nombres" -> nombre
+                "apellido", "apellidos" -> apellido
+                "correo", "email" -> correo
+                "telefono", "celular" -> telefono
+                "fechanacimiento", "fecha_nacimiento" -> fechaNacimiento
+                else -> ""
+            }
+            validarCampoPerfil(campoEditado, valorCampo)
+        } else {
+            validarPerfil(nombre, apellido, correo, telefono, fechaNacimiento)
+        }
         if (error != null) {
             onError(error)
             return
@@ -416,6 +429,32 @@ internal fun validarRegistro(
     validarMayoriaEdad(fechaNacimiento, hoy)?.let { return it }
     if (password != passwordConfirm) return "Las contraseñas no coinciden."
     return null
+}
+
+internal fun validarCampoPerfil(
+    campo: String,
+    valor: String,
+    hoy: LocalDate = LocalDate.now()
+): String? {
+    val limpio = valor.trim()
+    return when (campo.lowercase(Locale.ROOT)) {
+        "nombre", "nombres" -> if (limpio.isBlank()) "Ingresa tus nombres." else null
+        "apellido", "apellidos" -> if (limpio.isBlank()) "Ingresa tus apellidos." else null
+        "correo", "email" -> {
+            if (limpio.isBlank()) "Ingresa tu correo electrónico."
+            else if (!correoRegistroValido(limpio)) "Ingresa un correo electrónico válido."
+            else null
+        }
+        "telefono", "celular" -> {
+            if (limpio.isBlank()) "Ingresa tu número de teléfono."
+            else if (!telefonoRegistroValido(limpio)) "El teléfono debe tener exactamente 9 dígitos y comenzar con 9."
+            else null
+        }
+        "fechanacimiento", "fecha_nacimiento" -> {
+            validarMayoriaEdad(limpio, hoy)
+        }
+        else -> null
+    }
 }
 
 /**

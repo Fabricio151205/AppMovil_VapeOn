@@ -450,9 +450,6 @@ fun AdminHomeScreen(
                 Button(
                     onClick = {
                         onEstadisticasClick()
-                        scope.launch {
-                            snackbarHostState.showSnackbar("Módulo de Estadísticas no disponible")
-                        }
                     },
                     shape = RoundedCornerShape(50),
                     colors = ButtonDefaults.buttonColors(

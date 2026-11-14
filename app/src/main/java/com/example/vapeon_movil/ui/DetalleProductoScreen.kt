@@ -11,6 +11,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material3.*
@@ -42,10 +43,11 @@ fun DetalleProductoScreen(
     saboresViewModel: SaboresViewModel = androidx.lifecycle.viewmodel.compose.viewModel(),
     volver: () -> Unit,
     irEditarProducto: ((Producto) -> Unit)? = null,
-    onAgregarAlCarrito: ((String?) -> Unit)? = null   // null para ADMIN (no aplica)
+    onAgregarAlCarrito: ((String?) -> Unit)? = null,   // null para ADMIN (no aplica)
+    esFavorito: Boolean = false,
+    onAlternarFavorito: (() -> Unit)? = null           // null para ADMIN o sesión sin cliente
 ) {
     LaunchedEffect(Unit) { saboresViewModel.cargarSabores() }
-    var esFavorito by remember { mutableStateOf(false) }
 
     // Sabores pertenecientes únicamente a este producto (desde stockPorSabor o sabor guardado)
     val saboresLista = remember(producto.sabor, producto.stockPorSabor) {
@@ -182,17 +184,21 @@ fun DetalleProductoScreen(
                         )
                     }
 
-                    // Botón de Corazón (Favoritos) interactivo
+                    // Botón de Corazón (Favoritos) — solo CLIENTE
                     IconButton(
-                        onClick = {}, enabled = false,
+                        onClick = { onAlternarFavorito?.invoke() },
+                        enabled = !esAdmin && onAlternarFavorito != null,
                         modifier = Modifier
                             .align(Alignment.TopEnd)
                             .padding(12.dp)
+                            .background(VapeOnBackground.copy(alpha = 0.55f), CircleShape)
                     ) {
                         Icon(
-                            imageVector = Icons.Outlined.FavoriteBorder,
-                            contentDescription = "Favoritos no disponible",
-                            tint = VapeOnTextSecondary,
+                            imageVector = if (esFavorito) Icons.Filled.Favorite
+                            else Icons.Outlined.FavoriteBorder,
+                            contentDescription = if (esFavorito) "Quitar de favoritos"
+                            else "Agregar a favoritos",
+                            tint = if (esFavorito) VapeOnRed else VapeOnTextPrimary,
                             modifier = Modifier.size(28.dp)
                         )
                     }

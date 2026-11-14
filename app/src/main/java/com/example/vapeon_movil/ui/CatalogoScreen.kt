@@ -51,7 +51,8 @@ fun CatalogoScreen(
     cerrarSesion: () -> Unit = {},
     irTarjetas: () -> Unit = {},
     irDirecciones: () -> Unit = {},
-    irFidelidad: () -> Unit = {}
+    irFidelidad: () -> Unit = {},
+    irFavoritos: () -> Unit = {}
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -100,6 +101,7 @@ fun CatalogoScreen(
         irTarjetas = irTarjetas,
         irDirecciones = irDirecciones,
         irFidelidad = irFidelidad,
+        irFavoritos = irFavoritos,
         irPedidos = irPedidos,
         irMarcas = irMarcas,
         irSabores = irSabores,

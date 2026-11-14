@@ -1,6 +1,7 @@
 package com.example.vapeon_movil.ui
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -18,10 +19,13 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.vapeon_movil.BuildConfig
+import com.example.vapeon_movil.R
 import com.example.vapeon_movil.entities.Pedido
 import com.example.vapeon_movil.entities.ProductoPedido
 import com.example.vapeon_movil.entities.Usuario
@@ -81,45 +85,72 @@ fun DetallePedidoScreen(
             ) {
                 EncabezadoDetalle(volver = volver, habilitado = !guardando)
                 Spacer(modifier = Modifier.height(10.dp))
-                Text(
-                    text = "Detalle del Pedido",
-                    color = VapeOnTextPrimary,
-                    fontSize = 26.sp,
-                    fontWeight = FontWeight.Bold
-                )
-                Spacer(modifier = Modifier.height(16.dp))
 
-                val pedido = pedidoVisible
-                val sesionDetalle = if (esAdmin) pedidoViewModel.usuarioAdminId else pedidoViewModel.usuarioHistorialId
-                val cargando = if (esAdmin) pedidoViewModel.cargandoDetalleAdmin else pedidoViewModel.cargandoDetalle
-                val error = if (esAdmin) pedidoViewModel.errorDetalleAdmin else pedidoViewModel.errorDetalle
-                when {
-                    usuarioId.isBlank() -> Text(
-                        "Inicia sesión como cliente para consultar el pedido.",
-                        color = MaterialTheme.colorScheme.error
+                // Fondo de boleta: el contenido conserva las tipografías del comprobante.
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(4.dp))
+                ) {
+                    Image(
+                        painter = painterResource(R.drawable.arreglo_pedido),
+                        contentDescription = null,
+                        contentScale = ContentScale.FillBounds,
+                        modifier = Modifier.matchParentSize()
                     )
-                    sesionDetalle != usuarioId || cargando -> CargandoDetalle()
-                    error != null -> {
-                        Text(error, color = MaterialTheme.colorScheme.error)
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Button(onClick = actualizar, modifier = Modifier.heightIn(min = 48.dp)) {
-                            Text("Reintentar")
+
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 14.dp)
+                    ) {
+                        Text(
+                            text = "Detalle del Pedido",
+                            color = VapeOnTextPrimary,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 0.6.sp
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        val pedido = pedidoVisible
+                        val sesionDetalle = if (esAdmin) pedidoViewModel.usuarioAdminId else pedidoViewModel.usuarioHistorialId
+                        val cargando = if (esAdmin) pedidoViewModel.cargandoDetalleAdmin else pedidoViewModel.cargandoDetalle
+                        val error = if (esAdmin) pedidoViewModel.errorDetalleAdmin else pedidoViewModel.errorDetalle
+                        when {
+                            usuarioId.isBlank() -> Text(
+                                "Inicia sesión como cliente para consultar el pedido.",
+                                color = MaterialTheme.colorScheme.error,
+                                fontSize = 12.sp
+                            )
+                            sesionDetalle != usuarioId || cargando -> CargandoDetalle()
+                            error != null -> {
+                                Text(error, color = MaterialTheme.colorScheme.error, fontSize = 12.sp)
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Button(onClick = actualizar, modifier = Modifier.heightIn(min = 48.dp)) {
+                                    Text("Reintentar", fontSize = 12.sp)
+                                }
+                            }
+                            pedido != null && (esAdmin || pedido.usuarioId == usuarioId) && pedido.id == pedidoId -> {
+                                val listaBase = if (esAdmin) pedidoViewModel.pedidosAdmin else listOf(pedido)
+                                val numeroSecuencial = calcularNumeroSecuencialPedido(pedido.id, listaBase)
+                                ContenidoDetallePedido(
+                                    pedido = pedido,
+                                    numeroSecuencial = numeroSecuencial,
+                                    esAdmin = esAdmin,
+                                    guardando = guardando,
+                                    usuario = usuario,
+                                    pedidoViewModel = pedidoViewModel,
+                                    verMapa = { mostrarMapa = true }
+                                )
+                            }
+                            else -> Text(
+                                "No hay un pedido disponible para esta sesión.",
+                                color = VapeOnTextPrimary,
+                                fontSize = 12.sp
+                            )
                         }
                     }
-                    pedido != null && (esAdmin || pedido.usuarioId == usuarioId) && pedido.id == pedidoId -> {
-                        val listaBase = if (esAdmin) pedidoViewModel.pedidosAdmin else listOf(pedido)
-                        val numeroSecuencial = calcularNumeroSecuencialPedido(pedido.id, listaBase)
-                        ContenidoDetallePedido(
-                            pedido = pedido,
-                            numeroSecuencial = numeroSecuencial,
-                            esAdmin = esAdmin,
-                            guardando = guardando,
-                            usuario = usuario,
-                            pedidoViewModel = pedidoViewModel,
-                            verMapa = { mostrarMapa = true }
-                        )
-                    }
-                    else -> Text("No hay un pedido disponible para esta sesión.", color = VapeOnTextPrimary)
                 }
                 Spacer(modifier = Modifier.height(28.dp))
             }
@@ -178,7 +209,7 @@ private fun CargandoDetalle() {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             CircularProgressIndicator(color = VapeOnGold, modifier = Modifier.size(36.dp))
             Spacer(modifier = Modifier.height(10.dp))
-            Text("Cargando pedido...", color = VapeOnTextSecondary, fontSize = 13.sp)
+            Text("Cargando pedido...", color = VapeOnTextSecondary, fontSize = 12.sp)
         }
     }
 }
@@ -201,13 +232,13 @@ private fun ContenidoDetallePedido(
         Text(
             text = "Pedido N° $numeroSecuencial",
             color = VapeOnTextPrimary,
-            fontSize = 20.sp,
+            fontSize = 14.sp,
             fontWeight = FontWeight.Bold
         )
         Text(
             text = "Fecha: ${fechaPedidoTexto(pedido.fecha)}",
             color = VapeOnTextPrimary,
-            fontSize = 12.sp
+            fontSize = 10.sp
         )
     }
 
@@ -218,21 +249,21 @@ private fun ContenidoDetallePedido(
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text("Estado del Pedido:", color = VapeOnGold, fontSize = 13.sp)
+        Text("Estado del Pedido:", color = VapeOnGold, fontSize = 10.sp)
         Text(
             text = pedido.estado,
             color = VapeOnGold,
-            fontSize = 13.sp,
+            fontSize = 12.sp,
             fontWeight = FontWeight.Bold
         )
     }
 
     Spacer(modifier = Modifier.height(6.dp))
-    Text("Dirección de entrega:", color = VapeOnTextPrimary, fontSize = 13.sp)
+    Text("Dirección de entrega:", color = VapeOnTextPrimary, fontSize = 10.sp)
     Text(
         text = pedido.direccionEntrega,
         color = VapeOnTextPrimary,
-        fontSize = 15.sp,
+        fontSize = 12.sp,
         fontWeight = FontWeight.Bold
     )
 
@@ -242,8 +273,8 @@ private fun ContenidoDetallePedido(
     }
 
     Spacer(modifier = Modifier.height(8.dp))
-    Text("Cliente: ${pedido.nombreCliente}", color = VapeOnTextPrimary, fontSize = 13.sp)
-    Text("Teléfono: ${pedido.telefono}", color = VapeOnTextPrimary, fontSize = 13.sp)
+    Text("Cliente: ${pedido.nombreCliente}", color = VapeOnTextPrimary, fontSize = 12.sp)
+    Text("Teléfono: ${pedido.telefono}", color = VapeOnTextPrimary, fontSize = 12.sp)
 
     Spacer(modifier = Modifier.height(16.dp))
 
@@ -260,7 +291,7 @@ private fun ContenidoDetallePedido(
     Text(
         text = "PRODUCTOS COMPRADOS",
         color = VapeOnTextPrimary,
-        fontSize = 12.sp,
+        fontSize = 10.sp,
         fontWeight = FontWeight.Bold,
         letterSpacing = 1.sp
     )
@@ -305,7 +336,7 @@ private fun EstadoPedidoCard(
             Text(
                 text = "Estado del Pedido",
                 color = VapeOnTextPrimary,
-                fontSize = 13.sp,
+                fontSize = 14.sp,
                 fontWeight = FontWeight.Bold
             )
             Spacer(modifier = Modifier.height(16.dp))
@@ -334,11 +365,11 @@ private fun EstadoPedidoCard(
             }
             pedidoViewModel.errorEstado?.let {
                 Spacer(modifier = Modifier.height(10.dp))
-                Text(it, color = MaterialTheme.colorScheme.error, fontSize = 12.sp)
+                Text(it, color = MaterialTheme.colorScheme.error, fontSize = 10.sp)
             }
             pedidoViewModel.mensajeEstado?.let {
                 Spacer(modifier = Modifier.height(10.dp))
-                Text(it, color = VapeOnGold, fontSize = 12.sp)
+                Text(it, color = VapeOnGold, fontSize = 10.sp)
             }
         }
     }
@@ -380,7 +411,7 @@ private fun PasoEstado(
         Text(
             text = sigla,
             color = VapeOnTextPrimary,
-            fontSize = 13.sp,
+            fontSize = 10.sp,
             fontWeight = FontWeight.Bold
         )
     }
@@ -397,14 +428,14 @@ private fun ProductoComprado(producto: ProductoPedido) {
             Text(
                 text = producto.nombre,
                 color = VapeOnGold,
-                fontSize = 15.sp,
+                fontSize = 12.sp,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.weight(1f)
             )
             Text(
                 text = producto.marca,
                 color = VapeOnTextPrimary,
-                fontSize = 13.sp
+                fontSize = 10.sp
             )
         }
         Spacer(modifier = Modifier.height(6.dp))
@@ -418,8 +449,8 @@ private fun ProductoComprado(producto: ProductoPedido) {
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text("Subtotal:", color = VapeOnGold, fontSize = 14.sp, fontWeight = FontWeight.Bold)
-            Text(moneda(producto.subtotal), color = VapeOnGold, fontSize = 14.sp,
+            Text("Subtotal:", color = VapeOnGold, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            Text(moneda(producto.subtotal), color = VapeOnGold, fontSize = 12.sp,
                 fontWeight = FontWeight.Bold)
         }
     }
@@ -433,8 +464,8 @@ private fun FilaDetalle(etiqueta: String, valor: String) {
             .padding(vertical = 2.dp),
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Text(etiqueta, color = VapeOnTextPrimary, fontSize = 13.sp)
-        Text(valor, color = VapeOnTextPrimary, fontSize = 13.sp)
+        Text(etiqueta, color = VapeOnTextPrimary, fontSize = 10.sp)
+        Text(valor, color = VapeOnTextPrimary, fontSize = 12.sp)
     }
 }
 
@@ -454,7 +485,7 @@ private fun ResumenCompraCard(pedido: Pedido) {
             Text(
                 text = "Resumen de la Compra",
                 color = VapeOnTextPrimary,
-                fontSize = 15.sp,
+                fontSize = 14.sp,
                 fontWeight = FontWeight.Bold
             )
             Spacer(modifier = Modifier.height(2.dp))
@@ -465,9 +496,9 @@ private fun ResumenCompraCard(pedido: Pedido) {
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("TOTAL A PAGAR", color = VapeOnTextPrimary, fontSize = 15.sp,
+                Text("TOTAL A PAGAR", color = VapeOnTextPrimary, fontSize = 14.sp,
                     fontWeight = FontWeight.Bold)
-                Text(moneda(pedido.total), color = VapeOnTextPrimary, fontSize = 15.sp,
+                Text(moneda(pedido.total), color = VapeOnTextPrimary, fontSize = 14.sp,
                     fontWeight = FontWeight.Bold)
             }
             HorizontalDivider(color = VapeOnTextPrimary, thickness = 1.5.dp)
@@ -485,8 +516,8 @@ private fun FilaResumen(etiqueta: String, valor: String) {
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Text(etiqueta, color = VapeOnTextPrimary, fontSize = 13.sp)
-        Text(valor, color = VapeOnTextPrimary, fontSize = 13.sp)
+        Text(etiqueta, color = VapeOnTextPrimary, fontSize = 10.sp)
+        Text(valor, color = VapeOnTextPrimary, fontSize = 12.sp)
     }
 }
 
@@ -530,13 +561,13 @@ private fun MapaEntregaCard(pedido: Pedido, verMapa: () -> Unit) {
                         "Punto exacto confirmado por el cliente"
                     else "Ubicación aproximada por dirección",
                     color = VapeOnTextSecondary,
-                    fontSize = 12.sp,
+                    fontSize = 10.sp,
                     modifier = Modifier.weight(1f)
                 )
                 Text(
                     text = if (pedido.tieneUbicacionEntrega) "Ver mapa" else "Ver ubicación",
                     color = VapeOnGold,
-                    fontSize = 13.sp,
+                    fontSize = 12.sp,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier
                         .clickable(onClick = verMapa)
