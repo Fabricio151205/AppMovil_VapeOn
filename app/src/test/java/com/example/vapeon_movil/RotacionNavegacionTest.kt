@@ -13,7 +13,8 @@ class RotacionNavegacionTest {
         "historialCompras", "detallePedido", "tarjetas", "miFidelidad") +
         RUTAS_COMPRA + RUTAS_REGISTRO_TARJETA
     private val rutasAdmin = listOf("admin", "catalogo", "detalle", "agregarProducto",
-        "editarProducto", "pedidosAdmin", "detallePedidoAdmin", "pronosticoDemanda", "roles", "cupones")
+        "editarProducto", "pedidosAdmin", "detallePedidoAdmin", "pronosticoDemanda", "roles", "cupones",
+        "proveedores", "registrarProveedor")
 
     @Test fun conservaTodasLasRutasDelClienteConLaMismaSesion() {
         rutasCliente.forEach { ruta ->
@@ -35,11 +36,20 @@ class RotacionNavegacionTest {
     }
 
     @Test fun noRestauraPantallasDeOtroRol() {
-        listOf("admin", "agregarProducto", "editarProducto", "pedidosAdmin", "detallePedidoAdmin", "pronosticoDemanda", "roles", "cupones").forEach {
+        listOf("admin", "agregarProducto", "editarProducto", "pedidosAdmin", "detallePedidoAdmin", "pronosticoDemanda", "roles", "cupones", "proveedores", "registrarProveedor").forEach {
             assertEquals("home", pantallaRestauradaSegura(it, cliente, claveSesionNavegacion(cliente)))
         }
         rutasCliente.filter { it !in setOf("catalogo", "detalle") }.forEach {
             assertEquals("admin", pantallaRestauradaSegura(it, admin, claveSesionNavegacion(admin)))
+        }
+    }
+
+    @Test fun rutasDeProveedoresRespetanRolSesionYRestauracion() {
+        listOf("proveedores", "registrarProveedor").forEach { ruta ->
+            assertEquals(ruta, pantallaRestauradaSegura(ruta, admin, claveSesionNavegacion(admin)))
+            assertEquals("home", pantallaRestauradaSegura(ruta, cliente, claveSesionNavegacion(cliente)))
+            assertEquals("login", pantallaRestauradaSegura(ruta, null, claveSesionNavegacion(admin)))
+            assertEquals("admin", pantallaRestauradaSegura(ruta, admin.copy(id = "otro"), claveSesionNavegacion(admin)))
         }
     }
 

@@ -49,6 +49,7 @@ fun AdminHomeScreen(
     irMarcas: () -> Unit = {},
     irSabores: () -> Unit = {},
     irRoles: () -> Unit = {},
+    irProveedores: () -> Unit = {},
     sabores: List<SaborItem> = emptyList(),
     cerrarSesion: () -> Unit = {}
 ) {
@@ -68,6 +69,7 @@ fun AdminHomeScreen(
         mostrarMarcas = true,
         irSabores = irSabores,
         irRoles = irRoles,
+        irProveedores = irProveedores,
         cerrarSesion = cerrarSesion,
         onPerfilClick = onPerfilClick,
         onTituloClick = { /* Ya estamos en AdminHome */ }

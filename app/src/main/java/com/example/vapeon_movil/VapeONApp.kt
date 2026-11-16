@@ -63,6 +63,8 @@ import com.example.vapeon_movil.ui.RegisterScreen
 import com.example.vapeon_movil.ui.RolesScreen
 import com.example.vapeon_movil.ui.FidelidadAdminScreen
 import com.example.vapeon_movil.ui.MiFidelidadScreen
+import com.example.vapeon_movil.ui.ProveedoresScreen
+import com.example.vapeon_movil.ui.RegistrarProveedorScreen
 import com.example.vapeon_movil.ui.SaboresAdminScreen
 import com.example.vapeon_movil.ui.AgregarSaborScreen
 import com.example.vapeon_movil.ui.EditarSaborScreen
@@ -77,6 +79,7 @@ import com.example.vapeon_movil.viewmodels.MarcasViewModel
 import com.example.vapeon_movil.viewmodels.UsuarioViewModel
 import com.example.vapeon_movil.viewmodels.RolesViewModel
 import com.example.vapeon_movil.viewmodels.FidelidadViewModel
+import com.example.vapeon_movil.viewmodels.ProveedorViewModel
 import com.example.vapeon_movil.viewmodels.validarMayoriaEdad
 import com.example.vapeon_movil.ui.TarjetasScreen
 import com.example.vapeon_movil.ui.DireccionesScreen
@@ -108,6 +111,7 @@ fun VapeONApp() {
     val pronosticoDemandaViewModel: PronosticoDemandaViewModel = viewModel()
     val rolesViewModel: RolesViewModel = viewModel()
     val fidelidadViewModel: FidelidadViewModel = viewModel()
+    val proveedorViewModel: ProveedorViewModel = viewModel()
 
     val usuarioActual = usuarioViewModel.usuarioActual
     val claveSesion = claveSesionNavegacion(usuarioActual)
@@ -354,7 +358,8 @@ fun VapeONApp() {
             "tarjetaTitular" -> pantallaActual = "tarjetaCvv"
             "agregarDireccion", "editarDireccion" -> volverDeFormularioDireccion()
             "detallePedido" -> pantallaActual = "historialCompras"
-            "saboresAdmin", "marcasAdmin", "pedidosAdmin", "cupones" -> pantallaActual = "admin"
+            "saboresAdmin", "marcasAdmin", "pedidosAdmin", "cupones", "proveedores" -> pantallaActual = "admin"
+            "registrarProveedor" -> pantallaActual = "proveedores"
             "agregarSabor", "editarSabor" -> pantallaActual = "saboresAdmin"
             "agregarMarca", "editarMarca" -> pantallaActual = "marcasAdmin"
             "cajaTotal" -> pantallaActual = "admin"
@@ -488,6 +493,7 @@ fun VapeONApp() {
                 irMarcas = { pantallaActual = "marcasAdmin" },
                 irSabores = { pantallaActual = "saboresAdmin" },
                 irRoles = { pantallaActual = "roles" },
+                irProveedores = { pantallaActual = "proveedores" },
                 irCatalogo = { pantallaActual = "catalogo" },
                 onPerfilClick = ::abrirPerfil,
                 irEditarProducto = { producto ->
@@ -540,6 +546,40 @@ fun VapeONApp() {
                     productos = productoViewModel.productos,
                     cargarProductos = productoViewModel::cargarProductos,
                     volver = { pantallaActual = "admin" }
+                )
+            } else {
+                LaunchedEffect(Unit) { pantallaActual = if (admin == null) "login" else "home" }
+            }
+        }
+
+        "proveedores" -> {
+            val admin = usuarioActual
+            if (admin != null && admin.rol.equals("ADMIN", true)) {
+                ProveedoresScreen(
+                    usuario = admin,
+                    proveedorViewModel = proveedorViewModel,
+                    volver = { pantallaActual = "admin" },
+                    registrar = {
+                        proveedorViewModel.iniciarFormulario()
+                        pantallaActual = "registrarProveedor"
+                    }
+                )
+            } else {
+                LaunchedEffect(Unit) { pantallaActual = if (admin == null) "login" else "home" }
+            }
+        }
+
+        "registrarProveedor" -> {
+            val admin = usuarioActual
+            if (admin != null && admin.rol.equals("ADMIN", true)) {
+                RegistrarProveedorScreen(
+                    usuario = admin,
+                    proveedorViewModel = proveedorViewModel,
+                    cancelar = {
+                        proveedorViewModel.cancelarRegistro()
+                        pantallaActual = "proveedores"
+                    },
+                    registrado = { pantallaActual = "proveedores" }
                 )
             } else {
                 LaunchedEffect(Unit) { pantallaActual = if (admin == null) "login" else "home" }
@@ -1127,7 +1167,7 @@ private val RUTAS_ADMIN = setOf(
     "editarProducto", "pedidosAdmin", "detallePedidoAdmin", "saboresAdmin",
     "agregarSabor", "editarSabor", "marcasAdmin", "agregarMarca", "editarMarca",
     "prediccionAdmin", "alertasStockAdmin", "sinMovimientoAdmin", "sugerenciasReabastecimientoAdmin",
-    "estadisticas"
+    "estadisticas", "proveedores", "registrarProveedor"
 )
 private val RUTAS_COMPARTIDAS = setOf(
     "catalogo", "detalle", "perfil", "accesibilidad", "cambiarContrasena", "soporteEstudiante"
