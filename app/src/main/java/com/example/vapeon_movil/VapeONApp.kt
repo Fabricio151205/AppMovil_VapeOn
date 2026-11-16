@@ -618,6 +618,7 @@ fun VapeONApp() {
                 irMarcas  = { pantallaActual = "marcasAdmin" },
                 irSabores = { pantallaActual = "saboresAdmin" },
                 irRoles = { pantallaActual = "roles" },
+                irProveedores = { pantallaActual = "proveedores" },
                 irCarrito = { pantallaActual = "carrito" },
                 irHistorial = { pantallaActual = "historialCompras" },
                 irTarjetas = { pantallaActual = "tarjetas" },
@@ -793,6 +794,9 @@ fun VapeONApp() {
                 },
                 irCatalogo = { pantallaActual = "catalogo" },
                 irPedidos = { pantallaActual = "pedidosAdmin" },
+                irMarcas = { pantallaActual = "marcasAdmin" },
+                irRoles = { pantallaActual = "roles" },
+                irProveedores = { pantallaActual = "proveedores" },
                 onPerfilClick = ::abrirPerfil,
                 cerrarSesion = ::cerrarSesion
             )
