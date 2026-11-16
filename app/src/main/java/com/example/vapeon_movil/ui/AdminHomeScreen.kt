@@ -44,6 +44,7 @@ fun AdminHomeScreen(
     onCuponesClick: () -> Unit = {},
     onNuevaVentaClick: () -> Unit = {},
     onEstadisticasClick: () -> Unit = {},
+    onFavoritosAdminClick: () -> Unit = {},
     onInversionistasClick: () -> Unit = {},
     irPedidos: () -> Unit = {},
     irMarcas: () -> Unit = {},
@@ -501,6 +502,32 @@ fun AdminHomeScreen(
                         fontSize = 11.5.sp
                     )
                 }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Button(
+                onClick = onFavoritosAdminClick,
+                shape = RoundedCornerShape(50),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = VapeOnRed,
+                    contentColor = VapeOnTextPrimary
+                ),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Favorite,
+                    contentDescription = "Productos más populares",
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = "PRODUCTOS MÁS POPULARES",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 12.sp
+                )
             }
 
             Spacer(modifier = Modifier.height(36.dp))

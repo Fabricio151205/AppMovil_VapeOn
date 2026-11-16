@@ -16,3 +16,18 @@ data class Favorito(
     val esValido: Boolean
         get() = id.isNotBlank() && usuarioId.isNotBlank() && productoId.isNotBlank()
 }
+
+/**
+ * Popularidad agregada de un producto según la cantidad de favoritos.
+ * No contiene `usuarioId`: el administrador solo ve el conteo por producto.
+ */
+data class PopularidadProducto(
+    val productoId: String,
+    val favoritos: Int
+) {
+    init {
+        require(productoId.isNotBlank()) { "El producto de popularidad es inválido." }
+        require(favoritos > 0) { "La popularidad debe ser mayor que cero." }
+    }
+}
+

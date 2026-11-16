@@ -8,7 +8,7 @@ Documento de especificación y diseño de arquitectura para la aplicación móvi
 
 **VapeON Móvil** es una aplicación nativa para Android orientada al comercio electrónico y gestión de catálogo de productos de vapeo. Proporciona una experiencia de usuario fluida con soporte para dos perfiles de usuario principales:
 - **Cliente**: Exploración de catálogo por marcas y filtros flotantes (RF12 / RF13), visualización exclusiva de productos con stock disponible (RNE01), ficha técnica con imágenes dinámicas por sabor, favoritos por producto, carrito de compras persistente localmente y proceso de checkout/pedidos con boleta electrónica troquelada e incremental.
-- **Administrador**: Gestión completa del inventario (CRUD de productos: crear, listar, editar con conmutador de sabores `tieneSabor` y eliminar), supervisión de pedidos, gestión de la colección máster de sabores y marcas, y acceso al panel administrativo desde el menú lateral. **Sin acceso al carrito.**
+- **Administrador**: Gestión completa del inventario (CRUD de productos: crear, listar, editar con conmutador de sabores `tieneSabor` y eliminar), supervisión de pedidos, gestión de la colección máster de sabores y marcas, estadísticas por periodo y ranking de productos más populares según favoritos de clientes. **Sin acceso al carrito.**
 
 ---
 
@@ -51,6 +51,7 @@ graph TD
             TAR_VM[TarjetaViewModel]
             DIR_VM[DireccionesViewModel]
             FAV_VM[FavoritosViewModel]
+            FAV_ADM_VM[FavoritosAdminViewModel]
         end
 
         subgraph Screens ["Pantallas Composables"]
@@ -71,6 +72,7 @@ graph TD
             ADIR[AgregarDireccionScreen]
             EDIR[EditarDireccionScreen]
             FAVS[FavoritosScreen - Mis favoritos]
+            FAV_ADMIN[FavoritosAdminScreen - ranking ADMIN]
             STS[SeleccionTarjetaScreen]
             TSR[AgregarTarjeta - 4 Pasos con VisualTransformation]
             SAB_ADM[SaboresAdminScreen]
@@ -153,6 +155,7 @@ graph TD
 | Historial de Compras | ✅ | ❌ |
 | Gestión de direcciones de entrega (CRUD) | ✅ | ❌ |
 | Favoritos del cliente (alta/baja y "Mis favoritos") | ✅ | ❌ |
+| Ranking de productos más populares (agregado de favoritos, solo lectura) | ❌ | ✅ |
 | Agregar Producto (CRUD) | ❌ | ✅ |
 | Editar Producto (CRUD + `tieneSabor`) | ❌ | ✅ |
 | Eliminar Producto (CRUD) | ❌ | ✅ |
@@ -188,3 +191,4 @@ graph TD
 | **v1.9.0** | `2026-11-08` | `FidelidadViewModel` y pantallas `MiFidelidadScreen`/`FidelidadAdminScreen`: un punto por pedido entregado con idempotencia por `eventosFidelidad/{pedidoId}`, ciclo 0→6→0, recompensa con snapshot y ranking administrativo. |
 | **v1.10.0** | `2026-11-14` | `FavoritosViewModel`, `FavoritoService` y `FavoritosScreen`: colección `favoritos` con alta/baja desde el corazón de `DetalleProductoScreen`, opción "Mis favoritos" en el menú y tarjetas resueltas contra el catálogo vigente. `DetallePedidoScreen` usa el fondo `arreglo_pedido` y tipografías de boleta. |
 | **v1.11.0** | `2026-11-14` | `entities/Estadisticas.kt` y `EstadisticasScreen`: reportes ADMIN por día, mes y año sobre pedidos `ENTREGADO` con zona `America/Lima`, KPIs, evolución Canvas, rankings de productos/marcas/categorías, métodos de pago y comparación contra el periodo anterior. Ruta `estadisticas` incluida en `RUTAS_ADMIN`. |
+| **v1.12.0** | `2026-11-16` | `FavoritosAdminViewModel` y `FavoritosAdminScreen`: ranking ADMIN de productos más populares agregando la colección `favoritos` por `productoId`, sin exponer `usuarioId` ni datos de clientes. Acceso desde el botón "PRODUCTOS MÁS POPULARES" de `AdminHomeScreen` y ruta `favoritosAdmin` incluida en `RUTAS_ADMIN`. |

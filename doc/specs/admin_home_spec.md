@@ -32,7 +32,8 @@ El modelo de negocio de VapeON requiere que los administradores de la tienda cue
   - Integración con Firebase Firestore REST API (`ProductoService`) para listar y eliminar productos.
   - Indicador animado de carga `CircularProgressIndicator` en la sección de carrusel mientras se cargan los productos desde la red.
   - Navegación hacia `EditarProductoScreen` desde el botón del lápiz en cada tarjeta del carrusel.
-  - Acciones rápidas mediante grid de 4 botones ergonómicos de 56dp: *Cupones*, *Nueva Venta*, *Estadísticas* e *Inversionistas*.
+  - Acciones rápidas mediante grid de botones ergonómicos de 56dp: *Cupones*, *Nueva Venta*, *Estadísticas*, *Inversionistas* y el botón de ancho completo **"Productos más populares"**.
+  - El botón **"Productos más populares"** abre `FavoritosAdminScreen` (ruta `favoritosAdmin`), exclusiva del rol ADMIN.
   - Diálogo modal de confirmación antes de la eliminación física de cualquier registro.
   - Menú lateral deslizable (*Navigation Drawer*) con enlaces a módulos satélite.
 - **Fuera de Alcance (Out-of-Scope - Versión Actual)**:
@@ -129,6 +130,7 @@ fun AdminHomeScreen(
     onCuponesClick: () -> Unit = {},
     onNuevaVentaClick: () -> Unit = {},
     onEstadisticasClick: () -> Unit = {},
+    onFavoritosAdminClick: () -> Unit = {},
     onInversionistasClick: () -> Unit = {}
 )
 ```
@@ -147,6 +149,11 @@ fun AdminHomeScreen(
 - **Cuando** el administrador pulsa el ícono de edición (`Edit`) en una tarjeta de producto.
 - **Entonces** el sistema invoca `irEditarProducto(prod)`, asigna `productoEditar` en `VapeONApp` y abre la pantalla `EditarProductoScreen`.
 
+### Escenario 3: Acceso al ranking de productos más populares
+- **Dado que** el administrador está en `AdminHomeScreen`.
+- **Cuando** pulsa el botón **"PRODUCTOS MÁS POPULARES"**.
+- **Entonces** se invoca `onFavoritosAdminClick`, se abre `FavoritosAdminScreen` y se muestra el ranking calculado con la colección `favoritos` sin datos personales de clientes.
+
 ---
 
 ## 5. Historial de Versiones del Documento
@@ -156,3 +163,4 @@ fun AdminHomeScreen(
 | `1.0.0` | `2026-09-26` | Equipo de Arquitectura VapeON | Especificación inicial general en `doc/spec.md`. |
 | `1.1.0` | `2026-09-27` | Equipo de Arquitectura VapeON | Creación de especificación técnica y ética dedicada para `AdminHomeScreen.kt`. |
 | `1.2.0` | `2026-10-02` | Equipo de Arquitectura VapeON | Conexión de la navegación `irEditarProducto` hacia `EditarProductoScreen`, eliminación de productos estáticos de demostración y adición de `CircularProgressIndicator`. |
+| `1.3.0` | `2026-11-16` | Equipo de Arquitectura VapeON | Botón **"Productos más populares"** y parámetro `onFavoritosAdminClick` para abrir `FavoritosAdminScreen` desde el panel administrativo. |
