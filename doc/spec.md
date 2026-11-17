@@ -17,7 +17,7 @@
 ### 1.1 Declaración del Problema
 El mercado de dispositivos y accesorios de vapeo requiere plataformas digitales ágiles que permitan a los usuarios mayores de edad consultar catálogos actualizados por marca y stock en tiempo real, garantizando un control estricto de acceso (+18), veracidad en especificaciones de producto y herramientas administrativas para la gestión del inventario.
 
-### 1.2 Alcance del Sistema (Versión 1.10.0)
+### 1.2 Alcance del Sistema (Versión 1.12.0)
 - **Programa de fidelidad por pedidos entregados**:
   - Cada pedido real que cambia a `ENTREGADO` y contiene productos acredita exactamente un punto al propietario identificado por `Pedido.usuarioId`, sin multiplicarlo por líneas ni unidades.
   - El progreso se limita a `0..6`; al llegar a seis se crea una recompensa pendiente y los pedidos entregados posteriores no acumulan puntos ocultos mientras continúe pendiente.
@@ -63,6 +63,13 @@ El mercado de dispositivos y accesorios de vapeo requiere plataformas digitales 
   - La opción **"Mis favoritos"** del menú lateral abre `FavoritosScreen` con una grilla de tarjetas reales: imagen, stock, marca, nombre, precio y **"Añadir al Carrito"**.
   - El corazón de cada tarjeta elimina el favorito y el botón de compra elige el primer sabor con stock disponible.
   - Solo se consultan y eliminan documentos cuyo `usuarioId` coincide con la sesión; las rutas `favoritos` son exclusivas de CLIENTE. Especificación detallada en `doc/specs/favoritos_spec.md`.
+- **Productos más populares para el Administrador (ranking de `favoritos`)**:
+  - El botón **"PRODUCTOS MÁS POPULARES"** de `AdminHomeScreen` abre `FavoritosAdminScreen`.
+  - El ranking cuenta los documentos de `favoritos` agrupados por `productoId`; mide popularidad entre clientes, no ventas ni ingresos.
+  - La vista es de solo lectura y exclusiva del rol ADMIN; la ruta `favoritosAdmin` se incluye en `RUTAS_ADMIN`.
+  - No se expone `usuarioId` ni ningún dato personal: solo el conteo agregado por producto.
+  - Nombre, marca, stock e imagen se resuelven contra el catálogo vigente; si el producto ya no existe, se muestra un aviso neutro sin datos inventados.
+  - Los documentos inválidos se descartan y se informan para no presentar un ranking incompleto como completo.
 - **Lista de Pedidos del Administrador con filtros**:
   - Filtros **"Todos"**, **"Registrados"**, **"En camino"** y **"Completados"** aplicados sobre los pedidos reales de Firestore.
   - La vista **"Todos"** oculta los pedidos entregados; estos solo se consultan en **"Completados"**, de modo que el trabajo diario muestre únicamente los pedidos registrados y en camino.
@@ -133,6 +140,7 @@ El mercado de dispositivos y accesorios de vapeo requiere plataformas digitales 
 | `1.9.0` | `2026-11-08` | Equipo VapeON | Programa de fidelidad con un punto por pedido entregado, idempotencia por pedido, ciclo 0→6→0, snapshot histórico de recompensa, ranking ADMIN y consulta privada del CLIENTE. |
 | `1.10.0` | `2026-11-14` | Equipo VapeON | Favoritos del cliente (`favoritos`) con alta/baja desde el corazón del detalle, pantalla "Mis favoritos" con datos reales del catálogo y opción en el menú lateral; `DetallePedidoScreen` usa el fondo `arreglo_pedido` y tipografías de boleta. |
 | `1.11.0` | `2026-11-14` | Equipo VapeON | `EstadisticasScreen` y `entities/Estadisticas.kt`: reportes ADMIN por día, mes y año sobre pedidos entregados, con KPIs, evolución Canvas, rankings de productos/marcas/categorías, métodos de pago y comparación contra el periodo anterior. |
+| `1.12.0` | `2026-11-16` | Equipo VapeON | Ranking ADMIN de productos más populares: `FavoritosAdminViewModel` y `FavoritosAdminScreen` agregan la colección `favoritos` por `productoId`, sin exponer datos de clientes, con acceso desde `AdminHomeScreen` y ruta `favoritosAdmin` en `RUTAS_ADMIN`. |
 
 ---
 

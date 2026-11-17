@@ -55,6 +55,7 @@ import com.example.vapeon_movil.ui.DetalleProductoScreen
 import com.example.vapeon_movil.ui.EditarProductoScreen
 import com.example.vapeon_movil.ui.ForgotPasswordScreen
 import com.example.vapeon_movil.ui.FavoritosScreen
+import com.example.vapeon_movil.ui.FavoritosAdminScreen
 import com.example.vapeon_movil.ui.HistorialComprasScreen
 import com.example.vapeon_movil.ui.DetallePedidoScreen
 import com.example.vapeon_movil.ui.HomeScreen
@@ -92,6 +93,7 @@ import com.example.vapeon_movil.ui.EditarDireccionScreen
 import com.example.vapeon_movil.viewmodels.TarjetaViewModel
 import com.example.vapeon_movil.viewmodels.DireccionesViewModel
 import com.example.vapeon_movil.viewmodels.FavoritosViewModel
+import com.example.vapeon_movil.viewmodels.FavoritosAdminViewModel
 import com.example.vapeon_movil.viewmodels.PronosticoDemandaViewModel
 
 @Composable
@@ -112,6 +114,7 @@ fun VapeONApp() {
     val tarjetaViewModel: TarjetaViewModel = viewModel()
     val direccionesViewModel: DireccionesViewModel = viewModel()
     val favoritosViewModel: FavoritosViewModel = viewModel()
+    val favoritosAdminViewModel: FavoritosAdminViewModel = viewModel()
     val pronosticoDemandaViewModel: PronosticoDemandaViewModel = viewModel()
     val rolesViewModel: RolesViewModel = viewModel()
     val clientesViewModel: ClientesViewModel = viewModel()
@@ -218,6 +221,7 @@ fun VapeONApp() {
         tarjetaViewModel.actualizarUsuario(usuarioActual)
         direccionesViewModel.actualizarUsuario(usuarioActual)
         favoritosViewModel.actualizarUsuario(usuarioActual)
+        favoritosAdminViewModel.actualizarUsuario(usuarioActual)
         if (usuarioActual?.rol.equals("CLIENTE", true)) favoritosViewModel.cargarFavoritos(usuarioActual)
         pedidoViewModel.actualizarUsuarioCheckout(usuarioActual)
         carritoViewModel.cargarCarrito(context, usuarioActual?.id)
@@ -248,6 +252,8 @@ fun VapeONApp() {
         direccionesViewModel.actualizarUsuario(usuarioViewModel.usuarioActual)
         favoritosViewModel.actualizarUsuario(null)
         favoritosViewModel.actualizarUsuario(usuarioViewModel.usuarioActual)
+        favoritosAdminViewModel.actualizarUsuario(null)
+        favoritosAdminViewModel.actualizarUsuario(usuarioViewModel.usuarioActual)
         pedidoViewModel.actualizarUsuarioCheckout(usuarioViewModel.usuarioActual)
         // También descarta selecciones si el mismo usuario vuelve a iniciar sesión.
         propietarioNavegacion = claveSesionNavegacion(usuarioViewModel.usuarioActual)
@@ -265,6 +271,7 @@ fun VapeONApp() {
         tarjetaViewModel.actualizarUsuario(null)
         direccionesViewModel.actualizarUsuario(null)
         favoritosViewModel.actualizarUsuario(null)
+        favoritosAdminViewModel.actualizarUsuario(null)
         usuarioViewModel.cerrarSesion()
         productoSeleccionadoId = ""
         productoEditarId = ""
@@ -367,8 +374,13 @@ fun VapeONApp() {
             "tarjetaTitular" -> pantallaActual = "tarjetaCvv"
             "agregarDireccion", "editarDireccion" -> volverDeFormularioDireccion()
             "detallePedido" -> pantallaActual = "historialCompras"
+<<<<<<< HEAD
+            "saboresAdmin", "marcasAdmin", "pedidosAdmin", "cupones" -> pantallaActual = "admin"
+            "favoritosAdmin" -> pantallaActual = "admin"
+=======
             "saboresAdmin", "marcasAdmin", "pedidosAdmin", "cupones", "proveedores" -> pantallaActual = "admin"
             "registrarProveedor" -> pantallaActual = "proveedores"
+>>>>>>> 7c1d9a34c03533f0b464ad209a7b769d0e4f50ad
             "agregarSabor", "editarSabor" -> pantallaActual = "saboresAdmin"
             "agregarMarca", "editarMarca" -> pantallaActual = "marcasAdmin"
             "cajaTotal" -> pantallaActual = "admin"
@@ -489,6 +501,7 @@ fun VapeONApp() {
                 onPrediccionClick = { pantallaActual = "prediccionAdmin" },
                 onCuponesClick = { pantallaActual = "cupones" },
                 onEstadisticasClick = { pantallaActual = "estadisticas" },
+                onFavoritosAdminClick = { pantallaActual = "favoritosAdmin" },
                 textoCaja = when {
                     pedidoViewModel.cargandoCaja -> "Cargando…"
                     pedidoViewModel.errorCaja != null -> "Error al cargar"
@@ -513,6 +526,22 @@ fun VapeONApp() {
                     seleccionarProducto(producto)
                 }
             )
+        }
+
+        // ── FAVORITOS / POPULARIDAD (solo ADMIN) ──────────────────────────────
+        "favoritosAdmin" -> {
+            val admin = usuarioActual
+            if (admin != null && admin.rol.equals("ADMIN", true)) {
+                FavoritosAdminScreen(
+                    admin = admin,
+                    productoViewModel = productoViewModel,
+                    sabores = saboresViewModel.listaSabores,
+                    favoritosAdminViewModel = favoritosAdminViewModel,
+                    volver = { pantallaActual = "admin" }
+                )
+            } else {
+                LaunchedEffect(Unit) { pantallaActual = if (admin == null) "login" else "home" }
+            }
         }
 
         // ── ESTADÍSTICAS (solo ADMIN) ─────────────────────────────────────────
@@ -1248,7 +1277,15 @@ private val RUTAS_ADMIN = setOf(
     "editarProducto", "pedidosAdmin", "detallePedidoAdmin", "saboresAdmin",
     "agregarSabor", "editarSabor", "marcasAdmin", "agregarMarca", "editarMarca",
     "prediccionAdmin", "alertasStockAdmin", "sinMovimientoAdmin", "sugerenciasReabastecimientoAdmin",
+<<<<<<< HEAD
     "estadisticas", "proveedores", "registrarProveedor", "clientes", "detalleCliente", "editarCliente"
+=======
+<<<<<<< HEAD
+    "estadisticas", "favoritosAdmin"
+=======
+    "estadisticas", "proveedores", "registrarProveedor"
+>>>>>>> 7c1d9a34c03533f0b464ad209a7b769d0e4f50ad
+>>>>>>> 4b1af16cf92f75b8c48e2d23711dbd9d4e154511
 )
 private val RUTAS_COMPARTIDAS = setOf(
     "catalogo", "detalle", "perfil", "accesibilidad", "cambiarContrasena", "soporteEstudiante"
