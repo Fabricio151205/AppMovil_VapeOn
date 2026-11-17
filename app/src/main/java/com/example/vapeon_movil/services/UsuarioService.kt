@@ -52,6 +52,17 @@ interface UsuarioRolesService {
     ): UsuarioDocumento
 }
 
+/** Contrato administrativo acotado: nunca envía contraseña, rol ni metadatos. */
+interface UsuarioClientesService {
+    @PATCH("usuarios/{id}")
+    suspend fun actualizarCliente(
+        @Path("id") id: String,
+        @Query("updateMask.fieldPaths") campos: List<String>,
+        @Query("currentDocument.updateTime") updateTime: String,
+        @Body body: UsuarioContainer
+    ): UsuarioDocumento
+}
+
 suspend fun UsuarioService.listarTodosUsuarios(): UsuarioListResponse {
     val documentos = mutableListOf<UsuarioDocumento>()
     val tokens = mutableSetOf<String>()

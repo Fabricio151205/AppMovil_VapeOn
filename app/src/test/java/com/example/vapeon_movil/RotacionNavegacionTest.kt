@@ -14,7 +14,7 @@ class RotacionNavegacionTest {
         RUTAS_COMPRA + RUTAS_REGISTRO_TARJETA
     private val rutasAdmin = listOf("admin", "catalogo", "detalle", "agregarProducto",
         "editarProducto", "pedidosAdmin", "detallePedidoAdmin", "pronosticoDemanda", "roles", "cupones",
-        "proveedores", "registrarProveedor")
+        "proveedores", "registrarProveedor", "clientes", "detalleCliente", "editarCliente")
 
     @Test fun conservaTodasLasRutasDelClienteConLaMismaSesion() {
         rutasCliente.forEach { ruta ->
@@ -46,6 +46,15 @@ class RotacionNavegacionTest {
 
     @Test fun rutasDeProveedoresRespetanRolSesionYRestauracion() {
         listOf("proveedores", "registrarProveedor").forEach { ruta ->
+            assertEquals(ruta, pantallaRestauradaSegura(ruta, admin, claveSesionNavegacion(admin)))
+            assertEquals("home", pantallaRestauradaSegura(ruta, cliente, claveSesionNavegacion(cliente)))
+            assertEquals("login", pantallaRestauradaSegura(ruta, null, claveSesionNavegacion(admin)))
+            assertEquals("admin", pantallaRestauradaSegura(ruta, admin.copy(id = "otro"), claveSesionNavegacion(admin)))
+        }
+    }
+
+    @Test fun rutasDeClientesRespetanRolSesionYRestauracion() {
+        listOf("clientes", "detalleCliente", "editarCliente").forEach { ruta ->
             assertEquals(ruta, pantallaRestauradaSegura(ruta, admin, claveSesionNavegacion(admin)))
             assertEquals("home", pantallaRestauradaSegura(ruta, cliente, claveSesionNavegacion(cliente)))
             assertEquals("login", pantallaRestauradaSegura(ruta, null, claveSesionNavegacion(admin)))

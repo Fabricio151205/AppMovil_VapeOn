@@ -4,7 +4,7 @@
 | :--- | :--- |
 | **Identificador** | `SPEC-VAPEON-001` |
 | **Proyecto** | VapeON - Aplicación Móvil Android |
-| **Versión** | `1.11.0` |
+| **Versión** | `1.12.0` |
 | **Estado** | `Aprobado` |
 | **Fecha de Publicación** | `2026-11-14` |
 | **Plataforma Objetivo** | Android (minSdk 31, targetSdk 37, compileSdk 37) |
@@ -253,3 +253,30 @@ Métricas comunes: total vendido (productos + delivery), ingresos por productos,
 - La fecha disponible es la de creación del pedido; no existe un timestamp de entrega, por lo que la evolución se agrupa por fecha de registro.
 - Los pedidos inválidos se excluyen del cálculo y se muestran como advertencia; nunca se interpretan como ventas cero.
 - Las rutas restauradas se validan contra el rol ADMIN y el propietario de la sesión.
+
+---
+
+## 6. Especificación técnica y ética del módulo Clientes
+
+### 6.1 Alcance y privacidad
+
+- El módulo es exclusivo de ADMIN y lista únicamente documentos de `usuarios` cuyo `rol` sea `CLIENTE`.
+- Las tarjetas muestran nombre completo, correo, DNI, teléfono y rol. El detalle añade fecha de nacimiento y `createTime` cuando existe; nunca fabrica DNI ni fechas ausentes.
+- `password` no se presenta, edita ni incluye en los modelos de visualización. El cambio de contraseña y de rol quedan fuera de este módulo; el rol continúa administrándose exclusivamente desde Roles.
+- La búsqueda local admite nombre, apellido, nombre completo, correo y DNI, sin distinguir mayúsculas y de forma segura para documentos antiguos incompletos.
+
+### 6.2 Edición y concurrencia
+
+- Los únicos campos editables son `nombre`, `apellido`, `correo`, `dni`, `telefono` y `fechaNacimiento`.
+- La actualización REST usa `updateMask.fieldPaths` exclusivamente para los campos cuyo valor cambió y `currentDocument.updateTime` como precondición optimista.
+- El cuerpo nunca contiene `password`, `rol`, `createTime` ni `updateTime`. Los conflictos `409`/`412` se informan sin sobrescribir silenciosamente la versión remota.
+- El correo debe ser único respecto de otros documentos; el correo actual del propio cliente no se considera duplicado. El DNI es opcional y, si se informa, consta de ocho dígitos.
+
+### 6.3 Seguridad, UI y criterios de aceptación
+
+- `clientes`, `detalleCliente` y `editarCliente` son rutas ADMIN y se validan junto con el propietario de la sesión. CLIENTE y una sesión inexistente son rechazados.
+- La interfaz usa los tokens corporativos, superficies oscuras, estados de carga, vacío, error y reintento, además de controles táctiles de al menos 48 dp.
+- **Dado** un documento ADMIN, **cuando** se carga el listado, **entonces** queda excluido.
+- **Dado** un documento sin DNI o `createTime`, **cuando** se abre el detalle, **entonces** se muestra respectivamente `No registrado` o `No disponible`.
+- **Dado** un documento actualizado por otro dispositivo, **cuando** el ADMIN guarda con una versión antigua, **entonces** se informa el conflicto y no se modifica el estado local.
+- La aplicación aún usa Firestore REST sin Firebase Authentication. Las guardias de UI/ViewModel no sustituyen reglas remotas; con reglas que exijan `request.auth`, las operaciones reales pueden responder `403` hasta completar la migración de autenticación.

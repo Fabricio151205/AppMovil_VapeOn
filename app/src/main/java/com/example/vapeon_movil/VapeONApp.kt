@@ -61,6 +61,9 @@ import com.example.vapeon_movil.ui.HomeScreen
 import com.example.vapeon_movil.ui.LoginScreen
 import com.example.vapeon_movil.ui.RegisterScreen
 import com.example.vapeon_movil.ui.RolesScreen
+import com.example.vapeon_movil.ui.ClientesScreen
+import com.example.vapeon_movil.ui.DetalleClienteScreen
+import com.example.vapeon_movil.ui.EditarClienteScreen
 import com.example.vapeon_movil.ui.FidelidadAdminScreen
 import com.example.vapeon_movil.ui.MiFidelidadScreen
 import com.example.vapeon_movil.ui.ProveedoresScreen
@@ -78,6 +81,7 @@ import com.example.vapeon_movil.viewmodels.SaboresViewModel
 import com.example.vapeon_movil.viewmodels.MarcasViewModel
 import com.example.vapeon_movil.viewmodels.UsuarioViewModel
 import com.example.vapeon_movil.viewmodels.RolesViewModel
+import com.example.vapeon_movil.viewmodels.ClientesViewModel
 import com.example.vapeon_movil.viewmodels.FidelidadViewModel
 import com.example.vapeon_movil.viewmodels.ProveedorViewModel
 import com.example.vapeon_movil.viewmodels.validarMayoriaEdad
@@ -110,6 +114,7 @@ fun VapeONApp() {
     val favoritosViewModel: FavoritosViewModel = viewModel()
     val pronosticoDemandaViewModel: PronosticoDemandaViewModel = viewModel()
     val rolesViewModel: RolesViewModel = viewModel()
+    val clientesViewModel: ClientesViewModel = viewModel()
     val fidelidadViewModel: FidelidadViewModel = viewModel()
     val proveedorViewModel: ProveedorViewModel = viewModel()
 
@@ -122,6 +127,7 @@ fun VapeONApp() {
     var productoSeleccionadoId by rememberSaveable { mutableStateOf("") }
     var productoEditarId by rememberSaveable { mutableStateOf("") }
     var pedidoSeleccionadoId by rememberSaveable { mutableStateOf("") }
+    var clienteSeleccionadoId by rememberSaveable { mutableStateOf("") }
     var propietarioNavegacion by rememberSaveable { mutableStateOf<String?>(null) }
     // Identificador del sabor seleccionado para editar (nombre+marca como clave compuesta)
     var saborEditarNombre by rememberSaveable { mutableStateOf("") }
@@ -223,6 +229,7 @@ fun VapeONApp() {
             productoSeleccionadoId = ""
             productoEditarId = ""
             pedidoSeleccionadoId = ""
+            clienteSeleccionadoId = ""
             direccionEditarId = ""
             propietarioNavegacion = claveSesion
             if (pantallaActual !in RUTAS_PUBLICAS) pantallaActual = pantallaInicialSesion(usuarioActual)
@@ -247,6 +254,7 @@ fun VapeONApp() {
         productoSeleccionadoId = ""
         productoEditarId = ""
         pedidoSeleccionadoId = ""
+        clienteSeleccionadoId = ""
         direccionEditarId = ""
         productoViewModel.actualizarSesionProducto(null)
         productoViewModel.actualizarSesionProducto(propietarioNavegacion)
@@ -261,6 +269,7 @@ fun VapeONApp() {
         productoSeleccionadoId = ""
         productoEditarId = ""
         pedidoSeleccionadoId = ""
+        clienteSeleccionadoId = ""
         direccionEditarId = ""
         propietarioNavegacion = null
         productoViewModel.actualizarSesionProducto(null)
@@ -493,6 +502,7 @@ fun VapeONApp() {
                 irMarcas = { pantallaActual = "marcasAdmin" },
                 irSabores = { pantallaActual = "saboresAdmin" },
                 irRoles = { pantallaActual = "roles" },
+                irClientes = { pantallaActual = "clientes" },
                 irProveedores = { pantallaActual = "proveedores" },
                 irCatalogo = { pantallaActual = "catalogo" },
                 onPerfilClick = ::abrirPerfil,
@@ -531,6 +541,71 @@ fun VapeONApp() {
                     adminActual = admin,
                     rolesViewModel = rolesViewModel,
                     volver = { pantallaActual = "admin" }
+                )
+            } else {
+                LaunchedEffect(Unit) { pantallaActual = if (admin == null) "login" else "home" }
+            }
+        }
+
+        "clientes" -> {
+            val admin = usuarioActual
+            if (admin != null && admin.rol.equals("ADMIN", true)) {
+                ClientesScreen(
+                    admin = admin,
+                    viewModel = clientesViewModel,
+                    volver = { pantallaActual = "admin" },
+                    verDetalle = { id ->
+                        clienteSeleccionadoId = id
+                        pantallaActual = "detalleCliente"
+                    }
+                )
+            } else {
+                LaunchedEffect(Unit) { pantallaActual = if (admin == null) "login" else "home" }
+            }
+        }
+
+        "detalleCliente" -> {
+            val admin = usuarioActual
+            if (admin != null && admin.rol.equals("ADMIN", true)) {
+                LaunchedEffect(clienteSeleccionadoId, claveSesion) {
+                    if (clientesViewModel.clienteSeleccionado?.id != clienteSeleccionadoId) {
+                        clientesViewModel.recuperarCliente(admin, clienteSeleccionadoId)
+                    }
+                }
+                DetalleClienteScreen(
+                    cliente = clientesViewModel.clienteSeleccionado,
+                    volver = { pantallaActual = "clientes" },
+                    editar = {
+                        if (clientesViewModel.prepararEdicion(admin)) pantallaActual = "editarCliente"
+                    },
+                    cargando = clientesViewModel.cargandoDetalle,
+                    error = clientesViewModel.errorDetalle,
+                    reintentar = { clientesViewModel.recuperarCliente(admin, clienteSeleccionadoId, forzar = true) }
+                )
+            } else {
+                LaunchedEffect(Unit) { pantallaActual = if (admin == null) "login" else "home" }
+            }
+        }
+
+        "editarCliente" -> {
+            val admin = usuarioActual
+            if (admin != null && admin.rol.equals("ADMIN", true)) {
+                LaunchedEffect(clienteSeleccionadoId, claveSesion) {
+                    if (clientesViewModel.clienteSeleccionado?.id != clienteSeleccionadoId) {
+                        clientesViewModel.recuperarCliente(admin, clienteSeleccionadoId, paraEditar = true)
+                    } else {
+                        clientesViewModel.prepararEdicion(admin)
+                    }
+                }
+                EditarClienteScreen(
+                    admin = admin,
+                    viewModel = clientesViewModel,
+                    volver = { pantallaActual = "detalleCliente" },
+                    guardado = { pantallaActual = "detalleCliente" },
+                    reintentarCarga = {
+                        clientesViewModel.recuperarCliente(admin, clienteSeleccionadoId,
+                            paraEditar = true, forzar = true)
+                    }
                 )
             } else {
                 LaunchedEffect(Unit) { pantallaActual = if (admin == null) "login" else "home" }
@@ -618,6 +693,7 @@ fun VapeONApp() {
                 irMarcas  = { pantallaActual = "marcasAdmin" },
                 irSabores = { pantallaActual = "saboresAdmin" },
                 irRoles = { pantallaActual = "roles" },
+                irClientes = { if (esAdminUser) pantallaActual = "clientes" },
                 irProveedores = { pantallaActual = "proveedores" },
                 irCarrito = { pantallaActual = "carrito" },
                 irHistorial = { pantallaActual = "historialCompras" },
@@ -796,6 +872,7 @@ fun VapeONApp() {
                 irPedidos = { pantallaActual = "pedidosAdmin" },
                 irMarcas = { pantallaActual = "marcasAdmin" },
                 irRoles = { pantallaActual = "roles" },
+                irClientes = { pantallaActual = "clientes" },
                 irProveedores = { pantallaActual = "proveedores" },
                 onPerfilClick = ::abrirPerfil,
                 cerrarSesion = ::cerrarSesion
@@ -1171,7 +1248,7 @@ private val RUTAS_ADMIN = setOf(
     "editarProducto", "pedidosAdmin", "detallePedidoAdmin", "saboresAdmin",
     "agregarSabor", "editarSabor", "marcasAdmin", "agregarMarca", "editarMarca",
     "prediccionAdmin", "alertasStockAdmin", "sinMovimientoAdmin", "sugerenciasReabastecimientoAdmin",
-    "estadisticas", "proveedores", "registrarProveedor"
+    "estadisticas", "proveedores", "registrarProveedor", "clientes", "detalleCliente", "editarCliente"
 )
 private val RUTAS_COMPARTIDAS = setOf(
     "catalogo", "detalle", "perfil", "accesibilidad", "cambiarContrasena", "soporteEstudiante"

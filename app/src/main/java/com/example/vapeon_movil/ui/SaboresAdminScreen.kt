@@ -50,6 +50,7 @@ fun SaboresAdminScreen(
     irPedidos: () -> Unit = {},
     irMarcas: () -> Unit = {},
     irRoles: () -> Unit = {},
+    irClientes: () -> Unit = {},
     irProveedores: () -> Unit = {},
     cerrarSesion: () -> Unit = {},
     onPerfilClick: () -> Unit = {}
@@ -86,6 +87,7 @@ fun SaboresAdminScreen(
         irPedidos = irPedidos,
         irMarcas = irMarcas,
         irRoles = irRoles,
+        irClientes = irClientes,
         irProveedores = irProveedores,
         cerrarSesion = cerrarSesion,
         esAdmin = esAdmin,
