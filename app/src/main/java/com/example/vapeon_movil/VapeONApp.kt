@@ -374,13 +374,9 @@ fun VapeONApp() {
             "tarjetaTitular" -> pantallaActual = "tarjetaCvv"
             "agregarDireccion", "editarDireccion" -> volverDeFormularioDireccion()
             "detallePedido" -> pantallaActual = "historialCompras"
-<<<<<<< HEAD
-            "saboresAdmin", "marcasAdmin", "pedidosAdmin", "cupones" -> pantallaActual = "admin"
-            "favoritosAdmin" -> pantallaActual = "admin"
-=======
-            "saboresAdmin", "marcasAdmin", "pedidosAdmin", "cupones", "proveedores" -> pantallaActual = "admin"
+            "saboresAdmin", "marcasAdmin", "pedidosAdmin", "cupones", "proveedores", "favoritosAdmin" ->
+                pantallaActual = "admin"
             "registrarProveedor" -> pantallaActual = "proveedores"
->>>>>>> 7c1d9a34c03533f0b464ad209a7b769d0e4f50ad
             "agregarSabor", "editarSabor" -> pantallaActual = "saboresAdmin"
             "agregarMarca", "editarMarca" -> pantallaActual = "marcasAdmin"
             "cajaTotal" -> pantallaActual = "admin"
@@ -607,9 +603,22 @@ fun VapeONApp() {
                     editar = {
                         if (clientesViewModel.prepararEdicion(admin)) pantallaActual = "editarCliente"
                     },
+                    esAdmin = true,
                     cargando = clientesViewModel.cargandoDetalle,
                     error = clientesViewModel.errorDetalle,
-                    reintentar = { clientesViewModel.recuperarCliente(admin, clienteSeleccionadoId, forzar = true) }
+                    reintentar = { clientesViewModel.recuperarCliente(admin, clienteSeleccionadoId, forzar = true) },
+                    guardandoPassword = clientesViewModel.guardandoPassword,
+                    errorPassword = clientesViewModel.errorPassword,
+                    mensajePassword = clientesViewModel.mensajePassword,
+                    conflictoPassword = clientesViewModel.conflictoPassword,
+                    cambiarPassword = { nueva, confirmacion ->
+                        clientesViewModel.cambiarPassword(admin, nueva, confirmacion)
+                    },
+                    recargarPassword = {
+                        clientesViewModel.limpiarEstadoPassword()
+                        clientesViewModel.recuperarCliente(admin, clienteSeleccionadoId, forzar = true)
+                    },
+                    limpiarEstadoPassword = clientesViewModel::limpiarEstadoPassword
                 )
             } else {
                 LaunchedEffect(Unit) { pantallaActual = if (admin == null) "login" else "home" }
@@ -1277,15 +1286,8 @@ private val RUTAS_ADMIN = setOf(
     "editarProducto", "pedidosAdmin", "detallePedidoAdmin", "saboresAdmin",
     "agregarSabor", "editarSabor", "marcasAdmin", "agregarMarca", "editarMarca",
     "prediccionAdmin", "alertasStockAdmin", "sinMovimientoAdmin", "sugerenciasReabastecimientoAdmin",
-<<<<<<< HEAD
-    "estadisticas", "proveedores", "registrarProveedor", "clientes", "detalleCliente", "editarCliente"
-=======
-<<<<<<< HEAD
-    "estadisticas", "favoritosAdmin"
-=======
-    "estadisticas", "proveedores", "registrarProveedor"
->>>>>>> 7c1d9a34c03533f0b464ad209a7b769d0e4f50ad
->>>>>>> 4b1af16cf92f75b8c48e2d23711dbd9d4e154511
+    "estadisticas", "favoritosAdmin", "proveedores", "registrarProveedor",
+    "clientes", "detalleCliente", "editarCliente"
 )
 private val RUTAS_COMPARTIDAS = setOf(
     "catalogo", "detalle", "perfil", "accesibilidad", "cambiarContrasena", "soporteEstudiante"

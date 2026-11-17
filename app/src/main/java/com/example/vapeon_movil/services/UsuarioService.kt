@@ -63,6 +63,17 @@ interface UsuarioClientesService {
     ): UsuarioDocumento
 }
 
+/** Contrato administrativo dedicado: actualiza únicamente la contraseña. */
+interface UsuarioPasswordService {
+    @PATCH("usuarios/{id}")
+    suspend fun actualizarPassword(
+        @Path("id") id: String,
+        @Query("updateMask.fieldPaths") campo: String = "password",
+        @Query("currentDocument.updateTime") updateTime: String,
+        @Body body: UsuarioContainer
+    ): UsuarioDocumento
+}
+
 suspend fun UsuarioService.listarTodosUsuarios(): UsuarioListResponse {
     val documentos = mutableListOf<UsuarioDocumento>()
     val tokens = mutableSetOf<String>()

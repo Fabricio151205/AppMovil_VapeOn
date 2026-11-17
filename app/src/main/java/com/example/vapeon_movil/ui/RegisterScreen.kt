@@ -36,6 +36,7 @@ fun RegisterScreen(
     var apellidos by rememberSaveable { mutableStateOf("") }
     var correo by rememberSaveable { mutableStateOf("") }
     var telefono by rememberSaveable { mutableStateOf("") }
+    var dni by rememberSaveable { mutableStateOf("") }
     var fechaNacimiento by rememberSaveable { mutableStateOf("") }
     var password by rememberSaveable { mutableStateOf("") }
     var passwordConfirm by rememberSaveable { mutableStateOf("") }
@@ -217,6 +218,45 @@ fun RegisterScreen(
 
             Spacer(modifier = Modifier.height(12.dp))
 
+            // Campo: DNI
+            OutlinedTextField(
+                value = dni,
+                onValueChange = { dni = it },
+                placeholder = {
+                    Text(
+                        text = "DNI",
+                        color = VapeOnTextSecondary,
+                        fontSize = 15.sp
+                    )
+                },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                shape = RoundedCornerShape(12.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedContainerColor = VapeOnInputBackground,
+                    unfocusedContainerColor = VapeOnInputBackground,
+                    disabledContainerColor = VapeOnInputBackground,
+                    focusedBorderColor = VapeOnGold,
+                    unfocusedBorderColor = VapeOnInputBorder,
+                    focusedTextColor = VapeOnTextPrimary,
+                    unfocusedTextColor = VapeOnTextPrimary,
+                    cursorColor = VapeOnGold
+                ),
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            if (dni.isNotEmpty() && !Regex("[0-9]{8}").matches(dni)) {
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "Ingresa exactamente 8 dígitos, sin espacios ni otros caracteres",
+                    color = MaterialTheme.colorScheme.error,
+                    fontSize = 12.sp,
+                    modifier = Modifier.align(Alignment.Start)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
             // Campo: Fecha de Nacimiento (Control ético +18)
             OutlinedTextField(
                 value = fechaNacimiento,
@@ -338,7 +378,7 @@ fun RegisterScreen(
             Button(
                 onClick = {
                     usuarioViewModel.registrarUsuario(nombre, apellidos, correo, telefono,
-                        fechaNacimiento, password, passwordConfirm)
+                        dni, fechaNacimiento, password, passwordConfirm)
                 },
                 enabled = !cargando,
                 shape = RoundedCornerShape(50),

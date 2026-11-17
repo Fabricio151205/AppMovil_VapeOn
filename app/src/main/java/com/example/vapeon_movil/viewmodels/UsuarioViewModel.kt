@@ -71,11 +71,11 @@ class UsuarioViewModel(
 
     fun registrarUsuario(
         nombre: String, apellidos: String, correo: String, telefono: String,
-        fechaNacimiento: String, password: String, passwordConfirm: String,
+        dni: String, fechaNacimiento: String, password: String, passwordConfirm: String,
         onExito: (() -> Unit)? = null
     ) {
         if (cargandoRegistro) return
-        errorRegistro = validarRegistro(nombre, apellidos, correo, telefono, fechaNacimiento,
+        errorRegistro = validarRegistro(nombre, apellidos, correo, telefono, dni, fechaNacimiento,
             password, passwordConfirm)
         if (errorRegistro != null) return
         // Estructuramos el objeto según lo que pide la API REST de Firestore.
@@ -83,6 +83,7 @@ class UsuarioViewModel(
             nombre = FirestoreStringValue(nombre.trim()),
             apellido = FirestoreStringValue(apellidos.trim()),
             telefono = FirestoreStringValue(telefono),
+            dni = FirestoreStringValue(dni),
             fechaNacimiento = FirestoreStringValue(fechaNacimiento.trim()),
             correo = FirestoreStringValue(correo.trim()),
             password = FirestoreStringValue(password),
@@ -418,13 +419,15 @@ internal fun validarMayoriaEdad(
 
 internal fun validarRegistro(
     nombre: String, apellidos: String, correo: String, telefono: String,
-    fechaNacimiento: String, password: String, passwordConfirm: String,
+    dni: String, fechaNacimiento: String, password: String, passwordConfirm: String,
     hoy: LocalDate = LocalDate.now()
 ): String? {
     if (nombre.isBlank() || apellidos.isBlank() || correo.isBlank() || password.isBlank())
         return "Por favor completa todos los campos requeridos."
     if (!telefonoRegistroValido(telefono))
         return "El teléfono debe tener exactamente 9 dígitos y comenzar con 9, sin espacios ni otros caracteres."
+    if (dni.isBlank() || !dniClienteValido(dni))
+        return "El DNI debe tener exactamente 8 dígitos, sin espacios ni otros caracteres."
     if (!correoRegistroValido(correo)) return "Ingresa un correo electrónico válido."
     validarMayoriaEdad(fechaNacimiento, hoy)?.let { return it }
     if (password != passwordConfirm) return "Las contraseñas no coinciden."

@@ -7,6 +7,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.vapeon_movil.entities.Usuario
 import com.example.vapeon_movil.services.UsuarioClientesService
+import com.example.vapeon_movil.services.UsuarioPasswordService
 import com.example.vapeon_movil.services.UsuarioService
 import com.example.vapeon_movil.services.dto.FirestoreStringValue
 import com.example.vapeon_movil.services.dto.UsuarioCampos
@@ -57,6 +58,12 @@ internal fun validarFormularioCliente(formulario: FormularioCliente): ErroresCli
     fechaNacimiento = validarMayoriaEdad(formulario.fechaNacimiento)
 )
 
+internal fun validarNuevaPassword(nueva: String, confirmacion: String): String? = when {
+    nueva.isBlank() -> "La nueva contraseña es obligatoria."
+    nueva != confirmacion -> "Las contraseñas no coinciden."
+    else -> null
+}
+
 internal fun documentoACliente(documento: UsuarioDocumento): Usuario = Usuario(
     id = documento.name.substringAfterLast('/'),
     nombre = documento.fields.nombre?.stringValue.orEmpty(),
@@ -89,7 +96,8 @@ internal fun filtrarClientes(clientes: List<Usuario>, consulta: String): List<Us
 class ClientesViewModel(
     private val usuarioService: UsuarioService = RetrofitClient.retrofit.create(UsuarioService::class.java),
     private val clientesService: UsuarioClientesService = RetrofitClient.retrofit.create(UsuarioClientesService::class.java),
-    private val dispatcher: CoroutineDispatcher = Dispatchers.IO
+    private val dispatcher: CoroutineDispatcher = Dispatchers.IO,
+    private val passwordService: UsuarioPasswordService = RetrofitClient.retrofit.create(UsuarioPasswordService::class.java)
 ) : ViewModel() {
     var clientes by mutableStateOf<List<Usuario>>(emptyList()); private set
     var cargando by mutableStateOf(false); private set
@@ -103,6 +111,10 @@ class ClientesViewModel(
     var guardando by mutableStateOf(false); private set
     var mensajeExito by mutableStateOf<String?>(null); private set
     var conflicto by mutableStateOf(false); private set
+    var guardandoPassword by mutableStateOf(false); private set
+    var errorPassword by mutableStateOf<String?>(null); private set
+    var mensajePassword by mutableStateOf<String?>(null); private set
+    var conflictoPassword by mutableStateOf(false); private set
 
     val clientesFiltrados get() = filtrarClientes(clientes, busqueda)
 
@@ -259,6 +271,57 @@ class ClientesViewModel(
     }
 
     fun consumirMensajeExito() { mensajeExito = null }
+
+    fun cambiarPassword(admin: Usuario?, nueva: String, confirmacion: String, onExito: () -> Unit = {}) {
+        if (guardandoPassword) return
+        val actual = clienteSeleccionado
+        if (!esAdminClientes(admin) || actual == null || !actual.rol.equals("CLIENTE", true)) {
+            errorPassword = "Solo un administrador puede cambiar la contraseña de un cliente."
+            return
+        }
+        validarNuevaPassword(nueva, confirmacion)?.let {
+            errorPassword = it
+            return
+        }
+        val version = actual.updateTime
+        if (version.isNullOrBlank()) {
+            errorPassword = "No se puede actualizar sin la versión del documento. Recarga la información."
+            return
+        }
+        guardandoPassword = true
+        errorPassword = null
+        mensajePassword = null
+        conflictoPassword = false
+        viewModelScope.launch(dispatcher) {
+            try {
+                val body = UsuarioContainer(UsuarioCampos(password = FirestoreStringValue(nueva)))
+                val actualizado = passwordService.actualizarPassword(actual.id, updateTime = version, body = body)
+                val nuevaVersion = actualizado.updateTime?.takeIf { it.isNotBlank() } ?: version
+                val seguro = actual.copy(password = "", updateTime = nuevaVersion)
+                clienteSeleccionado = seguro
+                clientes = clientes.map { if (it.id == seguro.id) seguro else it }
+                mensajePassword = "Contraseña actualizada correctamente."
+                onExito()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: HttpException) {
+                conflictoPassword = esConflictoVersionCliente(e)
+                errorPassword = if (conflictoPassword)
+                    "La información cambió desde otro dispositivo. Recarga el cliente e inténtalo nuevamente."
+                else "No se pudo actualizar la contraseña. Reintenta."
+            } catch (_: Exception) {
+                errorPassword = "No se pudo actualizar la contraseña. Revisa tu conexión."
+            } finally {
+                guardandoPassword = false
+            }
+        }
+    }
+
+    fun limpiarEstadoPassword() {
+        errorPassword = null
+        mensajePassword = null
+        conflictoPassword = false
+    }
 
     private fun prepararFormulario(cliente: Usuario) {
         formulario = FormularioCliente(cliente.nombre, cliente.apellido, cliente.correo,

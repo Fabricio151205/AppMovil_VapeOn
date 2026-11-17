@@ -3,10 +3,12 @@ package com.example.vapeon_movil
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
 import com.example.vapeon_movil.entities.Usuario
 import com.example.vapeon_movil.services.UsuarioClientesService
+import com.example.vapeon_movil.services.UsuarioPasswordService
 import com.example.vapeon_movil.services.UsuarioService
 import com.example.vapeon_movil.services.dto.*
 import com.example.vapeon_movil.ui.ClientesScreen
@@ -16,6 +18,7 @@ import com.example.vapeon_movil.ui.theme.VapeON_MovilTheme
 import com.example.vapeon_movil.viewmodels.ClientesViewModel
 import kotlinx.coroutines.Dispatchers
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 
@@ -50,8 +53,14 @@ class ClientesUiTest {
             "2026-01-01T00:00:00Z", "2026-02-01T00:00:00Z")
     }
 
+    private class PasswordFake : UsuarioPasswordService {
+        override suspend fun actualizarPassword(id: String, campo: String, updateTime: String,
+            body: UsuarioContainer) = UsuarioDocumento("usuarios/$id", body.fields,
+            "2026-01-01T00:00:00Z", "2026-02-01T00:00:00Z")
+    }
+
     private fun vm(docs: List<UsuarioDocumento> = emptyList(), falla: Boolean = false) =
-        ClientesViewModel(UsuariosFake(docs, falla), EdicionFake(), Dispatchers.Unconfined)
+        ClientesViewModel(UsuariosFake(docs, falla), EdicionFake(), Dispatchers.Unconfined, PasswordFake())
 
     @Test fun listadoTarjetaYBuscadorSonVisibles() {
         val model = vm(listOf(doc()))
@@ -65,10 +74,13 @@ class ClientesUiTest {
     @Test fun detalleOcultaAusenciasYMuestraEdicion() {
         compose.setContent { VapeON_MovilTheme { DetalleClienteScreen(
             Usuario(id = "c1", nombre = "Juan", apellido = "Pérez", correo = "juan@correo.com",
-                dni = null, telefono = "987654321", fechaNacimiento = "01/01/1990", rol = "CLIENTE"), {}, {}) } }
+                password = "no-visible", dni = null, telefono = "987654321",
+                fechaNacimiento = "01/01/1990", rol = "CLIENTE"), {}, {}, esAdmin = true) } }
         compose.onNodeWithText("INFORMACIÓN DEL CLIENTE").assertIsDisplayed()
         compose.onNodeWithText("No registrado").assertIsDisplayed()
         compose.onNodeWithText("EDITAR INFORMACIÓN").assertIsDisplayed()
+        compose.onNodeWithText("CAMBIAR CONTRASEÑA").assertIsDisplayed()
+        assertTrue(compose.onAllNodesWithText("no-visible").fetchSemanticsNodes().isEmpty())
     }
 
     @Test fun editarMuestraCamposYGuardar() {
@@ -97,9 +109,28 @@ class ClientesUiTest {
 
     @Test fun detalleRestauradoInexistenteMuestraErrorYReintento() {
         compose.setContent { VapeON_MovilTheme {
-            DetalleClienteScreen(null, {}, {}, error = "El cliente ya no existe.", reintentar = {})
+            DetalleClienteScreen(null, {}, {}, esAdmin = true,
+                error = "El cliente ya no existe.", reintentar = {})
         } }
         compose.onNodeWithText("El cliente ya no existe.").assertIsDisplayed()
         compose.onNodeWithText("Reintentar").assertIsDisplayed()
+    }
+
+    @Test fun dialogoPasswordNoMuestraValorAnteriorYSeOcultaParaCliente() {
+        val usuario = Usuario(id = "c1", nombre = "Juan", apellido = "Pérez",
+            password = "clave-anterior", rol = "CLIENTE")
+        compose.setContent { VapeON_MovilTheme {
+            DetalleClienteScreen(usuario, {}, {}, esAdmin = true)
+        } }
+        compose.onNodeWithText("CAMBIAR CONTRASEÑA").performClick()
+        compose.onNodeWithText("Nueva contraseña").assertIsDisplayed()
+        compose.onNodeWithText("Confirmar nueva contraseña").assertIsDisplayed()
+        compose.onNodeWithText("Guardar contraseña").assertIsDisplayed()
+        assertTrue(compose.onAllNodesWithText("clave-anterior").fetchSemanticsNodes().isEmpty())
+
+        compose.setContent { VapeON_MovilTheme {
+            DetalleClienteScreen(usuario, {}, {}, esAdmin = false)
+        } }
+        assertTrue(compose.onAllNodesWithText("CAMBIAR CONTRASEÑA").fetchSemanticsNodes().isEmpty())
     }
 }

@@ -4,6 +4,7 @@ import com.example.vapeon_movil.services.UsuarioService
 import com.example.vapeon_movil.services.dto.*
 import com.example.vapeon_movil.viewmodels.UsuarioViewModel
 import com.example.vapeon_movil.viewmodels.correoRegistroValido
+import com.example.vapeon_movil.viewmodels.dniClienteValido
 import com.example.vapeon_movil.viewmodels.telefonoRegistroValido
 import com.example.vapeon_movil.viewmodels.validarRegistro
 import com.example.vapeon_movil.viewmodels.validarMayoriaEdad
@@ -55,7 +56,7 @@ class UsuarioSesionTest {
         val vm = UsuarioViewModel(servicio, Dispatchers.Unconfined)
         var exitos = 0
         repeat(2) {
-            vm.registrarUsuario("Ana", "Pérez", "ana@example.com", "912345678", "01/01/2000", "x", "x") { exitos++ }
+            vm.registrarUsuario("Ana", "Pérez", "ana@example.com", "912345678", "12345678", "01/01/2000", "x", "x") { exitos++ }
         }
         assertEquals(1, servicio.creados.size)
         assertEquals(1, exitos)
@@ -66,7 +67,7 @@ class UsuarioSesionTest {
         val pendiente = CompletableDeferred<UsuarioListResponse>()
         val servicio = ServicioUsuariosPrueba().apply { respuestaPendiente = pendiente }
         val vm = UsuarioViewModel(servicio, Dispatchers.Unconfined)
-        repeat(2) { vm.registrarUsuario("Ana", "Pérez", "ana@example.com", "912345678", "01/01/2000", "x", "x") }
+        repeat(2) { vm.registrarUsuario("Ana", "Pérez", "ana@example.com", "912345678", "12345678", "01/01/2000", "x", "x") }
         assertTrue(vm.cargandoRegistro)
         pendiente.complete(UsuarioListResponse(emptyList()))
         assertEquals(1, servicio.creados.size)
@@ -74,9 +75,20 @@ class UsuarioSesionTest {
     }
 
     private fun errorRegistro(telefono: String = "912345678", correo: String = "a@example.com",
-        fecha: String = "01/01/2000", password: String = "x", confirmacion: String = password,
+        dni: String = "12345678", fecha: String = "01/01/2000", password: String = "x", confirmacion: String = password,
         hoy: LocalDate = LocalDate.of(2026, 10, 30)) =
-        validarRegistro("Ana", "Pérez", correo, telefono, fecha, password, confirmacion, hoy)
+        validarRegistro("Ana", "Pérez", correo, telefono, dni, fecha, password, confirmacion, hoy)
+
+    @Test fun dniDeOchoDigitosEsValido() {
+        assertTrue(dniClienteValido("12345678"))
+        assertNull(errorRegistro(dni = "12345678"))
+    }
+
+    @Test fun dniInvalidoEsRechazadoPorRegistro() {
+        listOf("", "1234567", "123456789", "1234ABCD", "ABC12345").forEach {
+            assertNotNull("Debe rechazar DNI: '$it'", errorRegistro(dni = it))
+        }
+    }
 
     @Test fun telefonosValidos() {
         listOf("912345678", "987654321").forEach { assertTrue(telefonoRegistroValido(it)) }
@@ -184,7 +196,7 @@ class UsuarioSesionTest {
         val servicio = ServicioUsuariosPrueba()
         val vm = UsuarioViewModel(servicio, Dispatchers.Unconfined)
         val nacimiento = LocalDate.now().minusYears(1).format(DateTimeFormatter.ofPattern("dd/MM/uuuu"))
-        vm.registrarUsuario("Ana", "Pérez", "ana@example.com", "912345678", nacimiento, "x", "x")
+        vm.registrarUsuario("Ana", "Pérez", "ana@example.com", "912345678", "12345678", nacimiento, "x", "x")
         assertEquals("Debes tener 18 años cumplidos o más para registrarte.", vm.errorRegistro)
         assertEquals(0, servicio.consultas)
         assertTrue(servicio.creados.isEmpty())
@@ -200,8 +212,8 @@ class UsuarioSesionTest {
     }
 
     @Test fun nombreApellidoYCorreoSonObligatorios() {
-        assertNotNull(validarRegistro(" ", "Pérez", "a@example.com", "912345678", "01/01/2000", "x", "x"))
-        assertNotNull(validarRegistro("Ana", " ", "a@example.com", "912345678", "01/01/2000", "x", "x"))
+        assertNotNull(validarRegistro(" ", "Pérez", "a@example.com", "912345678", "12345678", "01/01/2000", "x", "x"))
+        assertNotNull(validarRegistro("Ana", " ", "a@example.com", "912345678", "12345678", "01/01/2000", "x", "x"))
         assertNotNull(errorRegistro(correo = " "))
     }
 
@@ -210,9 +222,10 @@ class UsuarioSesionTest {
         val vm = UsuarioViewModel(servicio, Dispatchers.Unconfined)
         var registrado = false
         vm.registrarUsuario("Ana", "Pérez", " Ana.Perez@Example.com ", "912345678",
-            "01/01/2000", " 1234 ", " 1234 ") { registrado = true }
+            "12345678", "01/01/2000", " 1234 ", " 1234 ") { registrado = true }
         assertTrue(registrado)
         assertEquals("Ana.Perez@Example.com", servicio.creados.single().fields.correo?.stringValue)
+        assertEquals("12345678", servicio.creados.single().fields.dni?.stringValue)
         assertEquals(" 1234 ", servicio.creados.single().fields.password?.stringValue)
         var autenticado = false
         vm.iniciarSesion(" ana.perez@example.com ", " 1234 ", { autenticado = true })
@@ -228,7 +241,7 @@ class UsuarioSesionTest {
         servicio.documentos += documento(correo = " Ana@Example.com ")
         val vm = UsuarioViewModel(servicio, Dispatchers.Unconfined)
         vm.registrarUsuario("Ana", "Pérez", "ana@example.com", "912345678",
-            "01/01/2000", "x", "x") { fail("No debe registrar duplicados") }
+            "12345678", "01/01/2000", "x", "x") { fail("No debe registrar duplicados") }
         assertTrue(servicio.creados.isEmpty())
         assertNotNull(vm.errorRegistro)
         assertFalse(vm.cargandoRegistro)
@@ -238,7 +251,7 @@ class UsuarioSesionTest {
         val servicio = ServicioUsuariosPrueba().apply { falloConsulta = true }
         val vm = UsuarioViewModel(servicio, Dispatchers.Unconfined)
         vm.registrarUsuario("Ana", "Pérez", "ana@example.com", "912345678",
-            "01/01/2000", "x", "x") { fail("La consulta falló") }
+            "12345678", "01/01/2000", "x", "x") { fail("La consulta falló") }
         assertTrue(servicio.creados.isEmpty())
         assertNotNull(vm.errorRegistro)
         assertFalse(vm.cargandoRegistro)
@@ -248,7 +261,7 @@ class UsuarioSesionTest {
         val servicio = ServicioUsuariosPrueba()
         val vm = UsuarioViewModel(servicio, Dispatchers.Unconfined)
         vm.registrarUsuario("Ana", "Pérez", "ana@example.com", "9abc45678",
-            "01/01/2000", "x", "x") { fail("Formulario inválido") }
+            "12345678", "01/01/2000", "x", "x") { fail("Formulario inválido") }
         assertTrue(servicio.creados.isEmpty())
         assertNotNull(vm.errorRegistro)
     }
@@ -257,7 +270,7 @@ class UsuarioSesionTest {
         val servicio = ServicioUsuariosPrueba().apply { falloCreacion = true }
         val vm = UsuarioViewModel(servicio, Dispatchers.Unconfined)
         vm.registrarUsuario("Ana", "Pérez", "ana@example.com", "912345678",
-            "01/01/2000", "x", "x") { fail("Falló el guardado") }
+            "12345678", "01/01/2000", "x", "x") { fail("Falló el guardado") }
         assertNotNull(vm.errorRegistro)
         assertFalse(vm.cargandoRegistro)
     }
