@@ -16,7 +16,7 @@ val VapeOnGold = Color(0xFFEAA016)           // Dorado/Ámbar principal ("VAPEON
 val VapeOnGoldVariant = Color(0xFFC8860E)    // Dorado oscuro / variante
 
 // --- Fondos y Superficies ---
-val VapeOnBackground = Color(0xFF0D0E15)     // Fondo principal oscuro de toda la app
+val VapeOnBackground = Color(0xFF0C0101)     // Fondo principal oscuro de toda la app
 val VapeOnSurface = Color(0xFF161822)        // Fondo de contenedores y campos
 val VapeOnSurfaceVariant = Color(0xFF222533) // Fondo de elementos secundarios o contenedores
 val VapeOnSelected = Color(0xFF4A4B51)       // Fondo de tarjetas y opciones seleccionadas

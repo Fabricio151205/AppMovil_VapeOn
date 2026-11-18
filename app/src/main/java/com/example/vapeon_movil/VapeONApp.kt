@@ -203,6 +203,18 @@ fun VapeONApp() {
         pantallaActual = destino
     }
 
+    // Restaura la sesión persistida de Firebase una sola vez al abrir la app.
+    LaunchedEffect(Unit) { usuarioViewModel.restaurarSesion() }
+
+    // Si la sesión se recuperó, no se deja al usuario en Login/Registro.
+    LaunchedEffect(usuarioViewModel.restauracionCompletada, claveSesion) {
+        if (usuarioViewModel.restauracionCompletada && usuarioActual != null &&
+            pantallaActual in setOf("login", "registro")
+        ) {
+            pantallaActual = pantallaInicialSesion(usuarioActual)
+        }
+    }
+
     // Resultados de formularios observados por la composición vigente, incluso tras una rotación.
     LaunchedEffect(usuarioViewModel.registroCompletado) {
         if (usuarioViewModel.registroCompletado) {
@@ -611,8 +623,8 @@ fun VapeONApp() {
                     errorPassword = clientesViewModel.errorPassword,
                     mensajePassword = clientesViewModel.mensajePassword,
                     conflictoPassword = clientesViewModel.conflictoPassword,
-                    cambiarPassword = { nueva, confirmacion ->
-                        clientesViewModel.cambiarPassword(admin, nueva, confirmacion)
+                    enviarRestablecimiento = {
+                        clientesViewModel.enviarRestablecimiento(admin)
                     },
                     recargarPassword = {
                         clientesViewModel.limpiarEstadoPassword()

@@ -2,7 +2,6 @@ package com.example.vapeon_movil
 
 import com.example.vapeon_movil.entities.Usuario
 import com.example.vapeon_movil.services.UsuarioClientesService
-import com.example.vapeon_movil.services.UsuarioPasswordService
 import com.example.vapeon_movil.services.UsuarioService
 import com.example.vapeon_movil.services.dto.*
 import com.example.vapeon_movil.viewmodels.*
@@ -66,31 +65,9 @@ class ClientesTest {
         }
     }
 
-    private class PasswordFake(var fallo: Throwable? = null) : UsuarioPasswordService {
-        var llamadas = 0
-        var id = ""
-        var campo = ""
-        var version = ""
-        var body: UsuarioContainer? = null
-        var espera: CompletableDeferred<Unit>? = null
-
-        override suspend fun actualizarPassword(id: String, campo: String, updateTime: String,
-            body: UsuarioContainer): UsuarioDocumento {
-            llamadas++
-            this.id = id
-            this.campo = campo
-            this.version = updateTime
-            this.body = body
-            espera?.await()
-            fallo?.let { throw it }
-            return UsuarioDocumento("usuarios/$id", body.fields,
-                "2026-01-01T00:00:00Z", "2026-04-01T00:00:00Z")
-        }
-    }
-
     private fun vm(usuarios: UsuariosFake, clientes: ClientesFake = ClientesFake(),
-        password: PasswordFake = PasswordFake()) =
-        ClientesViewModel(usuarios, clientes, Dispatchers.Unconfined, password)
+        auth: FakeAutenticacionFirebase = FakeAutenticacionFirebase()) =
+        ClientesViewModel(usuarios, clientes, Dispatchers.Unconfined, auth)
 
     @Test fun adminCargaPaginasDeduplicaExcluyeAdminYOrdena() {
         val service = UsuariosFake(mapOf(
@@ -230,72 +207,49 @@ class ClientesTest {
         assertEquals(1, api.llamadas); api.espera!!.complete(Unit)
     }
 
-    @Test fun cambioPasswordValidoEnviaSoloPasswordMascaraYVersion() {
-        val api = PasswordFake()
-        val model = vm(UsuariosFake(mapOf(null to UsuarioListResponse(listOf(doc("1"))))), password = api)
+    @Test fun restablecimientoEnviaCorreoAlClienteSinEscribirContrasena() {
+        val auth = FakeAutenticacionFirebase()
+        val model = vm(UsuariosFake(mapOf(null to UsuarioListResponse(listOf(doc("1"))))), auth = auth)
         model.cargarClientes(admin); model.seleccionarCliente(admin, "1")
-        model.cambiarPassword(admin, "nueva clave", "nueva clave")
+        model.enviarRestablecimiento(admin)
 
-        assertEquals(1, api.llamadas)
-        assertEquals("1", api.id)
-        assertEquals("password", api.campo)
-        assertEquals("2026-01-02T00:00:00Z", api.version)
-        assertEquals("nueva clave", api.body!!.fields.password?.stringValue)
-        assertNull(api.body!!.fields.nombre)
-        assertNull(api.body!!.fields.apellido)
-        assertNull(api.body!!.fields.correo)
-        assertNull(api.body!!.fields.dni)
-        assertNull(api.body!!.fields.telefono)
-        assertNull(api.body!!.fields.fechaNacimiento)
-        assertNull(api.body!!.fields.rol)
+        assertEquals(listOf("1@correo.com"), auth.correosRestablecimiento)
+        assertNull(model.errorPassword)
+        assertTrue(model.mensajePassword!!.contains("1@correo.com"))
         assertEquals("", model.clienteSeleccionado!!.password)
-        assertEquals("Contraseña actualizada correctamente.", model.mensajePassword)
     }
 
-    @Test fun passwordVaciaYConfirmacionDistintaSonRechazadas() {
-        val api = PasswordFake()
-        val model = vm(UsuariosFake(mapOf(null to UsuarioListResponse(listOf(doc("1"))))), password = api)
+    @Test fun restablecimientoExigeCorreoValidoDelCliente() {
+        val auth = FakeAutenticacionFirebase()
+        val model = vm(
+            UsuariosFake(mapOf(null to UsuarioListResponse(listOf(doc("1", correo = "sin-correo"))))),
+            auth = auth
+        )
         model.cargarClientes(admin); model.seleccionarCliente(admin, "1")
-        model.cambiarPassword(admin, "", "")
-        assertTrue(model.errorPassword!!.contains("obligatoria"))
-        model.cambiarPassword(admin, "   ", "   ")
-        assertTrue(model.errorPassword!!.contains("obligatoria"))
-        model.cambiarPassword(admin, "nueva", "distinta")
-        assertTrue(model.errorPassword!!.contains("no coinciden"))
-        assertEquals(0, api.llamadas)
+        model.enviarRestablecimiento(admin)
+
+        assertTrue(auth.correosRestablecimiento.isEmpty())
+        assertTrue(model.errorPassword!!.contains("correo válido"))
     }
 
-    @Test fun dobleEnvioDePasswordQuedaBloqueado() {
-        val api = PasswordFake().also { it.espera = CompletableDeferred() }
-        val model = vm(UsuariosFake(mapOf(null to UsuarioListResponse(listOf(doc("1"))))), password = api)
+    @Test fun dobleEnvioDeRestablecimientoQuedaBloqueado() {
+        val auth = FakeAutenticacionFirebase().also { it.esperaRestablecimiento = CompletableDeferred() }
+        val model = vm(UsuariosFake(mapOf(null to UsuarioListResponse(listOf(doc("1"))))), auth = auth)
         model.cargarClientes(admin); model.seleccionarCliente(admin, "1")
-        model.cambiarPassword(admin, "nueva", "nueva")
-        model.cambiarPassword(admin, "otra", "otra")
-        assertEquals(1, api.llamadas)
-        api.espera!!.complete(Unit)
+        model.enviarRestablecimiento(admin)
+        model.enviarRestablecimiento(admin)
+        assertEquals(1, auth.llamadasRestablecimiento)
+        auth.esperaRestablecimiento!!.complete(Unit)
+        assertEquals(1, auth.correosRestablecimiento.size)
     }
 
-    @Test fun conflictoPasswordNoModificaEstadoLocal() {
-        val cuerpo = """{"error":{"status":"FAILED_PRECONDITION","message":"stale"}}"""
-        val api = PasswordFake(HttpException(Response.error<Any>(400,
-            ResponseBody.create(MediaType.parse("application/json"), cuerpo))))
-        val model = vm(UsuariosFake(mapOf(null to UsuarioListResponse(listOf(doc("1"))))), password = api)
-        model.cargarClientes(admin); model.seleccionarCliente(admin, "1")
-        val versionOriginal = model.clienteSeleccionado!!.updateTime
-        model.cambiarPassword(admin, "nueva", "nueva")
-        assertTrue(model.conflictoPassword)
-        assertEquals(versionOriginal, model.clienteSeleccionado!!.updateTime)
-        assertEquals("", model.clienteSeleccionado!!.password)
-        assertTrue(model.errorPassword!!.contains("cambió desde otro dispositivo"))
-    }
-
-    @Test fun clienteYSinSesionNoPuedenCambiarPassword() {
+    @Test fun clienteYSinSesionNoPuedenRestablecerPassword() {
         listOf(cliente, null).forEach { actor ->
-            val api = PasswordFake()
-            val model = vm(UsuariosFake(mapOf(null to UsuarioListResponse(listOf(doc("1"))))), password = api)
+            val auth = FakeAutenticacionFirebase()
+            val model = vm(UsuariosFake(mapOf(null to UsuarioListResponse(listOf(doc("1"))))), auth = auth)
             model.cargarClientes(admin); model.seleccionarCliente(admin, "1")
-            model.cambiarPassword(actor, "nueva", "nueva")
-            assertEquals(0, api.llamadas)
+            model.enviarRestablecimiento(actor)
+            assertEquals(0, auth.llamadasRestablecimiento)
             assertTrue(model.errorPassword!!.contains("administrador"))
         }
     }

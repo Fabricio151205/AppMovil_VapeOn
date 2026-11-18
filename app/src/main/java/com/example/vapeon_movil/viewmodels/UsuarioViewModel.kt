@@ -5,10 +5,14 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.vapeon_movil.auth.AutenticacionFirebase
+import com.example.vapeon_movil.auth.ErrorAutenticacion
+import com.example.vapeon_movil.auth.FirebaseAutenticacion
+import com.example.vapeon_movil.auth.TipoErrorAutenticacion
 import com.example.vapeon_movil.entities.Usuario
 import com.example.vapeon_movil.entities.edadDesde
+import com.example.vapeon_movil.services.UsuarioPerfilService
 import com.example.vapeon_movil.services.UsuarioService
-import com.example.vapeon_movil.services.listarTodosUsuarios
 import com.example.vapeon_movil.services.dto.*
 import com.example.vapeon_movil.utils.RetrofitClient
 import kotlinx.coroutines.CancellationException
@@ -17,12 +21,12 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
+import retrofit2.HttpException
 import java.time.LocalDate
 import java.time.Period
 import java.time.format.DateTimeFormatter
 import java.time.format.ResolverStyle
 import java.util.Locale
-import java.util.UUID
 
 /**
  * ViewModel de sesión del Usuario.
@@ -35,13 +39,28 @@ import java.util.UUID
  */
 class UsuarioViewModel(
     private val usuarioService: UsuarioService = RetrofitClient.retrofit.create(UsuarioService::class.java),
-    private val dispatcher: CoroutineDispatcher = Dispatchers.Main.immediate
+    private val dispatcher: CoroutineDispatcher = Dispatchers.Main.immediate,
+    private val autenticacion: AutenticacionFirebase = FirebaseAutenticacion(),
+    private val perfilService: UsuarioPerfilService =
+        RetrofitClient.retrofit.create(UsuarioPerfilService::class.java)
 ) : ViewModel() {
+
+    private data class RegistroPendiente(
+        val correo: String,
+        val cuerpo: UsuarioContainer
+    )
+
+    private data class IdentidadRegistro(
+        val uid: String,
+        val perfilExistente: Boolean
+    )
 
     // ─── Servicio de red ───────────────────────────────────────────────────
     private var operacionLogin: Job? = null
-    private var registroPendiente: Pair<String, UsuarioContainer>? = null
     private var operacionRegistro: Job? = null
+    private var operacionRestauracion: Job? = null
+    private var registroPendiente: RegistroPendiente? = null
+    private val correosRegistrados = mutableSetOf<String>()
     var registroCompletado by mutableStateOf(false)
         private set
     fun consumirRegistroCompletado() { registroCompletado = false }
@@ -69,6 +88,14 @@ class UsuarioViewModel(
     var errorRegistro by mutableStateOf<String?>(null)
         private set
 
+    /** true mientras se intenta recuperar la sesión persistida de Firebase. */
+    var restaurandoSesion by mutableStateOf(false)
+        private set
+
+    /** true cuando ya se intentó restaurar la sesión al menos una vez. */
+    var restauracionCompletada by mutableStateOf(false)
+        private set
+
     fun registrarUsuario(
         nombre: String, apellidos: String, correo: String, telefono: String,
         dni: String, fechaNacimiento: String, password: String, passwordConfirm: String,
@@ -78,73 +105,140 @@ class UsuarioViewModel(
         errorRegistro = validarRegistro(nombre, apellidos, correo, telefono, dni, fechaNacimiento,
             password, passwordConfirm)
         if (errorRegistro != null) return
-        // Estructuramos el objeto según lo que pide la API REST de Firestore.
+
+        val correoLimpio = correo.trim()
+        if (correoLimpio.lowercase(Locale.ROOT) in correosRegistrados) {
+            errorRegistro = "Ya existe una cuenta con ese correo."
+            return
+        }
+        // La contraseña nunca forma parte del documento de Firestore.
         val cuerpo = UsuarioContainer(UsuarioCampos(
             nombre = FirestoreStringValue(nombre.trim()),
             apellido = FirestoreStringValue(apellidos.trim()),
             telefono = FirestoreStringValue(telefono),
             dni = FirestoreStringValue(dni),
             fechaNacimiento = FirestoreStringValue(fechaNacimiento.trim()),
-            correo = FirestoreStringValue(correo.trim()),
-            password = FirestoreStringValue(password),
+            correo = FirestoreStringValue(correoLimpio),
             rol = FirestoreStringValue("CLIENTE")
         ))
-        val intento = registroPendiente ?: (UUID.randomUUID().toString() to cuerpo).also { registroPendiente = it }
-        if (intento.second != cuerpo) {
-            errorRegistro = "El registro anterior requiere comprobación. Reintenta con los mismos datos antes de iniciar otro."
-            return
-        }
+        val pendiente = RegistroPendiente(correoLimpio, cuerpo)
+        registroPendiente = pendiente
         cargandoRegistro = true
+        errorRegistro = null
+
         operacionRegistro = viewModelScope.launch(dispatcher) {
+            var perfilConfirmado = false
             try {
-                // Consulta previa, no una garantía atómica de unicidad entre dispositivos.
-                val existentes = usuarioService.listarTodosUsuarios()
+                val identidad = crearOReutilizarIdentidad(correoLimpio, password)
                 coroutineContext.ensureActive()
-                val existente = existentes.documents.orEmpty().firstOrNull {
-                    it.fields.correo?.stringValue?.trim().equals(correo.trim(), ignoreCase = true)
-                }
-                if (existente != null) {
-                    if (existente.name.substringAfterLast('/') == intento.first) {
-                        registroPendiente = null
-                        registroCompletado = true
-                        onExito?.invoke()
-                    } else {
-                        registroPendiente = null
-                        errorRegistro = "Ya existe una cuenta con ese correo."
-                    }
+                perfilConfirmado = identidad.perfilExistente ||
+                    asegurarPerfil(identidad.uid, cuerpo)
+                coroutineContext.ensureActive()
+                if (!perfilConfirmado) {
+                    errorRegistro =
+                        "No se pudo crear tu perfil. Reintenta con los mismos datos; no se duplicará la cuenta."
                     return@launch
                 }
-                // Consumimos el servicio de la API REST y volvemos al Login.
-                usuarioService.crearUsuario(cuerpo, intento.first)
-                coroutineContext.ensureActive()
+                enviarVerificacionSegura()
+                // El registro vuelve al login: no se deja una sesión abierta implícita.
+                autenticacion.cerrarSesion()
+                correosRegistrados += correoLimpio.lowercase(Locale.ROOT)
                 registroPendiente = null
                 registroCompletado = true
                 onExito?.invoke()
             } catch (e: CancellationException) {
                 throw e
+            } catch (e: ErrorAutenticacion) {
+                coroutineContext.ensureActive()
+                errorRegistro = e.message
+            } catch (e: HttpException) {
+                coroutineContext.ensureActive()
+                if (e.code() in listOf(400, 401, 403)) registroPendiente = null
+                errorRegistro =
+                    "No se pudo confirmar el registro. Reintenta con los mismos datos; se comprobará el mismo intento."
             } catch (e: Exception) {
                 coroutineContext.ensureActive()
-                if (e is retrofit2.HttpException && e.code() in listOf(400, 401, 403)) registroPendiente = null
-                errorRegistro = "No se pudo confirmar el registro. Reintenta con los mismos datos; se comprobará el mismo intento."
+                errorRegistro =
+                    "No se pudo confirmar el registro. Reintenta con los mismos datos; se comprobará el mismo intento."
             } finally {
+                if (!perfilConfirmado) runCatching { autenticacion.cerrarSesion() }
                 if (coroutineContext[Job]?.isCancelled != true) cargandoRegistro = false
             }
+        }
+    }
+
+    /**
+     * Crea la identidad en Firebase Authentication.
+     *
+     * Si un intento anterior ya la creó (por ejemplo, se perdió la respuesta al
+     * guardar el perfil), se reutiliza la misma cuenta en lugar de duplicarla.
+     */
+    private suspend fun crearOReutilizarIdentidad(
+        correo: String,
+        password: String
+    ): IdentidadRegistro {
+        return try {
+            IdentidadRegistro(autenticacion.registrar(correo, password).uid, perfilExistente = false)
+        } catch (e: ErrorAutenticacion) {
+            if (e.tipo != TipoErrorAutenticacion.CORREO_YA_REGISTRADO ||
+                registroPendiente?.correo != correo
+            ) throw e
+
+            // Reintento de un registro parcial: solo el dueño de la contraseña
+            // puede recuperar la misma identidad.
+            val sesion = try {
+                autenticacion.iniciarSesion(correo, password)
+            } catch (login: ErrorAutenticacion) {
+                throw e
+            }
+            val existente = try {
+                usuarioService.mostrarUsuario(sesion.uid)
+            } catch (e404: HttpException) {
+                if (e404.code() == 404) null else throw e404
+            }
+            IdentidadRegistro(sesion.uid, perfilExistente = existente != null)
+        }
+    }
+
+    /** Crea `usuarios/{uid}` una sola vez; una respuesta perdida no duplica datos. */
+    private suspend fun asegurarPerfil(uid: String, cuerpo: UsuarioContainer): Boolean {
+        return try {
+            usuarioService.crearUsuario(cuerpo, uid)
+            true
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            try {
+                val existente = usuarioService.mostrarUsuario(uid)
+                existente.name.substringAfterLast('/') == uid
+            } catch (cancelacion: CancellationException) {
+                throw cancelacion
+            } catch (_: Exception) {
+                false
+            }
+        }
+    }
+
+    private suspend fun enviarVerificacionSegura() {
+        try {
+            autenticacion.enviarVerificacionCorreo()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            // La verificación puede reenviarse al iniciar sesión; no invalida el registro.
         }
     }
 
     // ─── Acciones ──────────────────────────────────────────────────────────
 
     /**
-     * Intenta autenticar al usuario buscando en la colección "usuarios" de Firestore.
+     * Autentica con Firebase Authentication y carga `usuarios/{uid}`.
      *
-     * Nota: La autenticación se realiza comparando credenciales en cliente porque
-     * el proyecto usa Firestore REST API directamente (sin Firebase Auth).
-     * En producción se recomienda migrar a Firebase Authentication.
+     * La contraseña se valida únicamente en Firebase; Firestore solo guarda el
+     * perfil. El rol se lee del documento protegido por reglas del servidor.
      *
-     * @param correo    Correo electrónico ingresado.
-     * @param password  Contraseña ingresada (en texto plano — ver nota anterior).
-     * @param onExito   Callback con `esAdmin: Boolean` cuando el login es exitoso.
-     * @param onError   Callback con el mensaje de error cuando el login falla.
+     * @param onExito Callback con `esAdmin: Boolean` cuando el login es exitoso.
+     * @param onError Callback con el mensaje de error cuando el login falla.
      */
     fun iniciarSesion(
         correo: String,
@@ -155,7 +249,6 @@ class UsuarioViewModel(
         if (cargandoLogin) return
         // Un intento nuevo nunca conserva la identidad de un login anterior.
         cerrarSesion()
-        // ── Validar que no se envíen campos vacíos ──────────────────────────
         val correoLimpio = correo.trim()
 
         if (correoLimpio.isEmpty() || password.isBlank()) {
@@ -167,38 +260,22 @@ class UsuarioViewModel(
         cargandoLogin = true
         operacionLogin = viewModelScope.launch(dispatcher) {
             try {
-                val respuesta = usuarioService.listarTodosUsuarios()
+                val sesion = autenticacion.iniciarSesion(correoLimpio, password)
                 coroutineContext.ensureActive()
-                val doc = respuesta.documents?.firstOrNull { doc ->
-                    val docCorreo = doc.fields.correo?.stringValue?.trim() ?: ""
-                    val docPassword = doc.fields.password?.stringValue ?: ""
-
-                    docCorreo.isNotEmpty() && docPassword.isNotEmpty() &&
-                    docCorreo.equals(correoLimpio, ignoreCase = true) &&
-                    docPassword == password
-                }
-
-                if (doc != null) {
-                    usuarioActual = Usuario(
-                        id              = doc.name.substringAfterLast("/"),
-                        nombre          = doc.fields.nombre?.stringValue ?: "",
-                        apellido        = doc.fields.apellido?.stringValue ?: "",
-                        telefono        = doc.fields.telefono?.stringValue ?: "",
-                        fechaNacimiento = doc.fields.fechaNacimiento?.stringValue ?: "",
-                        correo          = doc.fields.correo?.stringValue ?: "",
-                        password        = "",       // No se persiste la contraseña en memoria
-                        rol             = doc.fields.rol?.stringValue ?: "CLIENTE"
-                    )
-                    esAdmin = usuarioActual?.rol?.equals("ADMIN", ignoreCase = true) == true
-                    onExito(esAdmin)
-                } else {
-                    errorLogin = "Correo o contraseña incorrectos"
-                    onError(errorLogin!!)
-                }
+                val documento = cargarPerfil(sesion.uid)
+                aplicarPerfil(documento)
+                onExito(esAdmin)
             } catch (e: CancellationException) {
                 throw e
+            } catch (e: ErrorAutenticacion) {
+                limpiarSesionLocal()
+                autenticacion.cerrarSesion()
+                errorLogin = e.message
+                onError(e.message)
             } catch (_: Exception) {
-                errorLogin = "Error al conectar con el servidor. Inténtalo de nuevo."
+                limpiarSesionLocal()
+                autenticacion.cerrarSesion()
+                errorLogin = "No se pudo cargar tu perfil. Inténtalo de nuevo."
                 onError(errorLogin!!)
             } finally {
                 if (coroutineContext[Job]?.isCancelled != true) cargandoLogin = false
@@ -207,15 +284,103 @@ class UsuarioViewModel(
     }
 
     /**
+     * Restaura la sesión persistida de Firebase al abrir la aplicación.
+     *
+     * Sin perfil válido no se concede acceso: una sesión incompleta se cierra.
+     */
+    fun restaurarSesion() {
+        if (restauracionCompletada || operacionRestauracion?.isActive == true) return
+        val sesion = runCatching { autenticacion.sesionActual() }.getOrNull()
+        if (sesion == null) {
+            restaurandoSesion = false
+            restauracionCompletada = true
+            return
+        }
+        restaurandoSesion = true
+        operacionRestauracion = viewModelScope.launch(dispatcher) {
+            try {
+                val documento = cargarPerfil(sesion.uid)
+                coroutineContext.ensureActive()
+                aplicarPerfil(documento)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: ErrorAutenticacion) {
+                // Perfil inexistente o sin permiso: la identidad no sirve para VapeOn.
+                if (e.tipo == TipoErrorAutenticacion.USUARIO_NO_ENCONTRADO) {
+                    autenticacion.cerrarSesion()
+                    limpiarSesionLocal()
+                }
+            } catch (_: Exception) {
+                // Error temporal: se conserva la sesión de Firebase para reintentar.
+            } finally {
+                if (coroutineContext[Job]?.isCancelled != true) {
+                    restaurandoSesion = false
+                    restauracionCompletada = true
+                }
+            }
+        }
+    }
+
+    private suspend fun cargarPerfil(uid: String): UsuarioDocumento {
+        val documento = try {
+            usuarioService.mostrarUsuario(uid)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: HttpException) {
+            val mensaje = when (e.code()) {
+                404 -> "No se encontró el perfil de este usuario en VapeOn."
+                401, 403 -> "No tienes permiso para acceder a este perfil."
+                else -> "No se pudo cargar tu perfil. Revisa tu conexión."
+            }
+            throw ErrorAutenticacion(TipoErrorAutenticacion.USUARIO_NO_ENCONTRADO, mensaje, e)
+        }
+        if (documento.name.substringAfterLast('/') != uid) {
+            throw ErrorAutenticacion(
+                TipoErrorAutenticacion.USUARIO_NO_ENCONTRADO,
+                "El perfil no corresponde al usuario autenticado."
+            )
+        }
+        return documento
+    }
+
+    private fun aplicarPerfil(documento: UsuarioDocumento) {
+        val campos = documento.fields
+        usuarioActual = Usuario(
+            id = documento.name.substringAfterLast('/'),
+            nombre = campos.nombre?.stringValue.orEmpty(),
+            apellido = campos.apellido?.stringValue.orEmpty(),
+            telefono = campos.telefono?.stringValue.orEmpty(),
+            fechaNacimiento = campos.fechaNacimiento?.stringValue.orEmpty(),
+            correo = campos.correo?.stringValue.orEmpty(),
+            password = "", // Nunca se conserva la contraseña en memoria.
+            rol = campos.rol?.stringValue?.takeIf { it.isNotBlank() } ?: "CLIENTE",
+            dni = campos.dni?.stringValue,
+            createTime = documento.createTime,
+            updateTime = documento.updateTime
+        )
+        esAdmin = usuarioActual?.rol?.equals("ADMIN", ignoreCase = true) == true
+        errorLogin = null
+    }
+
+    private fun limpiarSesionLocal() {
+        usuarioActual = null
+        esAdmin = false
+        errorLogin = null
+    }
+
+    /**
      * Cierra la sesión del usuario actual.
-     * Limpia todos los datos de sesión del estado observable.
+     * Limpia el estado observable y la sesión persistida de Firebase.
      */
     fun cerrarSesion() {
         operacionRegistro?.cancel()
         operacionRegistro = null
+        operacionRestauracion?.cancel()
+        operacionRestauracion = null
         registroPendiente = null
         registroCompletado = false
         cargandoRegistro = false
+        restaurandoSesion = false
         operacionLogin?.cancel()
         operacionLogin = null
         usuarioActual = null
@@ -223,6 +388,7 @@ class UsuarioViewModel(
         cargandoLogin = false
         errorLogin = null
         errorRegistro = null
+        runCatching { autenticacion.cerrarSesion() }
     }
 
     /** Limpia el mensaje de error una vez que la UI lo ha mostrado */
@@ -231,83 +397,49 @@ class UsuarioViewModel(
     }
 
     /**
-     * Comprueba si existe un usuario registrado con el correo especificado.
+     * Envía un correo real de restablecimiento con Firebase Authentication.
+     *
+     * Por seguridad no se revela si el correo existe: la respuesta es la misma
+     * para cuentas registradas y no registradas.
      */
-    fun verificarExisteUsuarioConCorreo(
+    fun enviarCorreoRestablecimiento(
         correo: String,
-        onResultado: (existe: Boolean) -> Unit
-    ) {
-        val correoLimpio = correo.trim()
-        if (correoLimpio.isBlank()) {
-            onResultado(false)
-            return
-        }
-        viewModelScope.launch(dispatcher) {
-            try {
-                val usuarios = usuarioService.listarTodosUsuarios()
-                coroutineContext.ensureActive()
-                val existe = usuarios.documents.orEmpty().any {
-                    it.fields.correo?.stringValue?.trim().equals(correoLimpio, ignoreCase = true)
-                }
-                onResultado(existe)
-            } catch (_: Exception) {
-                // En caso de modo prueba / offline, permitimos el flujo
-                onResultado(true)
-            }
-        }
-    }
-
-    /**
-     * Actualiza la contraseña de un usuario mediante su correo electrónico.
-     */
-    fun actualizarContrasenaPorCorreo(
-        correo: String,
-        nuevaContrasena: String,
         onExito: () -> Unit,
         onError: (String) -> Unit = {}
     ) {
         val correoLimpio = correo.trim()
-        if (nuevaContrasena.isBlank()) {
-            onError("La contraseña no puede estar vacía")
+        if (correoLimpio.isEmpty()) {
+            onError("Ingresa tu correo electrónico.")
+            return
+        }
+        if (!correoRegistroValido(correoLimpio)) {
+            onError("Ingresa un correo electrónico válido.")
             return
         }
         viewModelScope.launch(dispatcher) {
             try {
-                val usuarios = usuarioService.listarTodosUsuarios()
-                coroutineContext.ensureActive()
-                val doc = usuarios.documents?.firstOrNull {
-                    it.fields.correo?.stringValue?.trim().equals(correoLimpio, ignoreCase = true)
-                }
-                if (doc != null) {
-                    val idDoc = doc.name.substringAfterLast('/')
-                    val camposActualizados = UsuarioContainer(
-                        UsuarioCampos(
-                            nombre = doc.fields.nombre,
-                            apellido = doc.fields.apellido,
-                            telefono = doc.fields.telefono,
-                            fechaNacimiento = doc.fields.fechaNacimiento,
-                            correo = doc.fields.correo,
-                            password = FirestoreStringValue(nuevaContrasena),
-                            rol = doc.fields.rol
-                        )
-                    )
-                    usuarioService.actualizarUsuario(idDoc, camposActualizados)
-                }
+                autenticacion.enviarCorreoRestablecimiento(correoLimpio)
                 onExito()
             } catch (e: CancellationException) {
                 throw e
+            } catch (e: ErrorAutenticacion) {
+                if (e.tipo == TipoErrorAutenticacion.USUARIO_NO_ENCONTRADO) {
+                    // No se filtra la existencia de cuentas.
+                    onExito()
+                } else {
+                    onError(e.message)
+                }
             } catch (_: Exception) {
-                // Confirmar éxito para cuentas locales / prueba
-                onExito()
+                onError("No se pudo enviar el correo. Revisa tu conexión e inténtalo de nuevo.")
             }
         }
     }
 
     /**
-     * Actualiza los datos personales del usuario en sesión.
+     * Actualiza únicamente los campos editables del perfil.
      *
-     * Se lee el documento actual para conservar la contraseña y el rol, de modo
-     * que editar el perfil nunca elimine credenciales ni cambie permisos.
+     * El PATCH usa una máscara explícita para no escribir `password` ni `rol`.
+     * Si cambia el correo, primero se sincroniza con Firebase Authentication.
      */
     fun actualizarPerfil(
         nombre: String,
@@ -343,23 +475,19 @@ class UsuarioViewModel(
         }
         viewModelScope.launch(dispatcher) {
             try {
-                val lista = usuarioService.listarTodosUsuarios()
-                coroutineContext.ensureActive()
-                val documentos = lista.documents.orEmpty()
-                val doc = documentos.firstOrNull { it.name.substringAfterLast('/') == actual.id }
-                if (doc == null) {
-                    onError("No se encontró el usuario en el servidor.")
-                    return@launch
-                }
                 val correoLimpio = correo.trim()
-                val correoOcupado = documentos.any { otro ->
-                    otro.name.substringAfterLast('/') != actual.id &&
-                        otro.fields.correo?.stringValue?.trim()
-                            .equals(correoLimpio, ignoreCase = true)
-                }
-                if (correoOcupado) {
-                    onError("Ya existe una cuenta con ese correo.")
-                    return@launch
+                val correoAutenticado = autenticacion.sesionActual()?.correo
+                if (correoAutenticado != null &&
+                    !correoLimpio.equals(correoAutenticado, ignoreCase = true)
+                ) {
+                    try {
+                        autenticacion.actualizarCorreo(correoLimpio)
+                        enviarVerificacionSegura()
+                    } catch (e: ErrorAutenticacion) {
+                        coroutineContext.ensureActive()
+                        onError(e.message)
+                        return@launch
+                    }
                 }
                 val campos = UsuarioContainer(
                     UsuarioCampos(
@@ -367,31 +495,49 @@ class UsuarioViewModel(
                         apellido = FirestoreStringValue(apellido.trim()),
                         telefono = FirestoreStringValue(telefono),
                         fechaNacimiento = FirestoreStringValue(fechaNacimiento.trim()),
-                        correo = FirestoreStringValue(correoLimpio),
-                        // Conserva exactamente la contraseña y el rol guardados.
-                        password = doc.fields.password,
-                        rol = doc.fields.rol ?: FirestoreStringValue(actual.rol)
+                        correo = FirestoreStringValue(correoLimpio)
                     )
                 )
-                usuarioService.actualizarUsuario(actual.id, campos)
+                val actualizado = perfilService.actualizarPerfil(
+                    id = actual.id,
+                    campos = CAMPOS_PERFIL_EDITABLES,
+                    updateTime = actual.updateTime,
+                    body = campos
+                )
                 coroutineContext.ensureActive()
                 usuarioActual = actual.copy(
                     nombre = nombre.trim(),
                     apellido = apellido.trim(),
                     telefono = telefono,
                     fechaNacimiento = fechaNacimiento.trim(),
-                    correo = correoLimpio
+                    correo = correoLimpio,
+                    updateTime = actualizado.updateTime ?: actual.updateTime
                 )
                 esAdmin = usuarioActual?.rol?.equals("ADMIN", ignoreCase = true) == true
                 onExito()
             } catch (e: CancellationException) {
                 throw e
+            } catch (e: ErrorAutenticacion) {
+                coroutineContext.ensureActive()
+                onError(e.message)
             } catch (_: Exception) {
                 onError("No se pudo actualizar el perfil. Inténtalo de nuevo.")
             }
         }
     }
+    /**
+     * Aplica el perfil ya validado por el flujo de Google Sign-In.
+     * El rol se lee del documento protegido por las reglas de Firestore.
+     */
+    fun establecerSesionGoogle(
+        documento: UsuarioDocumento
+    ) {
+        aplicarPerfil(documento)
+    }
 }
+
+private val CAMPOS_PERFIL_EDITABLES =
+    listOf("nombre", "apellido", "telefono", "fechaNacimiento", "correo")
 
 internal fun telefonoRegistroValido(telefono: String): Boolean = Regex("9[0-9]{8}").matches(telefono)
 
@@ -482,3 +628,6 @@ internal fun validarPerfil(
     if (edad < 18) return "El perfil requiere ser mayor de 18 años."
     return null
 }
+
+
+

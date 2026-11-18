@@ -5,9 +5,11 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.vapeon_movil.auth.AutenticacionFirebase
+import com.example.vapeon_movil.auth.ErrorAutenticacion
+import com.example.vapeon_movil.auth.FirebaseAutenticacion
 import com.example.vapeon_movil.entities.Usuario
 import com.example.vapeon_movil.services.UsuarioClientesService
-import com.example.vapeon_movil.services.UsuarioPasswordService
 import com.example.vapeon_movil.services.UsuarioService
 import com.example.vapeon_movil.services.dto.FirestoreStringValue
 import com.example.vapeon_movil.services.dto.UsuarioCampos
@@ -58,12 +60,6 @@ internal fun validarFormularioCliente(formulario: FormularioCliente): ErroresCli
     fechaNacimiento = validarMayoriaEdad(formulario.fechaNacimiento)
 )
 
-internal fun validarNuevaPassword(nueva: String, confirmacion: String): String? = when {
-    nueva.isBlank() -> "La nueva contraseña es obligatoria."
-    nueva != confirmacion -> "Las contraseñas no coinciden."
-    else -> null
-}
-
 internal fun documentoACliente(documento: UsuarioDocumento): Usuario = Usuario(
     id = documento.name.substringAfterLast('/'),
     nombre = documento.fields.nombre?.stringValue.orEmpty(),
@@ -97,7 +93,7 @@ class ClientesViewModel(
     private val usuarioService: UsuarioService = RetrofitClient.retrofit.create(UsuarioService::class.java),
     private val clientesService: UsuarioClientesService = RetrofitClient.retrofit.create(UsuarioClientesService::class.java),
     private val dispatcher: CoroutineDispatcher = Dispatchers.IO,
-    private val passwordService: UsuarioPasswordService = RetrofitClient.retrofit.create(UsuarioPasswordService::class.java)
+    private val autenticacion: AutenticacionFirebase = FirebaseAutenticacion()
 ) : ViewModel() {
     var clientes by mutableStateOf<List<Usuario>>(emptyList()); private set
     var cargando by mutableStateOf(false); private set
@@ -272,20 +268,21 @@ class ClientesViewModel(
 
     fun consumirMensajeExito() { mensajeExito = null }
 
-    fun cambiarPassword(admin: Usuario?, nueva: String, confirmacion: String, onExito: () -> Unit = {}) {
+    /**
+     * Envía al cliente un correo real de restablecimiento con Firebase Auth.
+     *
+     * El administrador nunca escribe ni conoce la nueva contraseña: la elige el
+     * propio cliente desde el enlace enviado a su correo.
+     */
+    fun enviarRestablecimiento(admin: Usuario?, onExito: () -> Unit = {}) {
         if (guardandoPassword) return
         val actual = clienteSeleccionado
         if (!esAdminClientes(admin) || actual == null || !actual.rol.equals("CLIENTE", true)) {
-            errorPassword = "Solo un administrador puede cambiar la contraseña de un cliente."
+            errorPassword = "Solo un administrador puede restablecer la contraseña de un cliente."
             return
         }
-        validarNuevaPassword(nueva, confirmacion)?.let {
-            errorPassword = it
-            return
-        }
-        val version = actual.updateTime
-        if (version.isNullOrBlank()) {
-            errorPassword = "No se puede actualizar sin la versión del documento. Recarga la información."
+        if (!correoRegistroValido(actual.correo)) {
+            errorPassword = "El cliente no tiene un correo válido para restablecer la contraseña."
             return
         }
         guardandoPassword = true
@@ -294,23 +291,17 @@ class ClientesViewModel(
         conflictoPassword = false
         viewModelScope.launch(dispatcher) {
             try {
-                val body = UsuarioContainer(UsuarioCampos(password = FirestoreStringValue(nueva)))
-                val actualizado = passwordService.actualizarPassword(actual.id, updateTime = version, body = body)
-                val nuevaVersion = actualizado.updateTime?.takeIf { it.isNotBlank() } ?: version
-                val seguro = actual.copy(password = "", updateTime = nuevaVersion)
-                clienteSeleccionado = seguro
-                clientes = clientes.map { if (it.id == seguro.id) seguro else it }
-                mensajePassword = "Contraseña actualizada correctamente."
+                autenticacion.enviarCorreoRestablecimiento(actual.correo)
+                mensajePassword = "Se envió un enlace de restablecimiento a ${actual.correo}."
                 onExito()
             } catch (e: CancellationException) {
                 throw e
-            } catch (e: HttpException) {
-                conflictoPassword = esConflictoVersionCliente(e)
-                errorPassword = if (conflictoPassword)
-                    "La información cambió desde otro dispositivo. Recarga el cliente e inténtalo nuevamente."
-                else "No se pudo actualizar la contraseña. Reintenta."
+            } catch (e: ErrorAutenticacion) {
+                errorPassword = if (e.tipo == com.example.vapeon_movil.auth.TipoErrorAutenticacion.USUARIO_NO_ENCONTRADO)
+                    "El correo del cliente no está registrado en Firebase Authentication."
+                else e.message
             } catch (_: Exception) {
-                errorPassword = "No se pudo actualizar la contraseña. Revisa tu conexión."
+                errorPassword = "No se pudo enviar el correo. Revisa tu conexión."
             } finally {
                 guardandoPassword = false
             }

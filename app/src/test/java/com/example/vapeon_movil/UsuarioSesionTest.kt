@@ -1,5 +1,8 @@
 package com.example.vapeon_movil
 
+import com.example.vapeon_movil.auth.ErrorAutenticacion
+import com.example.vapeon_movil.auth.SesionFirebase
+import com.example.vapeon_movil.auth.TipoErrorAutenticacion
 import com.example.vapeon_movil.services.UsuarioService
 import com.example.vapeon_movil.services.dto.*
 import com.example.vapeon_movil.viewmodels.UsuarioViewModel
@@ -10,8 +13,12 @@ import com.example.vapeon_movil.viewmodels.validarRegistro
 import com.example.vapeon_movil.viewmodels.validarMayoriaEdad
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
+import okhttp3.MediaType
+import okhttp3.ResponseBody
 import org.junit.Assert.*
 import org.junit.Test
+import retrofit2.HttpException
+import retrofit2.Response
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
@@ -21,14 +28,15 @@ class UsuarioSesionTest {
         val creados = mutableListOf<UsuarioContainer>()
         var consultas = 0
         var falloConsulta = false
+        var falloMostrar = false
         var falloCreacion = false
         var perderRespuestaCreacion = false
-        var respuestaPendiente: CompletableDeferred<UsuarioListResponse>? = null
+        var respuestaPerfilPendiente: CompletableDeferred<UsuarioDocumento>? = null
 
         override suspend fun listarUsuarios(pageToken: String?): UsuarioListResponse {
             consultas++
             if (falloConsulta) error("Sin conexión")
-            return respuestaPendiente?.await() ?: UsuarioListResponse(documentos.toList())
+            return UsuarioListResponse(documentos.toList())
         }
         override suspend fun crearUsuario(body: UsuarioContainer, documentId: String?): Any {
             if (falloCreacion) error("Sin conexión")
@@ -40,20 +48,45 @@ class UsuarioSesionTest {
             }
             return Unit
         }
-        override suspend fun mostrarUsuario(id: String): UsuarioDocumento = error("No se utiliza")
+        override suspend fun mostrarUsuario(id: String): UsuarioDocumento {
+            if (falloMostrar) error("Sin conexión")
+            respuestaPerfilPendiente?.let { return it.await() }
+            return documentos.firstOrNull { it.name.endsWith("/$id") }
+                ?: throw HttpException(
+                    Response.error<Any>(
+                        404,
+                        ResponseBody.create(MediaType.parse("application/json"), "{}")
+                    )
+                )
+        }
         override suspend fun actualizarUsuario(id: String, body: UsuarioContainer): UsuarioDocumento =
             error("No se utiliza")
         override suspend fun eliminarUsuario(id: String): Any = error("No se utiliza")
     }
 
-    private fun documento(id: String = "A", correo: String = "a@example.com",
-        password: String = " 1234 ", rol: String = "CLIENTE") = UsuarioDocumento("usuarios/$id",
-        UsuarioCampos(correo = FirestoreStringValue(correo), password = FirestoreStringValue(password),
-            rol = FirestoreStringValue(rol)))
+    private fun documento(
+        id: String = "A",
+        correo: String = "a@example.com",
+        rol: String = "CLIENTE"
+    ) = UsuarioDocumento(
+        "usuarios/$id",
+        UsuarioCampos(
+            correo = FirestoreStringValue(correo),
+            rol = FirestoreStringValue(rol)
+        )
+    )
+
+    private fun modelo(
+        servicio: ServicioUsuariosPrueba = ServicioUsuariosPrueba(),
+        auth: FakeAutenticacionFirebase = FakeAutenticacionFirebase()
+    ) = UsuarioViewModel(servicio, Dispatchers.Unconfined, auth)
+
+    // ─── Registro ───────────────────────────────────────────────────────────
 
     @Test fun registroConRespuestaPerdidaNoCreaOtraCuentaAlReintentar() {
         val servicio = ServicioUsuariosPrueba().apply { perderRespuestaCreacion = true }
-        val vm = UsuarioViewModel(servicio, Dispatchers.Unconfined)
+        val auth = FakeAutenticacionFirebase()
+        val vm = modelo(servicio, auth)
         var exitos = 0
         repeat(2) {
             vm.registrarUsuario("Ana", "Pérez", "ana@example.com", "912345678", "12345678", "01/01/2000", "x", "x") { exitos++ }
@@ -61,15 +94,18 @@ class UsuarioSesionTest {
         assertEquals(1, servicio.creados.size)
         assertEquals(1, exitos)
         assertTrue(vm.registroCompletado)
+        assertEquals(1, auth.cuentas.size)
+        assertNull(auth.sesion)
     }
 
     @Test fun registroBloqueaPulsacionesDuplicadasMientrasCarga() {
-        val pendiente = CompletableDeferred<UsuarioListResponse>()
-        val servicio = ServicioUsuariosPrueba().apply { respuestaPendiente = pendiente }
-        val vm = UsuarioViewModel(servicio, Dispatchers.Unconfined)
+        val pendiente = CompletableDeferred<Unit>()
+        val servicio = ServicioUsuariosPrueba()
+        val auth = FakeAutenticacionFirebase().apply { esperaRegistro = pendiente }
+        val vm = modelo(servicio, auth)
         repeat(2) { vm.registrarUsuario("Ana", "Pérez", "ana@example.com", "912345678", "12345678", "01/01/2000", "x", "x") }
         assertTrue(vm.cargandoRegistro)
-        pendiente.complete(UsuarioListResponse(emptyList()))
+        pendiente.complete(Unit)
         assertEquals(1, servicio.creados.size)
         assertTrue(vm.registroCompletado)
     }
@@ -194,12 +230,14 @@ class UsuarioSesionTest {
 
     @Test fun registroDeMenorNoConsultaNiCreaUsuarios() {
         val servicio = ServicioUsuariosPrueba()
-        val vm = UsuarioViewModel(servicio, Dispatchers.Unconfined)
+        val auth = FakeAutenticacionFirebase()
+        val vm = modelo(servicio, auth)
         val nacimiento = LocalDate.now().minusYears(1).format(DateTimeFormatter.ofPattern("dd/MM/uuuu"))
         vm.registrarUsuario("Ana", "Pérez", "ana@example.com", "912345678", "12345678", nacimiento, "x", "x")
         assertEquals("Debes tener 18 años cumplidos o más para registrarte.", vm.errorRegistro)
         assertEquals(0, servicio.consultas)
         assertTrue(servicio.creados.isEmpty())
+        assertTrue(auth.cuentas.isEmpty())
         assertFalse(vm.registroCompletado)
         assertFalse(vm.cargandoRegistro)
     }
@@ -217,16 +255,20 @@ class UsuarioSesionTest {
         assertNotNull(errorRegistro(correo = " "))
     }
 
-    @Test fun registroYLoginConservanExactamenteLaContrasenaConEspacios() {
+    @Test fun registroYLoginConservanExactamenteLaContrasenaEnFirebase() {
         val servicio = ServicioUsuariosPrueba()
-        val vm = UsuarioViewModel(servicio, Dispatchers.Unconfined)
+        val auth = FakeAutenticacionFirebase()
+        val vm = modelo(servicio, auth)
         var registrado = false
         vm.registrarUsuario("Ana", "Pérez", " Ana.Perez@Example.com ", "912345678",
             "12345678", "01/01/2000", " 1234 ", " 1234 ") { registrado = true }
         assertTrue(registrado)
         assertEquals("Ana.Perez@Example.com", servicio.creados.single().fields.correo?.stringValue)
         assertEquals("12345678", servicio.creados.single().fields.dni?.stringValue)
-        assertEquals(" 1234 ", servicio.creados.single().fields.password?.stringValue)
+        // La contraseña nunca se escribe en Firestore.
+        assertNull(servicio.creados.single().fields.password)
+        assertEquals(" 1234 ", auth.cuentas.single().contrasena)
+
         var autenticado = false
         vm.iniciarSesion(" ana.perez@example.com ", " 1234 ", { autenticado = true })
         assertTrue(autenticado)
@@ -238,8 +280,10 @@ class UsuarioSesionTest {
 
     @Test fun correoDuplicadoNoGeneraOtroDocumento() {
         val servicio = ServicioUsuariosPrueba()
-        servicio.documentos += documento(correo = " Ana@Example.com ")
-        val vm = UsuarioViewModel(servicio, Dispatchers.Unconfined)
+        val auth = FakeAutenticacionFirebase().apply {
+            agregarCuenta("existente", "ana@example.com", "otra")
+        }
+        val vm = modelo(servicio, auth)
         vm.registrarUsuario("Ana", "Pérez", "ana@example.com", "912345678",
             "12345678", "01/01/2000", "x", "x") { fail("No debe registrar duplicados") }
         assertTrue(servicio.creados.isEmpty())
@@ -247,37 +291,41 @@ class UsuarioSesionTest {
         assertFalse(vm.cargandoRegistro)
     }
 
-    @Test fun noRegistraSiNoPuedeComprobarDuplicados() {
-        val servicio = ServicioUsuariosPrueba().apply { falloConsulta = true }
-        val vm = UsuarioViewModel(servicio, Dispatchers.Unconfined)
+    @Test fun noConfirmaRegistroSiElPerfilNoSePuedeCrear() {
+        val servicio = ServicioUsuariosPrueba().apply { falloCreacion = true }
+        val auth = FakeAutenticacionFirebase()
+        val vm = modelo(servicio, auth)
         vm.registrarUsuario("Ana", "Pérez", "ana@example.com", "912345678",
-            "12345678", "01/01/2000", "x", "x") { fail("La consulta falló") }
+            "12345678", "01/01/2000", "x", "x") { fail("Falló el guardado") }
         assertTrue(servicio.creados.isEmpty())
         assertNotNull(vm.errorRegistro)
         assertFalse(vm.cargandoRegistro)
+        assertFalse(vm.registroCompletado)
+        // No se deja una sesión Firebase incompleta.
+        assertNull(auth.sesion)
     }
 
     @Test fun formularioInvalidoNoEnviaRegistro() {
         val servicio = ServicioUsuariosPrueba()
-        val vm = UsuarioViewModel(servicio, Dispatchers.Unconfined)
+        val auth = FakeAutenticacionFirebase()
+        val vm = modelo(servicio, auth)
         vm.registrarUsuario("Ana", "Pérez", "ana@example.com", "9abc45678",
             "12345678", "01/01/2000", "x", "x") { fail("Formulario inválido") }
         assertTrue(servicio.creados.isEmpty())
+        assertTrue(auth.cuentas.isEmpty())
         assertNotNull(vm.errorRegistro)
     }
 
-    @Test fun errorAlCrearSeMuestraSinConfirmarRegistro() {
-        val servicio = ServicioUsuariosPrueba().apply { falloCreacion = true }
-        val vm = UsuarioViewModel(servicio, Dispatchers.Unconfined)
-        vm.registrarUsuario("Ana", "Pérez", "ana@example.com", "912345678",
-            "12345678", "01/01/2000", "x", "x") { fail("Falló el guardado") }
-        assertNotNull(vm.errorRegistro)
-        assertFalse(vm.cargandoRegistro)
-    }
+    // ─── Login y sesión ─────────────────────────────────────────────────────
 
-    @Test fun cerrarSesionLimpiaUsuarioRolYEstadosDeLogin() {
-        val servicio = ServicioUsuariosPrueba().apply { documentos += documento(rol = "ADMIN") }
-        val vm = UsuarioViewModel(servicio, Dispatchers.Unconfined)
+    @Test fun cerrarSesionLimpiaUsuarioRolEstadosYCierraFirebase() {
+        val servicio = ServicioUsuariosPrueba().apply {
+            documentos += documento(rol = "ADMIN")
+        }
+        val auth = FakeAutenticacionFirebase().apply {
+            agregarCuenta("A", "a@example.com", " 1234 ")
+        }
+        val vm = modelo(servicio, auth)
         vm.iniciarSesion("a@example.com", " 1234 ", {})
         assertNotNull(vm.usuarioActual)
         assertTrue(vm.esAdmin)
@@ -286,11 +334,17 @@ class UsuarioSesionTest {
         assertFalse(vm.esAdmin)
         assertFalse(vm.cargandoLogin)
         assertNull(vm.errorLogin)
+        assertNull(auth.sesion)
     }
 
     @Test fun loginFallidoOVacioNoConservaSesionAnterior() {
-        val servicio = ServicioUsuariosPrueba().apply { documentos += documento(rol = "ADMIN") }
-        val vm = UsuarioViewModel(servicio, Dispatchers.Unconfined)
+        val servicio = ServicioUsuariosPrueba().apply {
+            documentos += documento(rol = "ADMIN")
+        }
+        val auth = FakeAutenticacionFirebase().apply {
+            agregarCuenta("A", "a@example.com", " 1234 ")
+        }
+        val vm = modelo(servicio, auth)
         listOf("incorrecta", "").forEach { password ->
             vm.iniciarSesion("a@example.com", " 1234 ", {})
             assertNotNull(vm.usuarioActual)
@@ -298,34 +352,119 @@ class UsuarioSesionTest {
             assertNull(vm.usuarioActual)
             assertFalse(vm.esAdmin)
             assertNotNull(vm.errorLogin)
+            assertNull(auth.sesion)
         }
     }
 
     @Test fun errorDeRedEnNuevoLoginNoConservaSesionAnterior() {
         val servicio = ServicioUsuariosPrueba().apply { documentos += documento() }
-        val vm = UsuarioViewModel(servicio, Dispatchers.Unconfined)
+        val auth = FakeAutenticacionFirebase().apply {
+            agregarCuenta("A", "a@example.com", " 1234 ")
+            agregarCuenta("B", "b@example.com", "otra")
+        }
+        val vm = modelo(servicio, auth)
         vm.iniciarSesion("a@example.com", " 1234 ", {})
-        servicio.falloConsulta = true
+        servicio.falloMostrar = true
         vm.iniciarSesion("b@example.com", "otra", { fail("La consulta falló") })
         assertNull(vm.usuarioActual)
         assertNotNull(vm.errorLogin)
         assertFalse(vm.cargandoLogin)
+        assertNull(auth.sesion)
+    }
+
+    @Test fun perfilInexistenteCierraLaSesionFirebase() {
+        val servicio = ServicioUsuariosPrueba()
+        val auth = FakeAutenticacionFirebase().apply {
+            agregarCuenta("sin-perfil", "huerfano@example.com", "x")
+        }
+        val vm = modelo(servicio, auth)
+        vm.iniciarSesion("huerfano@example.com", "x", { fail("No existe perfil") })
+        assertNull(vm.usuarioActual)
+        assertNotNull(vm.errorLogin)
+        assertNull(auth.sesion)
     }
 
     @Test fun cerrarSesionCancelaLoginPendienteYPermiteEntrarComoB() {
-        val servicio = ServicioUsuariosPrueba()
-        val pendiente = CompletableDeferred<UsuarioListResponse>()
-        servicio.respuestaPendiente = pendiente
-        val vm = UsuarioViewModel(servicio, Dispatchers.Unconfined)
+        val servicio = ServicioUsuariosPrueba().apply {
+            documentos += documento(id = "A", correo = "a@example.com")
+            documentos += documento(id = "B", correo = "b@example.com")
+        }
+        val auth = FakeAutenticacionFirebase().apply {
+            agregarCuenta("A", "a@example.com", " 1234 ")
+            agregarCuenta("B", "b@example.com", "b")
+        }
+        val pendiente = CompletableDeferred<UsuarioDocumento>()
+        servicio.respuestaPerfilPendiente = pendiente
+        val vm = modelo(servicio, auth)
         vm.iniciarSesion("a@example.com", " 1234 ", { fail("Sesión cancelada") })
         assertTrue(vm.cargandoLogin)
         vm.cerrarSesion()
-        pendiente.complete(UsuarioListResponse(listOf(documento())))
+        pendiente.complete(servicio.documentos.first { it.name.endsWith("/A") })
         assertNull(vm.usuarioActual)
         assertFalse(vm.cargandoLogin)
-        servicio.respuestaPendiente = null
-        servicio.documentos += documento("B", "b@example.com", "b")
+        servicio.respuestaPerfilPendiente = null
         vm.iniciarSesion("b@example.com", "b", {})
         assertEquals("B", vm.usuarioActual?.id)
+    }
+
+    @Test fun restauraSesionPersistidaConPerfil() {
+        val servicio = ServicioUsuariosPrueba().apply { documentos += documento(id = "A") }
+        val auth = FakeAutenticacionFirebase().apply {
+            agregarCuenta("A", "a@example.com", "x")
+            sesion = SesionFirebase("A", "a@example.com", true)
+        }
+        val vm = modelo(servicio, auth)
+        vm.restaurarSesion()
+        assertEquals("A", vm.usuarioActual?.id)
+        assertTrue(vm.restauracionCompletada)
+        assertFalse(vm.restaurandoSesion)
+    }
+
+    @Test fun restauracionSinPerfilCierraLaSesionFirebase() {
+        val auth = FakeAutenticacionFirebase().apply {
+            sesion = SesionFirebase("fantasma", "fantasma@example.com", true)
+        }
+        val vm = modelo(ServicioUsuariosPrueba(), auth)
+        vm.restaurarSesion()
+        assertNull(vm.usuarioActual)
+        assertNull(auth.sesion)
+        assertTrue(vm.restauracionCompletada)
+    }
+
+    // ─── Recuperación de contraseña ─────────────────────────────────────────
+
+    @Test fun recuperacionEnviaCorreoReal() {
+        val auth = FakeAutenticacionFirebase()
+        val vm = modelo(ServicioUsuariosPrueba(), auth)
+        var exito = false
+        vm.enviarCorreoRestablecimiento("ana@example.com", { exito = true })
+        assertTrue(exito)
+        assertEquals(listOf("ana@example.com"), auth.correosRestablecimiento)
+    }
+
+    @Test fun recuperacionNoRevelaSiElCorreoNoExiste() {
+        val auth = FakeAutenticacionFirebase().apply {
+            falloRestablecimiento = ErrorAutenticacion(
+                TipoErrorAutenticacion.USUARIO_NO_ENCONTRADO,
+                "No existe una cuenta con ese correo."
+            )
+        }
+        val vm = modelo(ServicioUsuariosPrueba(), auth)
+        var exito = false
+        var error: String? = null
+        vm.enviarCorreoRestablecimiento("desconocido@example.com",
+            onExito = { exito = true }, onError = { error = it })
+        assertTrue(exito)
+        assertNull(error)
+    }
+
+    @Test fun recuperacionRechazaCorreoInvalidoSinLlamarFirebase() {
+        val auth = FakeAutenticacionFirebase()
+        val vm = modelo(ServicioUsuariosPrueba(), auth)
+        var error: String? = null
+        vm.enviarCorreoRestablecimiento("no-es-correo", onExito = { fail("Inválido") },
+            onError = { error = it })
+        assertNotNull(error)
+        assertTrue(auth.correosRestablecimiento.isEmpty())
     }
 }

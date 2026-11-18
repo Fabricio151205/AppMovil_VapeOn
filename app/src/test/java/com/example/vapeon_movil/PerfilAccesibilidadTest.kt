@@ -3,6 +3,7 @@ package com.example.vapeon_movil
 import com.example.vapeon_movil.entities.edadDesde
 import com.example.vapeon_movil.entities.esMayorDeEdad
 import com.example.vapeon_movil.entities.rolLegible
+import com.example.vapeon_movil.services.UsuarioPerfilService
 import com.example.vapeon_movil.services.UsuarioService
 import com.example.vapeon_movil.services.dto.*
 import com.example.vapeon_movil.ui.theme.AjustesAccesibilidad
@@ -77,22 +78,49 @@ class PerfilAccesibilidadTest {
     private class ServicioPerfilPrueba(
         private val documentos: MutableList<UsuarioDocumento>
     ) : UsuarioService {
-        var actualizado: UsuarioContainer? = null
         override suspend fun listarUsuarios(pageToken: String?): UsuarioListResponse =
             UsuarioListResponse(documentos.toList())
         override suspend fun crearUsuario(body: UsuarioContainer, documentId: String?): Any =
             error("No se utiliza")
         override suspend fun mostrarUsuario(id: String): UsuarioDocumento =
             documentos.first { it.name.endsWith("/$id") }
-        override suspend fun actualizarUsuario(id: String, body: UsuarioContainer): UsuarioDocumento {
-            actualizado = body
-            val nuevo = UsuarioDocumento("usuarios/$id", body.fields)
-            documentos.removeAll { it.name.endsWith("/$id") }
-            documentos += nuevo
-            return nuevo
-        }
+        override suspend fun actualizarUsuario(id: String, body: UsuarioContainer): UsuarioDocumento =
+            error("No se utiliza: el perfil usa una máscara acotada")
         override suspend fun eliminarUsuario(id: String): Any = error("No se utiliza")
     }
+
+    private class PerfilFake : UsuarioPerfilService {
+        var llamadas = 0
+        var id = ""
+        var campos = emptyList<String>()
+        var version: String? = null
+        var body: UsuarioContainer? = null
+
+        override suspend fun actualizarPerfil(
+            id: String,
+            campos: List<String>,
+            updateTime: String?,
+            body: UsuarioContainer
+        ): UsuarioDocumento {
+            llamadas++
+            this.id = id
+            this.campos = campos
+            version = updateTime
+            this.body = body
+            return UsuarioDocumento(
+                "usuarios/$id",
+                body.fields,
+                "2026-01-01T00:00:00Z",
+                "2026-05-01T00:00:00Z"
+            )
+        }
+    }
+
+    private fun modelo(
+        servicio: ServicioPerfilPrueba,
+        auth: FakeAutenticacionFirebase,
+        perfil: PerfilFake = PerfilFake()
+    ) = UsuarioViewModel(servicio, Dispatchers.Unconfined, auth, perfil)
 
     private fun documento(
         id: String = "A",
@@ -116,10 +144,16 @@ class PerfilAccesibilidadTest {
         )
     )
 
-    @Test fun editarPerfilConservaContrasenaYRol() {
+    private fun authConCuentaA() = FakeAutenticacionFirebase().apply {
+        agregarCuenta("A", "ana@example.com", "clave")
+    }
+
+    @Test fun editarPerfilNoEscribeContrasenaNiRolYActualizaLaMascara() {
         val doc = documento()
         val servicio = ServicioPerfilPrueba(mutableListOf(doc))
-        val vm = UsuarioViewModel(servicio, Dispatchers.Unconfined)
+        val auth = authConCuentaA()
+        val perfil = PerfilFake()
+        val vm = modelo(servicio, auth, perfil)
         vm.iniciarSesion("ana@example.com", "clave", {})
         assertNotNull(vm.usuarioActual)
 
@@ -135,14 +169,21 @@ class PerfilAccesibilidadTest {
         )
 
         assertTrue(exito)
-        val enviado = servicio.actualizado
-        assertNotNull(enviado)
-        assertEquals("clave", enviado!!.fields.password?.stringValue)
-        assertEquals("ADMIN", enviado.fields.rol?.stringValue)
+        assertEquals(1, perfil.llamadas)
+        assertEquals("A", perfil.id)
+        assertEquals(
+            listOf("nombre", "apellido", "telefono", "fechaNacimiento", "correo"),
+            perfil.campos
+        )
+        val enviado = perfil.body!!
+        assertNull(enviado.fields.password)
+        assertNull(enviado.fields.rol)
         assertEquals("ana.nueva@example.com", enviado.fields.correo?.stringValue)
         assertEquals("Ana María", vm.usuarioActual?.nombre)
         assertEquals("987654321", vm.usuarioActual?.telefono)
         assertTrue(vm.esAdmin)
+        // La identidad de Firebase también queda sincronizada.
+        assertEquals("ana.nueva@example.com", auth.sesion?.correo)
     }
 
     @Test fun editarPerfilRechazaCorreoDeOtroUsuario() {
@@ -152,7 +193,12 @@ class PerfilAccesibilidadTest {
                 documento(id = "B", correo = "beto@example.com", rol = "CLIENTE")
             )
         )
-        val vm = UsuarioViewModel(servicio, Dispatchers.Unconfined)
+        val auth = FakeAutenticacionFirebase().apply {
+            agregarCuenta("A", "ana@example.com", "clave")
+            agregarCuenta("B", "beto@example.com", "otra")
+        }
+        val perfil = PerfilFake()
+        val vm = modelo(servicio, auth, perfil)
         vm.iniciarSesion("ana@example.com", "clave", {})
 
         var mensaje: String? = null
@@ -167,12 +213,13 @@ class PerfilAccesibilidadTest {
         )
 
         assertEquals("Ya existe una cuenta con ese correo.", mensaje)
-        assertNull(servicio.actualizado)
+        assertEquals(0, perfil.llamadas)
     }
 
     @Test fun editarPerfilNoCambiaNadaSiEsInvalido() {
         val servicio = ServicioPerfilPrueba(mutableListOf(documento()))
-        val vm = UsuarioViewModel(servicio, Dispatchers.Unconfined)
+        val perfil = PerfilFake()
+        val vm = modelo(servicio, authConCuentaA(), perfil)
         vm.iniciarSesion("ana@example.com", "clave", {})
 
         var mensaje: String? = null
@@ -187,6 +234,6 @@ class PerfilAccesibilidadTest {
         )
 
         assertNotNull(mensaje)
-        assertNull(servicio.actualizado)
+        assertEquals(0, perfil.llamadas)
     }
 }

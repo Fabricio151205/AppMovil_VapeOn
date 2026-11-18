@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">VapeON_Movil</string>
+    <string name="google_web_client_id" translatable="false">382102305447-906kpl3icf4m3gcst9eltk7p6dnhlrva.apps.googleusercontent.com</string>
 </resources>

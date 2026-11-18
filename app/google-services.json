@@ -12,7 +12,20 @@
           "package_name": "com.example.vapeon_movil"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "382102305447-3r2t6kn46q45jdkk9aoemjn0e170iohq.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.vapeon_movil",
+            "certificate_hash": "be84fc64347ed620d91ad2cee504c1305d764dc5"
+          }
+        },
+        {
+          "client_id": "382102305447-906kpl3icf4m3gcst9eltk7p6dnhlrva.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyAxZVDuBtOBBA3SM0RskVrkfOqfiiTYOy0"
@@ -20,7 +33,12 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "382102305447-906kpl3icf4m3gcst9eltk7p6dnhlrva.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }

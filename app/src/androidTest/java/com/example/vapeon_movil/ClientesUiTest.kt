@@ -6,9 +6,9 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
+import com.example.vapeon_movil.auth.FirebaseAutenticacion
 import com.example.vapeon_movil.entities.Usuario
 import com.example.vapeon_movil.services.UsuarioClientesService
-import com.example.vapeon_movil.services.UsuarioPasswordService
 import com.example.vapeon_movil.services.UsuarioService
 import com.example.vapeon_movil.services.dto.*
 import com.example.vapeon_movil.ui.ClientesScreen
@@ -53,14 +53,9 @@ class ClientesUiTest {
             "2026-01-01T00:00:00Z", "2026-02-01T00:00:00Z")
     }
 
-    private class PasswordFake : UsuarioPasswordService {
-        override suspend fun actualizarPassword(id: String, campo: String, updateTime: String,
-            body: UsuarioContainer) = UsuarioDocumento("usuarios/$id", body.fields,
-            "2026-01-01T00:00:00Z", "2026-02-01T00:00:00Z")
-    }
-
     private fun vm(docs: List<UsuarioDocumento> = emptyList(), falla: Boolean = false) =
-        ClientesViewModel(UsuariosFake(docs, falla), EdicionFake(), Dispatchers.Unconfined, PasswordFake())
+        ClientesViewModel(UsuariosFake(docs, falla), EdicionFake(), Dispatchers.Unconfined,
+            FirebaseAutenticacion())
 
     @Test fun listadoTarjetaYBuscadorSonVisibles() {
         val model = vm(listOf(doc()))
@@ -79,7 +74,7 @@ class ClientesUiTest {
         compose.onNodeWithText("INFORMACIÓN DEL CLIENTE").assertIsDisplayed()
         compose.onNodeWithText("No registrado").assertIsDisplayed()
         compose.onNodeWithText("EDITAR INFORMACIÓN").assertIsDisplayed()
-        compose.onNodeWithText("CAMBIAR CONTRASEÑA").assertIsDisplayed()
+        compose.onNodeWithText("RESTABLECER CONTRASEÑA").assertIsDisplayed()
         assertTrue(compose.onAllNodesWithText("no-visible").fetchSemanticsNodes().isEmpty())
     }
 
@@ -116,21 +111,19 @@ class ClientesUiTest {
         compose.onNodeWithText("Reintentar").assertIsDisplayed()
     }
 
-    @Test fun dialogoPasswordNoMuestraValorAnteriorYSeOcultaParaCliente() {
+    @Test fun dialogoRestablecimientoNoMuestraValorAnteriorYSeOcultaParaCliente() {
         val usuario = Usuario(id = "c1", nombre = "Juan", apellido = "Pérez",
-            password = "clave-anterior", rol = "CLIENTE")
+            correo = "juan@correo.com", password = "clave-anterior", rol = "CLIENTE")
         compose.setContent { VapeON_MovilTheme {
             DetalleClienteScreen(usuario, {}, {}, esAdmin = true)
         } }
-        compose.onNodeWithText("CAMBIAR CONTRASEÑA").performClick()
-        compose.onNodeWithText("Nueva contraseña").assertIsDisplayed()
-        compose.onNodeWithText("Confirmar nueva contraseña").assertIsDisplayed()
-        compose.onNodeWithText("Guardar contraseña").assertIsDisplayed()
+        compose.onNodeWithText("RESTABLECER CONTRASEÑA").performClick()
+        compose.onNodeWithText("Enviar correo").assertIsDisplayed()
         assertTrue(compose.onAllNodesWithText("clave-anterior").fetchSemanticsNodes().isEmpty())
 
         compose.setContent { VapeON_MovilTheme {
             DetalleClienteScreen(usuario, {}, {}, esAdmin = false)
         } }
-        assertTrue(compose.onAllNodesWithText("CAMBIAR CONTRASEÑA").fetchSemanticsNodes().isEmpty())
+        assertTrue(compose.onAllNodesWithText("RESTABLECER CONTRASEÑA").fetchSemanticsNodes().isEmpty())
     }
 }

@@ -1,5 +1,6 @@
 package com.example.vapeon_movil.ui
 
+import androidx.activity.compose.LocalActivity
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -21,7 +22,19 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.credentials.exceptions.GetCredentialCancellationException
+import androidx.credentials.exceptions.NoCredentialException
 import com.example.vapeon_movil.R
+import com.example.vapeon_movil.auth.GoogleAuthManager
+import com.example.vapeon_movil.auth.SesionGoogle
+import com.example.vapeon_movil.services.PerfilGoogleContainer
+import com.example.vapeon_movil.services.UsuarioAutenticadoService
+import com.example.vapeon_movil.services.dto.FirestoreStringValue
+import com.example.vapeon_movil.services.dto.UsuarioDocumento
+import com.example.vapeon_movil.utils.RetrofitClient
+import com.google.firebase.auth.FirebaseAuthUserCollisionException
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.launch
 import com.example.vapeon_movil.viewmodels.UsuarioViewModel
 import com.example.vapeon_movil.ui.theme.*
 
@@ -40,6 +53,19 @@ fun LoginScreen(
     // Estado del ViewModel (login, carga, error)
     val cargando = usuarioViewModel.cargandoLogin
     val mensajeError = usuarioViewModel.errorLogin ?: ""
+
+    val actividad = LocalActivity.current
+    val googleAuth = remember(actividad) { actividad?.let(::GoogleAuthManager) }
+
+    val servicioAutenticado = remember {
+        RetrofitClient.retrofit.create(
+            UsuarioAutenticadoService::class.java
+        )
+    }
+
+    val scope = rememberCoroutineScope()
+    var cargandoGoogle by remember { mutableStateOf(false) }
+    var mensajeGoogle by rememberSaveable { mutableStateOf<String?>(null) }
 
     Surface(
         modifier = Modifier.fillMaxSize(),
@@ -150,7 +176,7 @@ fun LoginScreen(
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Normal,
                     modifier = Modifier
-                        .clickable { irRecuperar() }
+                        .clickable(enabled = !cargandoGoogle) { irRecuperar() }
                         .padding(vertical = 4.dp)
                 )
             }
@@ -160,6 +186,8 @@ fun LoginScreen(
             // Botón principal: INICIAR SESIÓN (estilo píldora roja)
             Button(
                 onClick = {
+                    if (cargandoGoogle) return@Button
+                    mensajeGoogle = null
                     usuarioViewModel.iniciarSesion(
                         correo = correo,
                         password = password,
@@ -168,7 +196,7 @@ fun LoginScreen(
                         }
                     )
                 },
-                enabled = !cargando,
+                enabled = !cargando && !cargandoGoogle,
                 shape = RoundedCornerShape(50),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = VapeOnRed,
@@ -219,7 +247,7 @@ fun LoginScreen(
                     color = VapeOnGold,
                     fontWeight = FontWeight.Bold,
                     fontSize = 14.sp,
-                    modifier = Modifier.clickable { irRegistro() }
+                    modifier = Modifier.clickable(enabled = !cargandoGoogle) { irRegistro() }
                 )
             }
 
@@ -253,7 +281,78 @@ fun LoginScreen(
 
             // Botón social: Continuar con Google
             Button(
-                onClick = {}, enabled = false,
+                onClick = {
+                    if (googleAuth == null || cargandoGoogle || usuarioViewModel.cargandoLogin) {
+                        return@Button
+                    }
+                    usuarioViewModel.limpiarError()
+                    mensajeGoogle = null
+                    cargandoGoogle = true
+                    scope.launch {
+                        try {
+                            val sesion = googleAuth.iniciarSesionConGoogle()
+                            var accesoCompletado = false
+
+                            try {
+                                val perfil = obtenerOCrearPerfilGoogle(
+                                    sesion = sesion,
+                                    servicio = servicioAutenticado
+                                )
+
+                                // Verificar que el documento recuperado sea suyo
+                                check(
+                                    perfil.name.substringAfterLast("/") == sesion.uid
+                                ) {
+                                    "El perfil no corresponde al usuario autenticado"
+                                }
+
+                                // En este flujo solo admitimos CLIENTE.
+                                // Los administradores requieren autorización separada.
+                                check(
+                                    perfil.fields.rol?.stringValue == "CLIENTE"
+                                ) {
+                                    "El perfil requiere revisión"
+                                }
+
+                                check(
+                                    perfil.fields.correo?.stringValue
+                                        ?.equals(sesion.correo, ignoreCase = true) == true
+                                ) {
+                                    "El correo del perfil no coincide"
+                                }
+
+                                usuarioViewModel.establecerSesionGoogle(perfil)
+
+                                accesoCompletado = true
+                                irHome()
+
+                            } catch (error: CancellationException) {
+                                throw error
+                            } catch (error: Exception) {
+                                mensajeGoogle =
+                                    "No se pudo completar el acceso con Google."
+                            } finally {
+                                if (!accesoCompletado) {
+                                    googleAuth.cerrarSesionProvisional(sesion)
+                                }
+                            }
+
+                        } catch (error: CancellationException) {
+                            throw error
+                        } catch (_: GetCredentialCancellationException) {
+                            mensajeGoogle = "Se canceló el acceso con Google."
+                        } catch (_: NoCredentialException) {
+                            mensajeGoogle = "No hay una cuenta de Google disponible en este dispositivo."
+                        } catch (_: FirebaseAuthUserCollisionException) {
+                            mensajeGoogle = "El correo ya tiene una cuenta y requiere vinculación."
+                        } catch (_: Exception) {
+                            mensajeGoogle = "No se pudo continuar con Google. Inténtalo de nuevo."
+                        } finally {
+                            cargandoGoogle = false
+                        }
+                    }
+                },
+                enabled = googleAuth != null && !cargando && !cargandoGoogle,
                 shape = RoundedCornerShape(50),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = VapeOnRedDark,
@@ -263,10 +362,26 @@ fun LoginScreen(
                     .fillMaxWidth()
                     .height(52.dp)
             ) {
+                if (cargandoGoogle) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(24.dp),
+                        color = VapeOnTextPrimary
+                    )
+                } else {
+                    Text(
+                        text = "Continuar con Google",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 15.sp
+                    )
+                }
+            }
+
+            mensajeGoogle?.let { mensaje ->
+                Spacer(modifier = Modifier.height(10.dp))
                 Text(
-                    text = "Google · No disponible",
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 15.sp
+                    text = mensaje,
+                    color = VapeOnTextPrimary,
+                    fontSize = 14.sp
                 )
             }
 
@@ -293,3 +408,58 @@ fun LoginScreen(
         }
     }
 }
+
+
+suspend fun obtenerOCrearPerfilGoogle(
+    sesion: SesionGoogle,
+    servicio: UsuarioAutenticadoService
+): UsuarioDocumento {
+
+    val autorizacion = "Bearer ${sesion.tokenFirebase}"
+
+    // Primero consultar si existe el perfil
+    try {
+        return servicio.obtenerPerfil(
+            uid = sesion.uid,
+            autorizacion = autorizacion
+        )
+    } catch (error: CancellationException) {
+        throw error
+    } catch (error: retrofit2.HttpException) {
+        if (error.code() != 404) throw error
+    }
+
+    // El perfil todavía no existe
+    val nuevoPerfil = PerfilGoogleContainer(
+        fields = mapOf(
+            "nombre" to FirestoreStringValue(
+                sesion.nombre.ifBlank { "Usuario" }
+            ),
+            "correo" to FirestoreStringValue(
+                sesion.correo
+            ),
+            "rol" to FirestoreStringValue("CLIENTE")
+        )
+    )
+
+    return try {
+        servicio.crearPerfilGoogle(
+            uid = sesion.uid,
+            autorizacion = autorizacion,
+            body = nuevoPerfil
+        )
+    } catch (error: CancellationException) {
+        throw error
+    } catch (error: retrofit2.HttpException) {
+        if (error.code() == 409) {
+            // Otro intento pudo crear el mismo perfil
+            servicio.obtenerPerfil(
+                uid = sesion.uid,
+                autorizacion = autorizacion
+            )
+        } else {
+            throw error
+        }
+    }
+}
+

@@ -1,0 +1,309 @@
+rules_version = '2';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Reglas de Firestore de VapeOn
+//
+// La app usa Firestore REST + Firebase Authentication (el interceptor adjunta el
+// ID token). Estas reglas NO se publican automáticamente: deben revisarse y
+// desplegarse manualmente cuando el equipo lo apruebe.
+//
+// Principios:
+//  - Denegación por defecto: solo se permite lo declarado en este archivo.
+//  - El rol ADMIN se lee del perfil protegido `usuarios/{uid}`.
+//  - Un cliente nunca puede escribir `password`, `rol` ni datos de otra cuenta.
+//  - El catálogo es público; los datos personales solo los ve su dueño o un ADMIN.
+//  - Las escrituras de stock durante la compra están acotadas: solo pueden bajar
+//    `stock` y conservar las mismas claves de `stockPorSabor`. Para una seguridad
+//    definitiva de inventario y pagos se recomienda mover esas operaciones a un
+//    backend de confianza (Cloud Functions).
+//
+// Limitaciones conocidas (documentadas, no ocultas):
+//  - Los importes de pedidos y pagos se calculan en el cliente. Las reglas
+//    validan forma, propiedad y estados, pero no pueden recalcular precios sin
+//    un backend. Un cliente malicioso podría declarar importes distintos.
+//  - `stockPorSabor` solo se acota por claves; no se puede verificar valor por
+//    valor en el lenguaje de reglas.
+//  - Los documentos antiguos pueden conservar el campo `password`. Las reglas
+//    impiden volver a escribirlo, pero no lo eliminan (no se borran datos).
+//  - El dueño puede editar su `correo` en Firestore; la fuente de verdad para
+//    iniciar sesión es Firebase Authentication, no ese campo.
+// ─────────────────────────────────────────────────────────────────────────────
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ─── Helpers ─────────────────────────────────────────────────────────────
+
+    function autenticado() {
+      return request.auth != null;
+    }
+
+    function esPropietario(usuarioId) {
+      return autenticado() && request.auth.uid == usuarioId;
+    }
+
+    function esAdmin() {
+      return autenticado()
+        && get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.rol == 'ADMIN';
+    }
+
+    // Solo válido dentro de reglas de actualización.
+    function camposAfectados() {
+      return request.resource.data.diff(resource.data).affectedKeys();
+    }
+
+    function correoValido(correo) {
+      return correo is string && correo.matches('[^@]+@[^@]+[.][^@]+');
+    }
+
+    function perfilPropioValido() {
+      return camposAfectados().hasOnly(
+          ['nombre', 'apellido', 'telefono', 'fechaNacimiento', 'correo', 'dni'])
+        && (!('correo' in camposAfectados()) || correoValido(request.resource.data.correo));
+    }
+
+    function camposPerfilAdmin() {
+      return ['nombre', 'apellido', 'telefono', 'fechaNacimiento', 'correo', 'dni', 'rol'];
+    }
+
+    // ─── usuarios ────────────────────────────────────────────────────────────
+
+    match /usuarios/{uid} {
+      // `resource == null` permite que la app reciba 404 (y no 403) cuando
+      // comprueba si el perfil existe antes de crearlo. Los documentos
+      // existentes solo los ve su dueño o un administrador.
+      allow read: if autenticado() && (resource == null || esPropietario(uid) || esAdmin());
+
+      // Registro con correo/contraseña o con Google: el documento nace como
+      // CLIENTE, usa el UID como ID y nunca guarda contraseña.
+      allow create: if esPropietario(uid)
+        && request.resource.data.rol == 'CLIENTE'
+        && !('password' in request.resource.data)
+        && correoValido(request.resource.data.correo)
+        && request.resource.data.correo.lower() == request.auth.token.email.lower()
+        && request.resource.data.nombre is string
+        && request.resource.data.nombre.size() > 0;
+
+      // El dueño solo edita datos personales. Un ADMIN puede editar el perfil
+      // y el rol, pero nunca `password` ni quitarse su propio rol.
+      allow update: if (esPropietario(uid) && perfilPropioValido())
+        || (esAdmin()
+            && camposAfectados().hasOnly(camposPerfilAdmin())
+            && !('password' in camposAfectados())
+            && (request.auth.uid != uid || request.resource.data.rol == 'ADMIN'));
+
+      // Los usuarios no se eliminan desde la app.
+      allow delete: if false;
+    }
+
+    // ─── productos ───────────────────────────────────────────────────────────
+
+    match /productos/{productoId} {
+      // Catálogo público: la pantalla "ver más" funciona sin sesión.
+      allow read: if true;
+
+      allow create, delete: if esAdmin();
+
+      // Compra del cliente: únicamente puede descontar stock. No puede subir
+      // existencias, cambiar precios ni alterar otros campos del producto.
+      allow update: if (
+          autenticado()
+          && camposAfectados().hasOnly(['stock', 'stockPorSabor'])
+          && request.resource.data.stock is int
+          && request.resource.data.stock >= 0
+          && request.resource.data.stock < resource.data.stock
+          && (!('stockPorSabor' in camposAfectados())
+              || (request.resource.data.stockPorSabor is map
+                  && request.resource.data.stockPorSabor.keys().hasOnly(resource.data.stockPorSabor.keys())
+                  && request.resource.data.stockPorSabor.keys().hasAll(resource.data.stockPorSabor.keys())))
+        ) || esAdmin();
+    }
+
+    // ─── catálogo auxiliar ───────────────────────────────────────────────────
+
+    match /marcas/{marcaId} {
+      allow read: if true;
+      allow write: if esAdmin();
+    }
+
+    match /sabores/{saborId} {
+      allow read: if true;
+      allow write: if esAdmin();
+    }
+
+    match /proveedores/{proveedorId} {
+      allow read, write: if esAdmin();
+    }
+
+    // ─── direcciones ─────────────────────────────────────────────────────────
+
+    match /direcciones/{direccionId} {
+      allow read: if autenticado()
+        && (resource == null || esPropietario(resource.data.usuarioId));
+
+      allow create: if esPropietario(request.resource.data.usuarioId)
+        && request.resource.data.id == direccionId;
+
+      allow update: if esPropietario(resource.data.usuarioId)
+        && request.resource.data.usuarioId == resource.data.usuarioId
+        && request.resource.data.id == resource.data.id
+        && camposAfectados().hasOnly(
+            ['alias', 'direccion', 'referencia', 'latitud', 'longitud']);
+
+      allow delete: if esPropietario(resource.data.usuarioId);
+    }
+
+    // ─── tarjetas (solo simulación, sin datos de pago reales) ────────────────
+
+    match /tarjetas/{tarjetaId} {
+      allow read: if autenticado()
+        && (resource == null || esPropietario(resource.data.usuarioId));
+
+      allow create: if esPropietario(request.resource.data.usuarioId)
+        && request.resource.data.id == tarjetaId
+        && request.resource.data.modalidad == 'SIMULADO'
+        && request.resource.data.ultimos4 is string
+        && request.resource.data.ultimos4.matches('[0-9][0-9][0-9][0-9]');
+
+      allow update, delete: if false;
+    }
+
+    // ─── favoritos ───────────────────────────────────────────────────────────
+
+    match /favoritos/{favoritoId} {
+      // El ADMIN lee todos los favoritos para el ranking; el cliente solo los suyos.
+      allow read: if autenticado()
+        && (resource == null || esPropietario(resource.data.usuarioId) || esAdmin());
+
+      allow create: if esPropietario(request.resource.data.usuarioId)
+        && request.resource.data.id == favoritoId;
+
+      allow delete: if esPropietario(resource.data.usuarioId);
+
+      allow update: if false;
+    }
+
+    // ─── pedidos ─────────────────────────────────────────────────────────────
+
+    match /pedidos/{pedidoId} {
+      allow read: if autenticado()
+        && (resource == null || esPropietario(resource.data.usuarioId) || esAdmin());
+
+      // El cliente crea su propio pedido en estado REGISTRADO. Si es digital,
+      // el pago referenciado debe existir, ser suyo y estar CONFIRMADO.
+      allow create: if esPropietario(request.resource.data.usuarioId)
+        && request.resource.data.id == pedidoId
+        && request.resource.data.estado == 'REGISTRADO'
+        && request.resource.data.productos is list
+        && request.resource.data.productos.size() > 0
+        && request.resource.data.total is number
+        && request.resource.data.total >= 0
+        && (!('estadoPago' in request.resource.data)
+            || request.resource.data.estadoPago == 'CONFIRMADO')
+        && (!('pagoId' in request.resource.data)
+            || (get(/databases/$(database)/documents/pagos/$(request.resource.data.pagoId)).data.usuarioId
+                  == request.auth.uid
+                && get(/databases/$(database)/documents/pagos/$(request.resource.data.pagoId)).data.estadoPago
+                  == 'CONFIRMADO'));
+
+      // Solo el ADMIN cambia el estado (incluye la acreditación atómica de fidelidad).
+      allow update: if esAdmin()
+        && camposAfectados().hasOnly(['estado'])
+        && request.resource.data.estado in ['REGISTRADO', 'EN CAMINO', 'ENTREGADO'];
+
+      allow delete: if false;
+    }
+
+    // ─── pagos (operación simulada) ──────────────────────────────────────────
+
+    match /pagos/{pagoId} {
+      allow read: if autenticado()
+        && (resource == null || esPropietario(resource.data.usuarioId) || esAdmin());
+
+      allow create: if esPropietario(request.resource.data.usuarioId)
+        && request.resource.data.id == pagoId
+        && request.resource.data.modalidad == 'SIMULADO'
+        && request.resource.data.moneda == 'PEN'
+        && request.resource.data.metodoPago in ['YAPE', 'TARJETA']
+        && request.resource.data.estadoPago == 'PENDIENTE'
+        && request.resource.data.estadoRegistroPedido == 'PENDIENTE'
+        && request.resource.data.numeroOperacion
+             == 'SIM-' + request.resource.data.metodoPago + '-' + pagoId
+        && request.resource.data.monto is number
+        && request.resource.data.monto > 0;
+
+      // El cliente solo resuelve el resultado simulado y marca el pedido como
+      // registrado; no puede cambiar importes ni identidades del pago.
+      allow update: if esPropietario(resource.data.usuarioId)
+        && camposAfectados().hasOnly(['estadoPago', 'fechaResultado', 'estadoRegistroPedido'])
+        && request.resource.data.usuarioId == resource.data.usuarioId
+        && request.resource.data.id == resource.data.id
+        && request.resource.data.pedidoId == resource.data.pedidoId
+        && request.resource.data.monto == resource.data.monto
+        && request.resource.data.metodoPago == resource.data.metodoPago
+        && request.resource.data.numeroOperacion == resource.data.numeroOperacion
+        && (!('estadoPago' in camposAfectados())
+            || (resource.data.estadoPago == 'PENDIENTE'
+                && request.resource.data.estadoPago in ['CONFIRMADO', 'RECHAZADO']
+                && request.resource.data.fechaResultado is timestamp))
+        && (!('fechaResultado' in camposAfectados()) || ('estadoPago' in camposAfectados()))
+        && (!('estadoRegistroPedido' in camposAfectados())
+            || (resource.data.estadoRegistroPedido == 'PENDIENTE'
+                && request.resource.data.estadoRegistroPedido == 'REGISTRADO'
+                && request.resource.data.estadoPago == 'CONFIRMADO'));
+
+      allow delete: if false;
+    }
+
+    // ─── fidelidad ───────────────────────────────────────────────────────────
+
+    match /fidelidades/{usuarioId} {
+      allow read: if autenticado() && (resource == null || esPropietario(usuarioId) || esAdmin());
+
+      // Solo el ADMIN acredita puntos o entrega recompensas.
+      allow create, update: if esAdmin()
+        && request.resource.data.usuarioId == usuarioId
+        && request.resource.data.puntosActuales is int
+        && request.resource.data.puntosActuales >= 0
+        && request.resource.data.puntosActuales <= 6
+        && request.resource.data.numeroCiclo is int
+        && request.resource.data.numeroCiclo >= 1;
+
+      allow delete: if false;
+    }
+
+    match /eventosFidelidad/{pedidoId} {
+      allow read: if autenticado()
+        && (resource == null || esPropietario(resource.data.usuarioId) || esAdmin());
+
+      allow create: if esAdmin()
+        && request.resource.data.pedidoId == pedidoId
+        && request.resource.data.resultado is string;
+
+      allow update, delete: if false;
+    }
+
+    match /recompensasFidelidad/{recompensaId} {
+      allow read: if autenticado()
+        && (resource == null || esPropietario(resource.data.usuarioId) || esAdmin());
+
+      allow create: if esAdmin()
+        && request.resource.data.estado == 'PENDIENTE'
+        && request.resource.data.numeroCiclo is int
+        && request.resource.data.numeroCiclo >= 1;
+
+      allow update: if esAdmin()
+        && request.resource.data.usuarioId == resource.data.usuarioId
+        && request.resource.data.estado in ['PENDIENTE', 'ENTREGADA'];
+
+      allow delete: if false;
+    }
+
+    match /configuracionFidelidad/{documento} {
+      allow read: if autenticado();
+      allow write: if esAdmin();
+    }
+
+    // Cualquier colección no listada queda denegada por defecto.
+  }
+}

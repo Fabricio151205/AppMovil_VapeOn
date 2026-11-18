@@ -11,7 +11,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import com.example.vapeon_movil.entities.Usuario
 import com.example.vapeon_movil.ui.theme.*
@@ -30,19 +29,15 @@ fun DetalleClienteScreen(
     errorPassword: String? = null,
     mensajePassword: String? = null,
     conflictoPassword: Boolean = false,
-    cambiarPassword: (String, String) -> Unit = { _, _ -> },
+    enviarRestablecimiento: () -> Unit = {},
     recargarPassword: () -> Unit = {},
     limpiarEstadoPassword: () -> Unit = {}
 ) {
     var mostrarCambioPassword by remember { mutableStateOf(false) }
-    var nuevaPassword by remember { mutableStateOf("") }
-    var confirmarPassword by remember { mutableStateOf("") }
 
     LaunchedEffect(mensajePassword) {
         if (mensajePassword != null) {
             mostrarCambioPassword = false
-            nuevaPassword = ""
-            confirmarPassword = ""
         }
     }
 
@@ -99,7 +94,7 @@ fun DetalleClienteScreen(
                     shape = RoundedCornerShape(50),
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = VapeOnGold)
                 ) {
-                    Text("CAMBIAR CONTRASEÑA", fontWeight = FontWeight.Bold)
+                    Text("RESTABLECER CONTRASEÑA", fontWeight = FontWeight.Bold)
                 }
             }
             mensajePassword?.let {
@@ -113,42 +108,23 @@ fun DetalleClienteScreen(
             onDismissRequest = {
                 if (!guardandoPassword) {
                     mostrarCambioPassword = false
-                    nuevaPassword = ""
-                    confirmarPassword = ""
                     limpiarEstadoPassword()
                 }
             },
             containerColor = VapeOnCardBackground,
-            title = { Text("Cambiar contraseña", color = VapeOnGold, fontWeight = FontWeight.Bold) },
+            title = { Text("Restablecer contraseña", color = VapeOnGold, fontWeight = FontWeight.Bold) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Text(
-                        "Escribe una nueva contraseña. La contraseña anterior nunca se muestra.",
+                        "Se enviará un enlace de restablecimiento al correo del cliente. " +
+                            "Por seguridad, el administrador no escribe ni conoce la nueva contraseña.",
                         color = VapeOnTextPrimary
-                    )
-                    OutlinedTextField(
-                        value = nuevaPassword,
-                        onValueChange = { nuevaPassword = it },
-                        label = { Text("Nueva contraseña") },
-                        enabled = !guardandoPassword,
-                        singleLine = true,
-                        visualTransformation = PasswordVisualTransformation()
-                    )
-                    OutlinedTextField(
-                        value = confirmarPassword,
-                        onValueChange = { confirmarPassword = it },
-                        label = { Text("Confirmar nueva contraseña") },
-                        enabled = !guardandoPassword,
-                        singleLine = true,
-                        visualTransformation = PasswordVisualTransformation()
                     )
                     errorPassword?.let {
                         Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
                     }
                     if (conflictoPassword) {
                         TextButton(onClick = {
-                            nuevaPassword = ""
-                            confirmarPassword = ""
                             recargarPassword()
                         }, enabled = !guardandoPassword) {
                             Text("Recargar cliente", color = VapeOnGold)
@@ -158,21 +134,19 @@ fun DetalleClienteScreen(
             },
             confirmButton = {
                 Button(
-                    onClick = { cambiarPassword(nuevaPassword, confirmarPassword) },
+                    onClick = { enviarRestablecimiento() },
                     enabled = !guardandoPassword,
                     colors = ButtonDefaults.buttonColors(containerColor = VapeOnRed)
                 ) {
                     if (guardandoPassword) {
                         CircularProgressIndicator(Modifier.size(20.dp), color = VapeOnTextPrimary, strokeWidth = 2.dp)
-                    } else Text("Guardar contraseña")
+                    } else Text("Enviar correo")
                 }
             },
             dismissButton = {
                 TextButton(
                     onClick = {
                         mostrarCambioPassword = false
-                        nuevaPassword = ""
-                        confirmarPassword = ""
                         limpiarEstadoPassword()
                     },
                     enabled = !guardandoPassword
