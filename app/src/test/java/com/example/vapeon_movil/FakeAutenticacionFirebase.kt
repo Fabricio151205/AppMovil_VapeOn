@@ -28,6 +28,9 @@ class FakeAutenticacionFirebase : AutenticacionFirebase {
     var falloRestablecimiento: ErrorAutenticacion? = null
     var esperaRegistro: CompletableDeferred<Unit>? = null
     var esperaRestablecimiento: CompletableDeferred<Unit>? = null
+    var contrasenaConfigurada = false
+    var falloVinculacion: ErrorAutenticacion? = null
+    val contrasenasVinculadas = mutableListOf<String>()
     private var secuencia = 0
 
     fun agregarCuenta(uid: String, correo: String, contrasena: String): Cuenta =
@@ -86,6 +89,20 @@ class FakeAutenticacionFirebase : AutenticacionFirebase {
         }
         cuentas.firstOrNull { it.uid == actual.uid }?.correo = correoLimpio
         sesion = actual.copy(correo = correoLimpio)
+    }
+
+    override fun tieneProveedorContrasena(): Boolean = contrasenaConfigurada
+
+    override suspend fun vincularContrasena(contrasena: String) {
+        falloVinculacion?.let { throw it }
+        if (sesion == null) {
+            throw ErrorAutenticacion(
+                TipoErrorAutenticacion.USUARIO_NO_ENCONTRADO,
+                "No hay una sesión de Firebase activa."
+            )
+        }
+        contrasenaConfigurada = true
+        contrasenasVinculadas += contrasena
     }
 
     override suspend fun tokenActual(forzarRenovacion: Boolean): String? =

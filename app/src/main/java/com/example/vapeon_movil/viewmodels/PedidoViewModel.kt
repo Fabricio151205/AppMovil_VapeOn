@@ -702,6 +702,16 @@ class PedidoViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
+    fun cancelarPagoPendiente(usuario: Usuario?) {
+        ejecutarPago(usuario) { token ->
+            val intento = intentoDigital ?: return@ejecutarPago
+            recuperacionPago.descartar()
+            intentoDigital = null
+            cargandoPago = false
+            errorPago = null
+        }
+    }
+
     fun registrarPedidoDigital(usuario: Usuario?, carrito: CarritoViewModel, productos: ProductoViewModel) {
         ejecutarPago(usuario) { token ->
             var intento = requireNotNull(intentoDigital) { "No hay un pago digital." }

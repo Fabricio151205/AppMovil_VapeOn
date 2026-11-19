@@ -40,9 +40,9 @@ val VapeOnDivider = Color(0xFF333742)        // Líneas divisoras
 val VapeOnError = Color(0xFFFF4D4D)          // Indicadores de error
 
 // Compatibilidad previa con plantilla inicial
-val Purple80 = VapeOnGold
-val PurpleGrey80 = VapeOnGoldVariant
-val Pink80 = VapeOnGold
-val Purple40 = VapeOnRed
-val PurpleGrey40 = VapeOnRedHover
-val Pink40 = VapeOnGold
+//val Purple80 = VapeOnGold
+//val PurpleGrey80 = VapeOnGoldVariant
+//val Pink80 = VapeOnGold
+//val Purple40 = VapeOnRed
+//val PurpleGrey40 = VapeOnRedHover
+//val Pink40 = VapeOnGold

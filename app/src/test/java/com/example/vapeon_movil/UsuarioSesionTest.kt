@@ -467,4 +467,89 @@ class UsuarioSesionTest {
         assertNotNull(error)
         assertTrue(auth.correosRestablecimiento.isEmpty())
     }
+
+    // ─── Contraseña para cuentas creadas con Google ─────────────────────────
+
+    private fun authGoogle(conContrasena: Boolean = false) =
+        FakeAutenticacionFirebase().apply {
+            sesion = SesionFirebase("G", "google@example.com", true)
+            contrasenaConfigurada = conContrasena
+        }
+
+    @Test fun googleSinContrasenaPideConfigurarla() {
+        val vm = modelo(ServicioUsuariosPrueba(), authGoogle())
+        vm.evaluarConfiguracionContrasena()
+        assertTrue(vm.requiereConfigurarContrasena)
+    }
+
+    @Test fun googleConContrasenaNoLaPideDeNuevo() {
+        val vm = modelo(ServicioUsuariosPrueba(), authGoogle(conContrasena = true))
+        vm.evaluarConfiguracionContrasena()
+        assertFalse(vm.requiereConfigurarContrasena)
+    }
+
+    @Test fun configurarContrasenaLaVinculaSinEscribirEnFirestore() {
+        val servicio = ServicioUsuariosPrueba()
+        val auth = authGoogle()
+        val vm = modelo(servicio, auth)
+        vm.evaluarConfiguracionContrasena()
+        var exito = false
+        vm.configurarContrasena("secreta1", "secreta1", onExito = { exito = true })
+        assertTrue(exito)
+        assertEquals(listOf("secreta1"), auth.contrasenasVinculadas)
+        assertTrue(auth.contrasenaConfigurada)
+        assertFalse(vm.requiereConfigurarContrasena)
+        assertFalse(vm.configurandoContrasena)
+        // La contraseña nunca se escribe en Firestore.
+        assertTrue(servicio.creados.isEmpty())
+    }
+
+    @Test fun configurarContrasenaRechazaConfirmacionDistinta() {
+        val auth = authGoogle()
+        val vm = modelo(ServicioUsuariosPrueba(), auth)
+        var error: String? = null
+        vm.configurarContrasena("secreta1", "otra", onExito = { fail("No debe vincular") },
+            onError = { error = it })
+        assertNotNull(error)
+        assertTrue(auth.contrasenasVinculadas.isEmpty())
+        assertFalse(auth.contrasenaConfigurada)
+    }
+
+    @Test fun configurarContrasenaRechazaValorVacioOCorto() {
+        val auth = authGoogle()
+        val vm = modelo(ServicioUsuariosPrueba(), auth)
+        listOf("" to "", "123" to "123").forEach { (pass, confirmacion) ->
+            var error: String? = null
+            vm.configurarContrasena(pass, confirmacion, onExito = { fail("No debe vincular") },
+                onError = { error = it })
+            assertNotNull(error)
+        }
+        assertTrue(auth.contrasenasVinculadas.isEmpty())
+    }
+
+    @Test fun contrasenaYaConfiguradaSeTrataComoExito() {
+        val auth = authGoogle().apply {
+            falloVinculacion = ErrorAutenticacion(
+                TipoErrorAutenticacion.CONTRASENA_YA_CONFIGURADA,
+                "La contraseña ya está configurada."
+            )
+        }
+        val vm = modelo(ServicioUsuariosPrueba(), auth)
+        vm.evaluarConfiguracionContrasena()
+        var exito = false
+        vm.configurarContrasena("secreta1", "secreta1", onExito = { exito = true })
+        assertTrue(exito)
+        assertFalse(vm.requiereConfigurarContrasena)
+    }
+
+    @Test fun cerrarSesionLimpiaLaSolicitudDeContrasena() {
+        val auth = authGoogle()
+        val vm = modelo(ServicioUsuariosPrueba(), auth)
+        vm.evaluarConfiguracionContrasena()
+        assertTrue(vm.requiereConfigurarContrasena)
+        vm.cerrarSesion()
+        assertFalse(vm.requiereConfigurarContrasena)
+        assertNull(vm.errorConfiguracionContrasena)
+        assertFalse(vm.configurandoContrasena)
+    }
 }

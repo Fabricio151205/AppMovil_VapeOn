@@ -96,6 +96,16 @@ class UsuarioViewModel(
     var restauracionCompletada by mutableStateOf(false)
         private set
 
+    /** true si la cuenta de Google aún no tiene contraseña de correo. */
+    var requiereConfigurarContrasena by mutableStateOf(false)
+        private set
+
+    var configurandoContrasena by mutableStateOf(false)
+        private set
+
+    var errorConfiguracionContrasena by mutableStateOf<String?>(null)
+        private set
+
     fun registrarUsuario(
         nombre: String, apellidos: String, correo: String, telefono: String,
         dni: String, fechaNacimiento: String, password: String, passwordConfirm: String,
@@ -366,6 +376,9 @@ class UsuarioViewModel(
         usuarioActual = null
         esAdmin = false
         errorLogin = null
+        requiereConfigurarContrasena = false
+        configurandoContrasena = false
+        errorConfiguracionContrasena = null
     }
 
     /**
@@ -388,6 +401,9 @@ class UsuarioViewModel(
         cargandoLogin = false
         errorLogin = null
         errorRegistro = null
+        requiereConfigurarContrasena = false
+        configurandoContrasena = false
+        errorConfiguracionContrasena = null
         runCatching { autenticacion.cerrarSesion() }
     }
 
@@ -431,6 +447,72 @@ class UsuarioViewModel(
                 }
             } catch (_: Exception) {
                 onError("No se pudo enviar el correo. Revisa tu conexión e inténtalo de nuevo.")
+            }
+        }
+    }
+
+    /**
+     * Comprueba si la cuenta autenticada (por ejemplo, con Google) necesita
+     * crear una contraseña para poder entrar también con correo y contraseña.
+     */
+    fun evaluarConfiguracionContrasena() {
+        requiereConfigurarContrasena = runCatching {
+            !autenticacion.tieneProveedorContrasena()
+        }.getOrDefault(false)
+        errorConfiguracionContrasena = null
+    }
+
+    /** El usuario decidió continuar solo con Google. */
+    fun omitirConfiguracionContrasena() {
+        if (configurandoContrasena) return
+        requiereConfigurarContrasena = false
+        errorConfiguracionContrasena = null
+    }
+
+    /**
+     * Vincula una contraseña al usuario autenticado con Google.
+     *
+     * No crea otra cuenta ni escribe la contraseña en Firestore: Firebase
+     * Authentication la asocia al mismo UID. Después puede restablecerse con
+     * el correo desde «¿Olvidaste tu contraseña?».
+     */
+    fun configurarContrasena(
+        contrasena: String,
+        confirmacion: String,
+        onExito: () -> Unit,
+        onError: (String) -> Unit = {}
+    ) {
+        if (configurandoContrasena) return
+        val error = validarContrasenaNueva(contrasena, confirmacion)
+        if (error != null) {
+            errorConfiguracionContrasena = error
+            onError(error)
+            return
+        }
+        configurandoContrasena = true
+        errorConfiguracionContrasena = null
+        viewModelScope.launch(dispatcher) {
+            try {
+                autenticacion.vincularContrasena(contrasena)
+                requiereConfigurarContrasena = false
+                onExito()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: ErrorAutenticacion) {
+                if (e.tipo == TipoErrorAutenticacion.CONTRASENA_YA_CONFIGURADA) {
+                    requiereConfigurarContrasena = false
+                    onExito()
+                } else {
+                    errorConfiguracionContrasena = e.message
+                    onError(e.message)
+                }
+            } catch (_: Exception) {
+                val mensaje =
+                    "No se pudo guardar la contraseña. Revisa tu conexión e inténtalo de nuevo."
+                errorConfiguracionContrasena = mensaje
+                onError(mensaje)
+            } finally {
+                if (coroutineContext[Job]?.isCancelled != true) configurandoContrasena = false
             }
         }
     }
@@ -538,6 +620,14 @@ class UsuarioViewModel(
 
 private val CAMPOS_PERFIL_EDITABLES =
     listOf("nombre", "apellido", "telefono", "fechaNacimiento", "correo")
+
+/** Contraseña nueva para una cuenta de Google; nunca se guarda en Firestore. */
+internal fun validarContrasenaNueva(contrasena: String, confirmacion: String): String? {
+    if (contrasena.isBlank()) return "Ingresa una contraseña."
+    if (contrasena.length < 6) return "La contraseña debe tener al menos 6 caracteres."
+    if (contrasena != confirmacion) return "Las contraseñas no coinciden."
+    return null
+}
 
 internal fun telefonoRegistroValido(telefono: String): Boolean = Regex("9[0-9]{8}").matches(telefono)
 

@@ -68,7 +68,7 @@ fun FavoritosScreen(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
-    val usuarioId = usuario?.takeIf { it.rol.equals("CLIENTE", true) }?.id.orEmpty()
+    val usuarioId = usuario?.takeIf { !it.rol.equals("ADMIN", ignoreCase = true) }?.id.orEmpty()
 
     LaunchedEffect(usuarioId) {
         favoritosViewModel.consumirMensaje()

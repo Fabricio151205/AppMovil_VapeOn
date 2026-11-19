@@ -66,6 +66,8 @@ fun LoginScreen(
     val scope = rememberCoroutineScope()
     var cargandoGoogle by remember { mutableStateOf(false) }
     var mensajeGoogle by rememberSaveable { mutableStateOf<String?>(null) }
+    var pedirContrasenaGoogle by rememberSaveable { mutableStateOf(false) }
+    var correoGoogle by rememberSaveable { mutableStateOf("") }
 
     Surface(
         modifier = Modifier.fillMaxSize(),
@@ -321,10 +323,21 @@ fun LoginScreen(
                                     "El correo del perfil no coincide"
                                 }
 
+                                // Las cuentas creadas solo con Google no tienen
+                                // contraseña de correo: se pide una para que el
+                                // usuario pueda entrar también sin Google. Se
+                                // evalúa antes de publicar la sesión para que la
+                                // navegación automática no omita el diálogo.
+                                usuarioViewModel.evaluarConfiguracionContrasena()
                                 usuarioViewModel.establecerSesionGoogle(perfil)
 
                                 accesoCompletado = true
-                                irHome()
+                                if (usuarioViewModel.requiereConfigurarContrasena) {
+                                    correoGoogle = sesion.correo
+                                    pedirContrasenaGoogle = true
+                                } else {
+                                    irHome()
+                                }
 
                             } catch (error: CancellationException) {
                                 throw error
@@ -407,6 +420,159 @@ fun LoginScreen(
             }
         }
     }
+
+    if (pedirContrasenaGoogle) {
+        DialogoConfigurarContrasena(
+            correo = correoGoogle,
+            guardando = usuarioViewModel.configurandoContrasena,
+            error = usuarioViewModel.errorConfiguracionContrasena.orEmpty(),
+            onGuardar = { contrasena, confirmacion ->
+                usuarioViewModel.configurarContrasena(
+                    contrasena = contrasena,
+                    confirmacion = confirmacion,
+                    onExito = {
+                        pedirContrasenaGoogle = false
+                        irHome()
+                    }
+                )
+            },
+            onOmitir = {
+                if (!usuarioViewModel.configurandoContrasena) {
+                    usuarioViewModel.omitirConfiguracionContrasena()
+                    pedirContrasenaGoogle = false
+                    irHome()
+                }
+            }
+        )
+    }
+}
+
+/**
+ * Pide una contraseña de correo para una cuenta que entró solo con Google.
+ * La contraseña se envía directamente a Firebase Authentication y nunca se
+ * guarda en Firestore ni en el estado persistente de la pantalla.
+ */
+@Composable
+private fun DialogoConfigurarContrasena(
+    correo: String,
+    guardando: Boolean,
+    error: String,
+    onGuardar: (String, String) -> Unit,
+    onOmitir: () -> Unit
+) {
+    var contrasena by remember { mutableStateOf("") }
+    var confirmacion by remember { mutableStateOf("") }
+
+    AlertDialog(
+        onDismissRequest = { if (!guardando) onOmitir() },
+        containerColor = VapeOnSurface,
+        titleContentColor = VapeOnTextPrimary,
+        textContentColor = VapeOnTextPrimary,
+        title = {
+            Text(
+                text = "Protege tu cuenta",
+                fontWeight = FontWeight.Bold,
+                fontSize = 18.sp
+            )
+        },
+        text = {
+            Column {
+                Text(
+                    text = "Entraste con Google. Crea una contraseña distinta a la de Google para tu correo de VapeOn; así también podrás iniciar sesión con correo y contraseña.",
+                    color = VapeOnTextSecondary,
+                    fontSize = 13.sp
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = correo,
+                    color = VapeOnGold,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                OutlinedTextField(
+                    value = contrasena,
+                    onValueChange = { contrasena = it },
+                    placeholder = {
+                        Text("Contraseña", color = VapeOnTextSecondary, fontSize = 14.sp)
+                    },
+                    singleLine = true,
+                    visualTransformation = PasswordVisualTransformation(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedContainerColor = VapeOnInputBackground,
+                        unfocusedContainerColor = VapeOnInputBackground,
+                        disabledContainerColor = VapeOnInputBackground,
+                        focusedBorderColor = VapeOnGold,
+                        unfocusedBorderColor = VapeOnInputBorder,
+                        focusedTextColor = VapeOnTextPrimary,
+                        unfocusedTextColor = VapeOnTextPrimary,
+                        cursorColor = VapeOnGold
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(modifier = Modifier.height(10.dp))
+                OutlinedTextField(
+                    value = confirmacion,
+                    onValueChange = { confirmacion = it },
+                    placeholder = {
+                        Text("Repite la contraseña", color = VapeOnTextSecondary, fontSize = 14.sp)
+                    },
+                    singleLine = true,
+                    visualTransformation = PasswordVisualTransformation(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedContainerColor = VapeOnInputBackground,
+                        unfocusedContainerColor = VapeOnInputBackground,
+                        disabledContainerColor = VapeOnInputBackground,
+                        focusedBorderColor = VapeOnGold,
+                        unfocusedBorderColor = VapeOnInputBorder,
+                        focusedTextColor = VapeOnTextPrimary,
+                        unfocusedTextColor = VapeOnTextPrimary,
+                        cursorColor = VapeOnGold
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                )
+                if (error.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Text(
+                        text = error,
+                        color = MaterialTheme.colorScheme.error,
+                        fontSize = 12.sp
+                    )
+                }
+                Spacer(modifier = Modifier.height(10.dp))
+                Text(
+                    text = "Mínimo 6 caracteres. No uses tu contraseña de Google; no se guarda en la base de datos.",
+                    color = VapeOnTextSecondary,
+                    fontSize = 11.sp
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { onGuardar(contrasena, confirmacion) },
+                enabled = !guardando
+            ) {
+                if (guardando) {
+                    CircularProgressIndicator(
+                        color = VapeOnGold,
+                        strokeWidth = 2.dp,
+                        modifier = Modifier.size(18.dp)
+                    )
+                } else {
+                    Text("GUARDAR CONTRASEÑA", color = VapeOnGold, fontWeight = FontWeight.Bold)
+                }
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onOmitir, enabled = !guardando) {
+                Text("AHORA NO", color = VapeOnTextSecondary)
+            }
+        }
+    )
 }
 
 

@@ -1,5 +1,6 @@
 package com.example.vapeon_movil.auth
 
+import com.google.firebase.auth.EmailAuthProvider
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseAuthException
 import com.google.firebase.auth.FirebaseUser
@@ -21,6 +22,8 @@ enum class TipoErrorAutenticacion {
     DEMASIADOS_INTENTOS,
     REAUTENTICACION_REQUERIDA,
     SIN_CONEXION,
+    CREDENCIAL_YA_EN_USO,
+    CONTRASENA_YA_CONFIGURADA,
     DESCONOCIDO
 }
 
@@ -54,6 +57,18 @@ interface AutenticacionFirebase {
     suspend fun enviarCorreoRestablecimiento(correo: String)
 
     suspend fun actualizarCorreo(nuevoCorreo: String)
+
+    /**
+     * true si la cuenta ya puede iniciar sesión con correo y contraseña.
+     * Las cuentas creadas solo con Google devuelven false.
+     */
+    fun tieneProveedorContrasena(): Boolean
+
+    /**
+     * Vincula una contraseña al usuario autenticado sin crear otra cuenta ni
+     * cambiar su UID. La contraseña vive solo en Firebase Authentication.
+     */
+    suspend fun vincularContrasena(contrasena: String)
 
     suspend fun tokenActual(forzarRenovacion: Boolean = true): String?
 
@@ -116,6 +131,27 @@ class FirebaseAutenticacion(
         ejecutar { usuario.updateEmail(nuevoCorreo.trim()).await() }
     }
 
+    override fun tieneProveedorContrasena(): Boolean =
+        auth.currentUser?.providerData
+            ?.any { it.providerId == EmailAuthProvider.PROVIDER_ID } == true
+
+    override suspend fun vincularContrasena(contrasena: String) {
+        val usuario = auth.currentUser
+            ?: throw ErrorAutenticacion(
+                TipoErrorAutenticacion.USUARIO_NO_ENCONTRADO,
+                "No hay una sesión de Firebase activa."
+            )
+        val correo = usuario.email?.takeIf { it.isNotBlank() }
+            ?: throw ErrorAutenticacion(
+                TipoErrorAutenticacion.CORREO_INVALIDO,
+                "La cuenta de Firebase no tiene un correo válido."
+            )
+        ejecutar {
+            val credencial = EmailAuthProvider.getCredential(correo, contrasena)
+            usuario.linkWithCredential(credencial).await()
+        }
+    }
+
     override suspend fun tokenActual(forzarRenovacion: Boolean): String? {
         val usuario = auth.currentUser ?: return null
         return ejecutar { usuario.getIdToken(forzarRenovacion).await().token }
@@ -166,6 +202,8 @@ class FirebaseAutenticacion(
             "ERROR_TOO_MANY_REQUESTS" -> TipoErrorAutenticacion.DEMASIADOS_INTENTOS
             "ERROR_REQUIRES_RECENT_LOGIN" -> TipoErrorAutenticacion.REAUTENTICACION_REQUERIDA
             "ERROR_NETWORK_REQUEST_FAILED", "ERROR_NETWORK_ERROR" -> TipoErrorAutenticacion.SIN_CONEXION
+            "ERROR_CREDENTIAL_ALREADY_IN_USE" -> TipoErrorAutenticacion.CREDENCIAL_YA_EN_USO
+            "ERROR_PROVIDER_ALREADY_LINKED" -> TipoErrorAutenticacion.CONTRASENA_YA_CONFIGURADA
             else -> TipoErrorAutenticacion.DESCONOCIDO
         }
         val mensaje = when (tipo) {
@@ -180,9 +218,13 @@ class FirebaseAutenticacion(
             TipoErrorAutenticacion.DEMASIADOS_INTENTOS ->
                 "Demasiados intentos. Espera unos minutos antes de reintentar."
             TipoErrorAutenticacion.REAUTENTICACION_REQUERIDA ->
-                "Por seguridad, vuelve a iniciar sesión antes de cambiar el correo."
+                "Por seguridad, vuelve a iniciar sesión e inténtalo de nuevo."
             TipoErrorAutenticacion.SIN_CONEXION ->
                 "No se pudo conectar con el servidor. Revisa tu conexión."
+            TipoErrorAutenticacion.CREDENCIAL_YA_EN_USO ->
+                "Ese correo ya tiene una cuenta con contraseña. Inicia sesión con ella o usa «¿Olvidaste tu contraseña?»."
+            TipoErrorAutenticacion.CONTRASENA_YA_CONFIGURADA ->
+                "La contraseña ya está configurada."
             TipoErrorAutenticacion.DESCONOCIDO ->
                 "No se pudo completar la operación de autenticación."
         }

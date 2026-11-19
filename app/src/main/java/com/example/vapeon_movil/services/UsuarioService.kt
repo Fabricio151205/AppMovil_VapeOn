@@ -15,7 +15,7 @@ import retrofit2.http.Query
 
 // ─────────────────────────────────────────────
 // Contrato HTTP — Colección "usuarios" en Firestore
-// DTOs de transporte en: services/dto/UsuarioDto.kt
+// DTO de transporte en: services/dto/UsuarioDto.kt
 // ─────────────────────────────────────────────
 interface UsuarioService {
 
@@ -32,6 +32,14 @@ interface UsuarioService {
     suspend fun crearUsuario(@Body body: UsuarioContainer, @Query("documentId") documentId: String? = null): Any
 
     // Actualizar un usuario existente por su ID
+    @PATCH("usuarios/{id}")
+    suspend fun actualizarPerfilPropio(
+        @Path("id") id: String,
+        @Query("updateMask.fieldPaths") campos: List<String>,
+        @Body body: UsuarioContainer
+    ): UsuarioDocumento = actualizarUsuario(id, body)
+
+    // Actualizar usuario legado (compatibilidad pruebas)
     @PATCH("usuarios/{id}")
     suspend fun actualizarUsuario(
         @Path("id") id: String,

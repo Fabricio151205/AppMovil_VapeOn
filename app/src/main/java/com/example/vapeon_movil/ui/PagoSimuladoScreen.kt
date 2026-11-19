@@ -38,6 +38,7 @@ fun PagoSimuladoScreen(
     aprobar: () -> Unit,
     rechazar: () -> Unit,
     nuevoIntento: () -> Unit,
+    cancelar: () -> Unit = {},
     volver: () -> Unit,
     volverAlCatalogo: () -> Unit
 ) {
@@ -64,8 +65,8 @@ fun PagoSimuladoScreen(
         titulo = "Esperando Verificación\ndel Pago",
         cargando = cargando,
         error = error,
-        // Mientras existe una operación pendiente no se abandona la verificación.
-        onVolver = if (pago == null && !cargando) volver else null,
+        // Permite salir y descartar el intento de pago atascado en cualquier momento.
+        onVolver = cancelar,
         contenidoExtra = {
             pago?.let {
                 Text(
@@ -113,6 +114,14 @@ fun PagoSimuladoScreen(
                 TextButton(onClick = comprobar, enabled = !cargando) {
                     Text("Comprobar pago", color = VapeOnTextPrimary, fontSize = 12.sp)
                 }
+            }
+
+            Spacer(modifier = Modifier.height(4.dp))
+            TextButton(
+                onClick = cancelar,
+                enabled = !cargando
+            ) {
+                Text("Cancelar e intentar de nuevo", color = VapeOnError, fontSize = 12.sp)
             }
         }
     )

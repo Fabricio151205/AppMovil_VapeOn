@@ -209,6 +209,7 @@ fun VapeONApp() {
     // Si la sesión se recuperó, no se deja al usuario en Login/Registro.
     LaunchedEffect(usuarioViewModel.restauracionCompletada, claveSesion) {
         if (usuarioViewModel.restauracionCompletada && usuarioActual != null &&
+            !usuarioViewModel.requiereConfigurarContrasena &&
             pantallaActual in setOf("login", "registro")
         ) {
             pantallaActual = pantallaInicialSesion(usuarioActual)
@@ -248,7 +249,11 @@ fun VapeONApp() {
             clienteSeleccionadoId = ""
             direccionEditarId = ""
             propietarioNavegacion = claveSesion
-            if (pantallaActual !in RUTAS_PUBLICAS) pantallaActual = pantallaInicialSesion(usuarioActual)
+            // Con una cuenta de Google pendiente de contraseña se mantiene el
+            // diálogo de LoginScreen; la navegación la decide ese diálogo.
+            if (pantallaActual !in RUTAS_PUBLICAS && !usuarioViewModel.requiereConfigurarContrasena) {
+                pantallaActual = pantallaInicialSesion(usuarioActual)
+            }
         }
     }
 
@@ -405,6 +410,13 @@ fun VapeONApp() {
     CompositionLocalProvider(LocalControladorAccesibilidad provides controladorAccesibilidad) {
     VapeONAccessibilityHost(controladorAccesibilidad.ajustes) {
     key(claveSesion) {
+    if (!usuarioViewModel.restauracionCompletada) {
+        Surface(color = VapeOnBackground, modifier = Modifier.fillMaxSize()) {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator(color = VapeOnGold)
+            }
+        }
+    } else {
     when (pantallaSegura) {
 
         // ── LOGIN ─────────────────────────────────────────────────────────────
@@ -1143,6 +1155,10 @@ fun VapeONApp() {
                 volverCatalogoPendiente = false
                 pedidoViewModel.descartarPagoRechazado(usuarioActual)
             },
+            cancelar = {
+                pedidoViewModel.cancelarPagoPendiente(usuarioActual)
+                pantallaActual = "metodoPago"
+            },
             volver = { pantallaActual = "metodoPago" },
             volverAlCatalogo = {
                 volverCatalogoPendiente = true
@@ -1235,6 +1251,7 @@ fun VapeONApp() {
                 )
             }
         }
+    }
     }
     }
     }
