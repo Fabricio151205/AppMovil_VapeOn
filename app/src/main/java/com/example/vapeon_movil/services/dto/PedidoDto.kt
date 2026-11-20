@@ -47,7 +47,10 @@ fun Pedido.aDocumento(ruta: String): PedidoDocumento {
         pagoId?.let { "pagoId" to texto(it) }, estadoPago?.let { "estadoPago" to texto(it) },
         numeroOperacion?.let { "numeroOperacion" to texto(it) }, modalidadPago?.let { "modalidadPago" to texto(it) },
         latitud?.let { "latitud" to FirestoreValor(doubleValue = it) },
-        longitud?.let { "longitud" to FirestoreValor(doubleValue = it) }
+        longitud?.let { "longitud" to FirestoreValor(doubleValue = it) },
+        origen?.let { "origen" to texto(it) },
+        conDelivery?.let { "conDelivery" to FirestoreValor(booleanValue = it) },
+        registradoPor?.let { "registradoPor" to texto(it) }
     ).toMap())
 }
 
@@ -106,7 +109,10 @@ internal fun PedidoDocumento.aPedido(): Pedido {
     require((latitud == null) == (longitud == null)) { "El pedido tiene coordenadas incompletas." }
     return Pedido(
         id = idDocumento, usuarioId = fields.texto("usuarioId"),
-        nombreCliente = fields.texto("nombreCliente"), telefono = fields.texto("telefono"), fecha = fecha,
+        nombreCliente = fields.texto("nombreCliente"), telefono = if (fields["origen"]?.stringValue == "ADMIN" &&
+            fields["conDelivery"]?.booleanValue == false) {
+            fields["telefono"]?.stringValue.orEmpty()
+        } else fields.texto("telefono"), fecha = fecha,
         productos = lineas.map { linea ->
             val datos = linea.mapValue?.fields
                 ?: throw IllegalArgumentException("Producto del pedido inválido.")
@@ -123,7 +129,10 @@ internal fun PedidoDocumento.aPedido(): Pedido {
         metodoPago = fields.texto("metodoPago"), estado = fields.texto("estado"),
         pagoId = fields["pagoId"]?.stringValue, estadoPago = fields["estadoPago"]?.stringValue,
         numeroOperacion = fields["numeroOperacion"]?.stringValue, modalidadPago = fields["modalidadPago"]?.stringValue,
-        latitud = latitud, longitud = longitud
+        latitud = latitud, longitud = longitud,
+        origen = fields["origen"]?.stringValue,
+        conDelivery = fields["conDelivery"]?.booleanValue,
+        registradoPor = fields["registradoPor"]?.stringValue
     )
 }
 

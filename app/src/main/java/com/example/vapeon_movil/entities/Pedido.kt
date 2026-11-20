@@ -37,7 +37,20 @@ data class Pedido(
     val modalidadPago: String? = null,
     /** Punto exacto de entrega confirmado en el mapa; nulo en pedidos antiguos. */
     val latitud: Double? = null,
-    val longitud: Double? = null
+    val longitud: Double? = null,
+    /**
+     * `ADMIN` cuando la venta la registra el panel administrativo.
+     * Los pedidos creados por un cliente conservan `null` para no alterar los
+     * documentos históricos.
+     */
+    val origen: String? = null,
+    /**
+     * Solo en ventas administrativas: `true` = entrega programada (la venta se
+     * hará después); `false` = venta en tienda registrada en el momento.
+     */
+    val conDelivery: Boolean? = null,
+    /** UID del administrador que registró la venta. */
+    val registradoPor: String? = null
 ) {
     val tieneUbicacionEntrega: Boolean
         get() = latitud != null && longitud != null

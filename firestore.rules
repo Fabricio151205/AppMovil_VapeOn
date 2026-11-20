@@ -193,7 +193,16 @@ service cloud.firestore {
       // el pago referenciado debe existir, ser suyo y estar CONFIRMADO.
       allow create: if esPropietario(request.resource.data.usuarioId)
         && request.resource.data.id == pedidoId
-        && request.resource.data.estado == 'REGISTRADO'
+        && ((request.resource.data.get('origen', '') != 'ADMIN'
+              && !('registradoPor' in request.resource.data)
+              && !('conDelivery' in request.resource.data)
+              && request.resource.data.estado == 'REGISTRADO')
+            || (esAdmin()
+              && request.resource.data.origen == 'ADMIN'
+              && request.resource.data.registradoPor == request.auth.uid
+              && request.resource.data.conDelivery is bool
+              && request.resource.data.metodoPago in ['EFECTIVO', 'YAPE', 'TARJETA']
+              && request.resource.data.estado == (request.resource.data.conDelivery ? 'REGISTRADO' : 'ENTREGADO')))
         && request.resource.data.productos is list
         && request.resource.data.productos.size() > 0
         && request.resource.data.total is number
@@ -302,6 +311,30 @@ service cloud.firestore {
     match /configuracionFidelidad/{documento} {
       allow read: if autenticado();
       allow write: if esAdmin();
+    }
+
+    // Registro administrativo de inversionistas.
+    match /inversionistas/{id} {
+      function datosValidos() {
+        let datos = request.resource.data;
+        let campos = ['nombre', 'tipoDocumento', 'documento', 'telefono', 'correo', 'observaciones', 'fechaRegistro'];
+        return datos.keys().hasAll(campos) && datos.keys().hasOnly(campos)
+          && datos.nombre is string && datos.nombre.size() > 0 && datos.nombre.size() <= 150
+          && datos.tipoDocumento in ['DNI', 'RUC']
+          && datos.documento is string
+          && ((datos.tipoDocumento == 'DNI' && datos.documento.matches('[0-9]{8}'))
+              || (datos.tipoDocumento == 'RUC' && datos.documento.matches('[0-9]{11}')))
+          && datos.telefono is string && (datos.telefono == '' || datos.telefono.matches('9[0-9]{8}'))
+          && datos.correo is string && datos.correo.size() <= 254
+          && (datos.correo == '' || correoValido(datos.correo))
+          && datos.observaciones is string && datos.observaciones.size() <= 2000
+          && datos.fechaRegistro is timestamp;
+      }
+      allow read, delete: if esAdmin();
+      allow create: if esAdmin() && datosValidos();
+      allow update: if esAdmin() && datosValidos()
+        && request.resource.data.fechaRegistro == resource.data.fechaRegistro
+        && camposAfectados().hasOnly(['nombre', 'tipoDocumento', 'documento', 'telefono', 'correo', 'observaciones']);
     }
 
     // Cualquier colección no listada queda denegada por defecto.

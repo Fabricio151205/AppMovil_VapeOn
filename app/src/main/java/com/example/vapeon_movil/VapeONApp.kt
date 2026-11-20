@@ -31,6 +31,10 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.vapeon_movil.entities.Producto
 import com.example.vapeon_movil.ui.PedidosAdminScreen
+import com.example.vapeon_movil.ui.NuevaVentaScreen
+import com.example.vapeon_movil.viewmodels.NuevaVentaViewModel
+import com.example.vapeon_movil.ui.InversionistasScreen
+import com.example.vapeon_movil.viewmodels.InversionistasViewModel
 import com.example.vapeon_movil.ui.AdminHomeScreen
 import com.example.vapeon_movil.ui.AccesibilidadScreen
 import com.example.vapeon_movil.ui.PerfilScreen
@@ -109,6 +113,8 @@ fun VapeONApp() {
     val productoViewModel: ProductoViewModel = viewModel()
     val carritoViewModel: CarritoViewModel  = viewModel()
     val pedidoViewModel: PedidoViewModel = viewModel()
+    val inversionistasViewModel: InversionistasViewModel = viewModel()
+    val nuevaVentaViewModel: NuevaVentaViewModel = viewModel()
     val saboresViewModel: SaboresViewModel = viewModel()
     val marcasViewModel: MarcasViewModel = viewModel()
     val tarjetaViewModel: TarjetaViewModel = viewModel()
@@ -240,6 +246,9 @@ fun VapeONApp() {
         carritoViewModel.cargarCarrito(context, usuarioActual?.id)
         pedidoViewModel.actualizarUsuarioHistorial(usuarioActual)
         pedidoViewModel.actualizarUsuarioAdmin(usuarioActual)
+        inversionistasViewModel.actualizarSesion(usuarioActual)
+        nuevaVentaViewModel.configurarPersistencia(context)
+        nuevaVentaViewModel.actualizarAdmin(usuarioActual)
         fidelidadViewModel.limpiar()
         productoViewModel.actualizarSesionProducto(claveSesion)
         if (propietarioNavegacion != claveSesion) {
@@ -289,6 +298,8 @@ fun VapeONApp() {
         direccionesViewModel.actualizarUsuario(null)
         favoritosViewModel.actualizarUsuario(null)
         favoritosAdminViewModel.actualizarUsuario(null)
+        nuevaVentaViewModel.actualizarAdmin(null)
+        inversionistasViewModel.actualizarSesion(null)
         usuarioViewModel.cerrarSesion()
         productoSeleccionadoId = ""
         productoEditarId = ""
@@ -396,6 +407,8 @@ fun VapeONApp() {
             "registrarProveedor" -> pantallaActual = "proveedores"
             "agregarSabor", "editarSabor" -> pantallaActual = "saboresAdmin"
             "agregarMarca", "editarMarca" -> pantallaActual = "marcasAdmin"
+            "inversionistas" -> pantallaActual = "admin"
+            "nuevaVenta" -> pantallaActual = "admin"
             "cajaTotal" -> pantallaActual = "admin"
             "pronosticoDemanda" -> pantallaActual = "admin"
             "ventasMarca" -> pantallaActual = "cajaTotal"
@@ -513,10 +526,25 @@ fun VapeONApp() {
             )
         }
 
+        "nuevaVenta" -> NuevaVentaScreen(
+            usuario = usuarioActual,
+            viewModel = nuevaVentaViewModel,
+            productoViewModel = productoViewModel,
+            volver = { pantallaActual = "admin" }
+        )
+
+        "inversionistas" -> InversionistasScreen(
+            usuario = usuarioActual,
+            viewModel = inversionistasViewModel,
+            volver = { pantallaActual = "admin" }
+        )
+
         // ── PANEL ADMIN ───────────────────────────────────────────────────────
         "admin" -> {
             LaunchedEffect(claveSesion) { pedidoViewModel.cargarCaja(usuarioActual) }
             AdminHomeScreen(
+                onNuevaVentaClick = { pantallaActual = "nuevaVenta" },
+                onInversionistasClick = { pantallaActual = "inversionistas" },
                 onCajaTotalClick = { marcaCaja = ""; pantallaActual = "cajaTotal" },
                 onPrediccionClick = { pantallaActual = "prediccionAdmin" },
                 onCuponesClick = { pantallaActual = "cupones" },
@@ -1311,7 +1339,7 @@ internal fun rutaRegistroTarjetaSegura(ruta: String, ultimos4: String, marca: St
     return ruta
 }
 private val RUTAS_ADMIN = setOf(
-    "cajaTotal", "ventasMarca", "pronosticoDemanda", "admin", "roles", "cupones", "agregarProducto",
+    "inversionistas", "nuevaVenta", "cajaTotal", "ventasMarca", "pronosticoDemanda", "admin", "roles", "cupones", "agregarProducto",
     "editarProducto", "pedidosAdmin", "detallePedidoAdmin", "saboresAdmin",
     "agregarSabor", "editarSabor", "marcasAdmin", "agregarMarca", "editarMarca",
     "prediccionAdmin", "alertasStockAdmin", "sinMovimientoAdmin", "sugerenciasReabastecimientoAdmin",

@@ -38,13 +38,15 @@ data class FirestoreValor(
     val doubleValue: Double? = null,
     val timestampValue: String? = null,
     val arrayValue: FirestoreArray? = null,
-    val mapValue: FirestoreMapa? = null
+    val mapValue: FirestoreMapa? = null,
+    val booleanValue: Boolean? = null
 ) {
     /** Extrae el valor como String. */
     fun asString(): String =
         stringValue
             ?: doubleValue?.let { if (it % 1.0 == 0.0) it.toLong().toString() else it.toString() }
             ?: integerValue
+            ?: booleanValue?.toString()
             ?: ""
 
     /** Extrae el valor como Double. */
@@ -54,6 +56,9 @@ data class FirestoreValor(
     /** Extrae el valor como Int. */
     fun asInt(): Int =
         integerValue?.toIntOrNull() ?: doubleValue?.toInt() ?: stringValue?.toIntOrNull() ?: 0
+
+    /** Extrae el valor booleano; los documentos antiguos sin el campo se leen como false. */
+    fun asBoolean(): Boolean = booleanValue ?: false
 }
 
 /**

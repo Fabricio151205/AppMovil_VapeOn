@@ -5,7 +5,7 @@
 | **Proyecto** | VapeON - Aplicación Móvil Android |
 | **Versión Auditada** | `v1.5.0` (Auditoría Integral OpenCode, Seguridad Firestore y Pruebas Unitarias) |
 | **Fecha de Auditoría** | `2026-11-18` |
-| **Estado General** | `COMPLETADO` (Compilación exitosa, 489/489 pruebas unitarias superadas) |
+| **Estado General** | `COMPLETADO` (Compilación exitosa, 508/508 pruebas unitarias superadas) |
 
 ---
 
@@ -23,5 +23,5 @@
 
 ## 2. Resultados de Pruebas
 
-- **Pruebas Unitarias JVM**: **489 pruebas ejecutadas, 489 superadas, 0 fallidas (100% PASS)**.
+- **Pruebas Unitarias JVM**: **508 pruebas ejecutadas, 508 superadas, 0 fallidas (100% PASS)**.
 - **Compilación de la App**: `BUILD SUCCESSFUL`.

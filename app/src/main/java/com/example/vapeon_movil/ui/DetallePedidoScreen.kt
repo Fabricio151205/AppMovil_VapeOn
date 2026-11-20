@@ -259,6 +259,12 @@ private fun ContenidoDetallePedido(
     }
 
     Spacer(modifier = Modifier.height(6.dp))
+    if (pedido.origen == "ADMIN") {
+        Text(
+            text = com.example.vapeon_movil.entities.etiquetaOrigenVenta(pedido.origen, pedido.conDelivery),
+            color = VapeOnGold, fontSize = 12.sp
+        )
+    }
     Text("Dirección de entrega:", color = VapeOnTextPrimary, fontSize = 10.sp)
     Text(
         text = pedido.direccionEntrega,

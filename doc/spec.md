@@ -288,3 +288,21 @@ Métricas comunes: total vendido (productos + delivery), ingresos por productos,
 - **Dado** un documento sin DNI o `createTime`, **cuando** se abre el detalle, **entonces** se muestra respectivamente `No registrado` o `No disponible`.
 - **Dado** un documento actualizado por otro dispositivo, **cuando** el ADMIN guarda con una versión antigua, **entonces** se informa el conflicto y no se modifica el estado local.
 - La aplicación aún usa Firestore REST sin Firebase Authentication. Las guardias de UI/ViewModel no sustituyen reglas remotas; con reglas que exijan `request.auth`, las operaciones reales pueden responder `403` hasta completar la migración de autenticación.
+
+## Continuación — Nueva venta administrativa (19/11/2026)
+
+Se conectó el botón Nueva venta del panel con una ruta exclusiva de ADMIN. La venta se guarda en pedidos con origen ADMIN, conDelivery y registradoPor. Sin delivery nace ENTREGADO y aparece en Caja. Con delivery nace REGISTRADO, con cargo de S/ 5, y sigue el flujo de seguimiento existente. Se ofrecen EFECTIVO y YAPE como registro manual de cobro.
+
+El pedido y los descuentos de stock se envían en un único commit con precondiciones. Un intento ambiguo se conserva por administrador en el dispositivo y se consulta/reintenta usando el mismo ID. La venta se valida contra el precio y stock actuales antes del envío. Se admiten compras en tienda sin teléfono y el lector conserva la compatibilidad con pedidos históricos. Las ventas de mostrador no generan fidelidad a nombre del administrador.
+
+firestore.rules contiene una propuesta local para permitir estas altas exclusivamente a ADMIN y bloquear los campos administrativos en pedidos creados por clientes. Revisar antes de cualquier publicación. La prueba remota de reglas se realiza únicamente contra un emulador con datos ficticios.
+
+Verificación de esta continuación: :app:assembleDebug y :app:testDebugUnitTest completados con BUILD SUCCESSFUL en copia local de los mismos fuentes. 495 pruebas unitarias, 0 fallos, 0 errores y 0 omitidas. Las seis pruebas nuevas cubren tienda, delivery, validaciones, permisos de navegación y recuperación de una respuesta perdida. Siete comprobaciones de permisos de alta pasaron en Firestore Emulator, proyecto demo-vapeon-venta. Pendiente la prueba visual en Android Studio y la aprobación/publicación de las reglas locales, si las reglas remotas restrictivas actuales no admiten la venta en tienda.
+
+## Registro de inversionistas — 19/11/2026
+
+Se incorpora la colección inversionistas, exclusiva del rol ADMIN, con alta, listado paginado, búsqueda, detalle, edición y eliminación confirmada. El modelo conserva nombre o razón social, tipo y número de documento DNI/RUC, teléfono, correo, observaciones y fecha automática de registro. Nombre y documento son obligatorios; los datos de contacto y observaciones son opcionales. Se reutilizan las validaciones existentes de DNI, RUC peruano, teléfono y correo. La búsqueda filtra nombre, documento y correo.
+
+La edición y eliminación usan currentDocument.updateTime para evitar sobrescribir cambios concurrentes. El alta conserva el ID durante los reintentos y puede recuperar una creación cuya respuesta se perdió. El estado se limpia al cambiar de sesión. Los datos se almacenan mediante el cliente REST autenticado existente. Las reglas de acceso ADMIN y validación de campos se preparan en firestore.rules para revisión local antes de publicarlas.
+
+Verificación del CRUD de inversionistas: :app:assembleDebug y :app:testDebugUnitTest completados con BUILD SUCCESSFUL en una copia local con los mismos fuentes. Se ejecutaron 502 pruebas unitarias con 0 fallos, 0 errores y 0 omitidas, incluidas 7 nuevas del CRUD. Firestore Emulator superó 17 comprobaciones con datos ficticios. Pendientes la prueba visual en Android Studio y la revisión/publicación de las reglas locales para inversionistas.

@@ -419,9 +419,6 @@ fun AdminHomeScreen(
                 Button(
                     onClick = {
                         onNuevaVentaClick()
-                        scope.launch {
-                            snackbarHostState.showSnackbar("Módulo de Nueva Venta no disponible")
-                        }
                     },
                     shape = RoundedCornerShape(50),
                     colors = ButtonDefaults.buttonColors(
@@ -481,9 +478,6 @@ fun AdminHomeScreen(
                 Button(
                     onClick = {
                         onInversionistasClick()
-                        scope.launch {
-                            snackbarHostState.showSnackbar("Módulo de Inversionistas no disponible")
-                        }
                     },
                     shape = RoundedCornerShape(50),
                     colors = ButtonDefaults.buttonColors(

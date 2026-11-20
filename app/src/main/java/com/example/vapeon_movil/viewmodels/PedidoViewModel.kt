@@ -356,7 +356,7 @@ class PedidoViewModel(application: Application) : AndroidViewModel(application) 
         guardandoEstado = true
         guardadoEstado = viewModelScope.launch {
             try {
-                val documento = if (nuevoEstado == "ENTREGADO") {
+                val documento = if (nuevoEstado == "ENTREGADO" && detalleAdmin?.origen != "ADMIN") {
                     val original = service.mostrarPedido(pedidoId)
                     require(original.updateTime == detalleAdminUpdateTime) {
                         "El pedido cambió en el servidor. Actualiza antes de continuar."
